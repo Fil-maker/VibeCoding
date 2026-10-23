@@ -126,7 +126,7 @@ Generate on `main` (no product code yet). Command entry is `just` everywhere the
 
 - [x] R0 recon · [x] R1 · [x] R2 · [x] R3 · [x] R4 · [x] R5 · [x] R6 · [x] R7 file plan approved (23.10.2026; generation in a fresh session)
 - [x] docs · [x] framework · [x] CLAUDE.md · [x] rules · [x] agents · [x] scripts and hooks · [x] skills · [x] settings and git hooks (23.10.2026)
-- [x] validated (23.10.2026; see «Validation») · [ ] committed
+- [x] validated (23.10.2026; see «Validation») · [x] committed (23.10.2026, acc3247)
 - After the commit, the user runs `/setup-matt-pocock-skills` once and restarts the desktop app (new PATH for uv, just, prek; new settings and agents load in new sessions).
 
 ## Validation
