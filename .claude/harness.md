@@ -66,6 +66,7 @@ Generate on `main` (no product code yet). Command entry is `just` everywhere the
 | Commit message check | `scripts/check_commit_msg.py` | Conventional Commits enforced by the `commit-msg` hook |
 | Journal guard | `.claude/hooks/protect_journal.py` | Committed notes are append-only (agent hook and git hook) |
 | Sandbox guard | `.claude/hooks/sandbox_guard.py` | `test-writer` cannot read the main checkout (R6-Q4) |
+| Skills config | `.claude/skills-config/` | Where Matt Pocock's skills find the tracker (project docs) and the glossary (`docs/domain.md`) |
 | Settings | `.claude/settings.json` | Foreground agents, journal hook, script permissions, plugins (mattpocock-skills, pyright-lsp, typescript-lsp) |
 | Commands, git hooks | `justfile`, `.pre-commit-config.yaml`, root `pyproject.toml` | `just` entry points (R4-Q2), prek (R4-Q3), harness tooling and the product version |
 
@@ -112,6 +113,10 @@ Generate on `main` (no product code yet). Command entry is `just` everywhere the
 | 23.10.2026 | G-3 | Additions to the R7 plan: `scripts/run_checks.py` (a `just check` that runs every check to the end needs logic PowerShell recipes cannot hold), `scripts/check_commit_msg.py` (the commit-msg hook), sibling modules of the larger scripts (500-line limit) | shell logic in the justfile; a third-party commit-msg hook | needed to meet the spec on Windows | [AI → to review] |
 | 23.10.2026 | G-4 | `check_doc_facts.py` skips existence checks in `docs/plan.md` and `docs/ideas.md`, and on lines that say «planned» or «(task …)» | marking every future name by hand | plan and ideas describe what does not exist yet by design | [AI → to review] |
 | 23.10.2026 | G-5 | `just check` runs only the read-only hygiene hooks; `end-of-file-fixer` and `trailing-whitespace` run at commit | all hooks in check | `check` must stay read-only | [AI → to review] |
+| 23.10.2026 | S-1 | Matt Pocock's skills config lives in `.claude/skills-config/` | `docs/agents/` (skill default) | accepted the recommendation (the docs rule forbids Claude Code setup in `docs/`) | [human] |
+| 23.10.2026 | S-2 | For Matt Pocock's skills the issue tracker is the project docs: `docs/plan.md`, `docs/ideas.md`, `docs/tech-debt.md`; requirements only in OpenSpec | GitHub Issues · local `.scratch/` | accepted the recommendation | [human] |
+| 23.10.2026 | S-3 | No triage labels configured | default triage labels | accepted the recommendation (triage is not part of the workflow) | [human] |
+| 23.10.2026 | S-4 | Matt Pocock's skills read the glossary from `docs/domain.md`, no CONTEXT.md file; ADRs only through `session_facts.py` | a separate CONTEXT.md | accepted the recommendation (one fact, one home) | [human] |
 
 ## Deferred
 

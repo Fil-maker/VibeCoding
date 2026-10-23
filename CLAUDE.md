@@ -111,3 +111,15 @@ IMPORTANT: these are the product's core promises. Never trade them for convenien
   through `/commit`, when the user agrees. Never `--no-verify`, never amend.
 - When compacting, keep the current task id, the change name and branch, the step of the flow, the
   modified files, and the latest check and test results.
+
+## Agent skills
+
+### Issue tracker
+
+Work is tracked in the project docs (`docs/plan.md`, `docs/ideas.md`, `docs/tech-debt.md`), not GitHub
+Issues. See `.claude/skills-config/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: glossary in `docs/domain.md` «Glossary», ADRs in `docs/adr/`; no CONTEXT.md file. See
+`.claude/skills-config/domain.md`.
