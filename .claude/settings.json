@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project python \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect_journal.py\""
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(uv run --no-project python .claude/skills/feature/scripts/change_state.py *)",
+      "Bash(uv run --no-project python .claude/skills/feature/scripts/tdd_sandbox.py *)",
+      "Bash(uv run --no-project python .claude/skills/finish/scripts/task_card.py *)",
+      "Bash(uv run --no-project python .claude/skills/document/scripts/session_facts.py *)",
+      "Bash(uv run --no-project python .claude/skills/document/scripts/doc_plan.py *)",
+      "Bash(uv run --no-project python .claude/skills/commit/scripts/preflight.py *)",
+      "Bash(uv run --no-project python .claude/skills/journal/scripts/session_digest.py *)",
+      "Bash(uv run --no-project python .claude/skills/journal/scripts/check_journal.py *)",
+      "Bash(uv run --no-project python .claude/skills/release/scripts/next_version.py *)",
+      "Bash(uv run --no-project python .claude/skills/test/scripts/run_tests.py *)",
+      "Bash(uv run --no-project python scripts/check_doc_links.py *)",
+      "Bash(uv run --no-project python scripts/check_doc_facts.py *)",
+      "Bash(uv run --no-project python scripts/run_checks.py *)",
+      "Bash(just check)",
+      "Bash(just test)",
+      "Bash(just test-all)",
+      "Bash(openspec list *)",
+      "Bash(openspec show *)",
+      "Bash(openspec status *)",
+      "Bash(openspec validate *)",
+      "Bash(openspec instructions *)"
+    ]
+  },
+  "enabledPlugins": {
+    "mattpocock-skills@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true
+  }
+}

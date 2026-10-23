@@ -1,0 +1,14 @@
+# Journal
+
+Updated 23.10.2026
+
+One note per change: its goal, what was done, the key questions to the AI, decisions with their reasons,
+mistakes and lessons, what remains. Written by `/journal` at `/finish`.
+
+- File name `YYYY-MM-DD-NN-<slug>.md`, NN the next number of that day.
+- Append-only: a committed note is never edited, renamed or deleted; a correction is a new note that links
+  to the old one. A hook and a git hook enforce it.
+- The index below only gets rows appended.
+
+| Date | Note | Task | Change |
+|---|---|---|---|

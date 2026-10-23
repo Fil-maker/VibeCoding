@@ -1,0 +1,28 @@
+# Agent harness: personal state and local settings
+.claude/session/
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Caches and build output
+.cache/
+__pycache__/
+*.py[cod]
+.venv/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+node_modules/
+dist/
+coverage/
+*.log
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
