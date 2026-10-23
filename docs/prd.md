@@ -1,6 +1,8 @@
 # Product requirements
 
-Version 0.1 · 23.10.2026 · **Draft**
+Version 0.2 · 23.10.2026 · **Draft**
+
+Changes in 0.2: stage «0. Skeleton» done by task 0.1.
 
 Changes in 0.1: first draft from the harness interview; everything not said there is TBD.
 
@@ -53,7 +55,7 @@ TBD.
 
 | Stage | Scope | Status |
 |---|---|---|
-| 0. Skeleton | The application starts locally: backend, SPA, database | 💭 idea |
+| 0. Skeleton | The application starts locally: backend, SPA, database | ✅ done |
 | 1. First assessment | TBD | 💭 idea |
 
 ## Metrics

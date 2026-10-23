@@ -1,0 +1,62 @@
+# Dev environment: database, backend and SPA with live reload. Start with `just dev`.
+# Secrets and the host port come from .env (template: .env.example).
+name: vibecoding
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_USER}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_USER}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    working_dir: /app/backend
+    command: sh -c "alembic upgrade head && uvicorn app.main:create_app --factory --reload --host 0.0.0.0 --port 8000"
+    environment:
+      # The container reaches the database by the service name, not localhost.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_USER}
+      # File events do not cross the Windows bind mount.
+      WATCHFILES_FORCE_POLLING: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+      - backend-venv:/opt/venv
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: node:24
+    working_dir: /app/frontend
+    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm exec vite --host 0.0.0.0"
+    environment:
+      # Vite proxies /api to the backend service; the polling watcher serves the bind mount.
+      VITE_PROXY_TARGET: http://backend:8000
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app/frontend
+      - frontend-node-modules:/app/frontend/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  db-data:
+  backend-venv:
+  frontend-node-modules:

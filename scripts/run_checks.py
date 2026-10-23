@@ -2,9 +2,9 @@
 
 Why: one command that reports each check as ``PASS``/``FAIL <name>`` with the failing output
 trimmed, so an agent sees everything that is broken at once. Warnings fail. Backend and
-frontend checks run only when those parts exist. The in-place fixers (end-of-file,
-trailing whitespace) are not run here because they would modify files; the commit hook runs
-them. Exit 1 if any check failed.
+frontend checks (including that the generated API client is fresh) run only when those parts
+exist. The in-place fixers (end-of-file, trailing whitespace) are not run here because they
+would modify files; the commit hook runs them. Exit 1 if any check failed.
 """
 
 from __future__ import annotations
@@ -84,6 +84,11 @@ def product_checks() -> list[Check]:
             Check("frontend-lint", [pnpm, "--dir", "frontend", "lint", "--max-warnings", "0"]),
             Check("frontend-typecheck", [pnpm, "--dir", "frontend", "typecheck"]),
             Check("frontend-format", [pnpm, "--dir", "frontend", "format:check"]),
+            Check(
+                "frontend-api-client",
+                uv("run", "--no-project", "python", "scripts/api_client.py", ".", "check"),
+                required_file="scripts/api_client.py",
+            ),
         ]
     return checks
 

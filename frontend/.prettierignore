@@ -1,0 +1,5 @@
+node_modules
+dist
+pnpm-lock.yaml
+src/api/generated
+src/api/openapi.json

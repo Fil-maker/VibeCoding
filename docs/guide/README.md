@@ -7,12 +7,19 @@ each opens with **Code** (paths), **Requirements** (FRs and their spec), **Desig
 sections), **Related** (sibling articles). Articles explain and link; facts stay in
 [architecture.md](../architecture.md) and [tech.md](../tech.md).
 
+## Articles
+
+| Article | What is in it |
+|---|---|
+| [backend.md](backend.md) | The backend: app entry, OpenAPI export, modules layout, migrations, integration tests |
+| [frontend.md](frontend.md) | The SPA: entry and providers, the API client and its regeneration, query client, health page, styles and tokens, tests |
+
 ## You change → read
 
 | You change | Read |
 |---|---|
-
-No articles yet: the first ones come with task 0.1.
+| `backend/**` | [backend.md](backend.md) |
+| `frontend/**` | [frontend.md](frontend.md) |
 
 ## Where a newcomer starts
 

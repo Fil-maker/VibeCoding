@@ -1,5 +1,5 @@
 # Git hooks, run by prek (pre-commit compatible). Install: `prek install` (done once per clone).
-# Backend and frontend hooks (ruff in backend/, eslint, prettier, tsc) are added by task 0.1.
+# Backend hooks (ruff, pyright in backend/) and frontend hooks (ESLint, Prettier, tsc) run on the whole part.
 default_install_hook_types: [pre-commit, commit-msg]
 
 repos:
@@ -7,6 +7,8 @@ repos:
     hooks:
       - id: check-added-large-files
       - id: check-yaml
+        # Reason: pnpm 12 writes frontend/pnpm-lock.yaml as two YAML documents.
+        args: [--allow-multiple-documents]
       - id: check-toml
       - id: check-merge-conflict
       - id: end-of-file-fixer
@@ -58,3 +60,39 @@ repos:
         entry: uv run --no-project python scripts/check_commit_msg.py
         language: system
         stages: [commit-msg]
+      - id: backend-ruff-check
+        name: ruff check (backend)
+        entry: uv run --directory backend ruff check --fix .
+        language: system
+        files: ^backend/.*\.py$
+        pass_filenames: false
+      - id: backend-ruff-format
+        name: ruff format (backend)
+        entry: uv run --directory backend ruff format .
+        language: system
+        files: ^backend/.*\.py$
+        pass_filenames: false
+      - id: backend-pyright
+        name: pyright (backend)
+        entry: uv run --directory backend pyright
+        language: system
+        files: ^backend/.*\.py$
+        pass_filenames: false
+      - id: frontend-eslint
+        name: eslint (frontend)
+        entry: pnpm --dir frontend lint --max-warnings 0
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js)$
+        pass_filenames: false
+      - id: frontend-prettier
+        name: prettier (frontend)
+        entry: pnpm --dir frontend format
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+      - id: frontend-tsc
+        name: tsc (frontend)
+        entry: pnpm --dir frontend typecheck
+        language: system
+        files: ^frontend/.*\.(ts|tsx)$
+        pass_filenames: false

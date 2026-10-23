@@ -1,8 +1,8 @@
 # VibeCoding
 
 An app that analyses the sentiment of emails, so that nobody has to form an opinion of a counterparty by
-hand. For the employees of an organization and its administrator. Stage: idea, no code yet; task 0.1
-creates the application skeleton.
+hand. For the employees of an organization and its administrator. Stage: the application skeleton is built
+by task 0.1; no product features yet.
 
 Talk to the user in Russian.
 
@@ -49,25 +49,30 @@ applies before editing.
 ## Commands
 
 ```bash
-just setup     # install the tooling and the git hooks
-just check     # read-only: every check to the end, incl. doc links and facts; fails on warnings
-just format    # autofix formatting and lint
-just test      # unit tests
-just test-all  # unit and database tests
+just setup       # install the tooling and the git hooks
+just dev         # start the dev stack in Docker (database, backend, SPA) with live reload
+just db          # start only the database, detached, and wait until it is healthy
+just check       # read-only: every check to the end, incl. doc links and facts; fails on warnings
+just format      # autofix formatting and lint
+just test        # unit tests
+just test-db     # database tests
+just test-all    # unit and database tests
+just api-client  # regenerate the SPA's API client from the backend's OpenAPI schema
 ```
 
-`just dev`, `just db`, `just test-db` are planned (task 0.1). Python scripts run as
+Python scripts run as
 `uv run --no-project python <script> . <command>`; there is no `python3` on this machine.
 
 ## Architecture in brief
 
-All of it is planned (task 0.1 creates it):
+Task 0.1 has built the skeleton:
 
-- Backend: FastAPI (Python) in `backend/` (planned), modules `backend/app/modules/<module>/` with
-  router → service → domain logic and repository; platform code in `backend/app/platform/` (planned).
-- SPA: React + TypeScript (Vite) in `frontend/` (planned), UI in Russian; talks to the backend only
-  through the client generated from the OpenAPI schema (`frontend/src/api/generated/`, planned).
-- PostgreSQL in Docker; SQLAlchemy models, Alembic migrations.
+- Backend: FastAPI (Python) in `backend/`, modules `backend/app/modules/<module>/` with
+  router → service → domain logic and repository; platform code in `backend/app/platform/`. The health module is the first.
+- SPA: React + TypeScript (Vite) in `frontend/`, UI in Russian; talks to the backend only
+  through the client generated from the OpenAPI schema (`frontend/src/api/generated/`).
+- PostgreSQL in Docker (`docker-compose.yml`); the SQLAlchemy declarative base and Alembic are set up, with an
+  empty baseline revision and no models yet.
 - The mailbox reader and the analysis engine are not chosen yet (`docs/ideas.md` «Analysis engine»).
 - Details: `docs/architecture.md`.
 

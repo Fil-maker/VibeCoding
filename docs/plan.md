@@ -1,6 +1,8 @@
 # Plan
 
-Version 0.1 · 23.10.2026
+Version 0.2 · 23.10.2026
+
+Changes in 0.2: task 0.1 «Application skeleton» done.
 
 Changes in 0.1: task 0.1 «Application skeleton».
 
@@ -14,10 +16,10 @@ Changes in 0.1: task 0.1 «Application skeleton».
 
 ## Tasks
 
-| # | Task | FR | Done when |
-|---|---|---|---|
-| 0.1 | **Application skeleton.** FastAPI backend, React SPA and PostgreSQL start together with one command; technical change, no specs (`skip_specs`) | — | `just dev` starts the database, the backend and the SPA. The SPA page shows the backend's health status, in Russian, read through the generated API client. `just check` and `just test-all` pass with the backend and frontend checks included. |
+None yet.
 
 ## Done
 
-None yet.
+| # | Task | FR | Done when |
+|---|---|---|---|
+| 0.1 | **Application skeleton.** FastAPI backend, React SPA and PostgreSQL start together with one command; technical change, no specs (`skip_specs`) | — | `just dev` starts the database, the backend and the SPA. The SPA page shows the backend's health status, in Russian, read through the generated API client. `just check` and `just test-all` pass with the backend and frontend checks included. |
