@@ -80,7 +80,13 @@ def parse_pytest(output: str, requested: list[str]) -> list[TestResult]:
     """Results from `pytest -q -rA` short summary lines."""
     results: list[TestResult] = []
     errors = pytest_errors(output)
+    in_summary = False
     for line in output.splitlines():
+        if re.match(r"=+ short test summary info =+$", line.strip()):
+            in_summary = True
+            continue
+        if not in_summary:
+            continue  # captured log lines above the summary also start with ERROR
         match = re.match(r"(PASSED|FAILED|ERROR|SKIPPED)\s+(.*)$", line)
         if not match:
             continue

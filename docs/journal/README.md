@@ -14,3 +14,4 @@ mistakes and lessons, what remains. Written by `/journal` at `/finish`.
 |---|---|---|---|
 | 23.10.2026 | [Application skeleton](2026-10-23-01-0-1-application-skeleton.md) | 0.1 | 0-1-application-skeleton |
 | 27.10.2026 | [Sign-in and organization](2026-10-27-01-0-2-sign-in-and-organization.md) | 0.2 | 0-2-sign-in-and-organization |
+| 27.10.2026 | [Fix of the harness: sandbox close and CRLF](2026-10-27-02-fix-harness-close-and-crlf.md) | - | fix-harness-close-and-crlf |

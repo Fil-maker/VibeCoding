@@ -126,6 +126,7 @@ Generate on `main` (no product code yet). Command entry is `just` everywhere the
 - Procedural skills (`db-migration`, `contract-change`) — add one when its procedure has repeated twice.
 - Formatter-after-edit hook — prek formats at commit; add it if unformatted code keeps reaching review.
 - pstack — not chosen in R2-Q2.
+- Test-file splits in `tdd_sandbox.py close` — it refuses any deleted test file, so splitting one file into several needs a manual step; allow the deletion when every test name of the deleted file is found in the new files (decided 27.10.2026, `fix/harness-close-and-crlf`).
 
 ## Bootstrap status
 

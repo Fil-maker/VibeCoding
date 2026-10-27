@@ -164,7 +164,7 @@ def run_suite(project: Path, suite: Suite) -> bool:
     log = res.stdout + ("\n" + res.stderr if res.stderr else "")
     logdir = project / ".cache/tests"
     logdir.mkdir(parents=True, exist_ok=True)
-    (logdir / f"{suite.name}.log").write_text(log, encoding="utf-8")
+    (logdir / f"{suite.name}.log").write_text(log, encoding="utf-8", newline="\n")
     summary, fails = summarise(log)
     status = "PASSED" if res.returncode == 0 else "FAILED"
     sys.stdout.write(f"{suite.name}: {status} - {summary} (log: .cache/tests/{suite.name}.log)\n")

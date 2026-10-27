@@ -76,7 +76,11 @@ def load_registry(root: Path) -> dict[str, dict[str, Any]]:
 def save_registry(root: Path, boxes: dict[str, dict[str, Any]]) -> None:
     """Write the registry."""
     path = registry_path(root)
-    path.write_text(json.dumps({"sandboxes": boxes}, indent=2, ensure_ascii=False), "utf-8")
+    path.write_text(
+        json.dumps({"sandboxes": boxes}, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+        newline="\n",
+    )
 
 
 def skip_path(rel: str) -> bool:

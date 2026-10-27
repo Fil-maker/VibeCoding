@@ -79,7 +79,7 @@ def setup_database(root: Path, sandbox: Path, name: str) -> dict[str, Any] | Non
     text = re.sub(
         r"^(\s*TEST_DATABASE_URL\s*=).*$", lambda m: m.group(1) + new_url, text, flags=re.M
     )
-    (sandbox / ".env").write_text(text, encoding="utf-8")
+    (sandbox / ".env").write_text(text, encoding="utf-8", newline="\n")
     sys.stdout.write(
         f"Database: created {new_db}; the sandbox .env points TEST_DATABASE_URL at it\n"
     )

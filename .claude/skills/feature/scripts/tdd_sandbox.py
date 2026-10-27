@@ -201,7 +201,7 @@ def tick_groups(tasks: Path, groups: list[int]) -> int:
             lines[i] = line.replace("[ ]", "[x]", 1)
             ticked += 1
     if ticked:
-        tasks.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        tasks.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     return ticked
 
 

@@ -106,5 +106,7 @@ def save(root: Path, draft: Draft) -> None:
     path = draft_file(root)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps(asdict(draft), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        json.dumps(asdict(draft), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+        newline="\n",
     )
