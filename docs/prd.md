@@ -1,6 +1,8 @@
 # Product requirements
 
-Version 0.2 · 23.10.2026 · **Draft**
+Version 0.3 · 27.10.2026 · **Draft**
+
+Changes in 0.3: task 0.2 «Sign-in and organization» done in stage «0. Skeleton».
 
 Changes in 0.2: stage «0. Skeleton» done by task 0.1.
 
@@ -55,7 +57,7 @@ TBD.
 
 | Stage | Scope | Status |
 |---|---|---|
-| 0. Skeleton | The application starts locally: backend, SPA, database | ✅ done |
+| 0. Skeleton | The application starts locally: backend, SPA, database; organizations, sign-in, invitations and members | ✅ done |
 | 1. First assessment | TBD | 💭 idea |
 
 ## Metrics

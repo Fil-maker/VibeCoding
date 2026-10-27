@@ -20,30 +20,17 @@ the first `/explore`.
 
 ## Access
 
-### Sign-in and organization
+### Account settings
 
-Added 23.10. An organization registers itself, and the person who registers it becomes its first
-administrator. One installation serves many organizations. The administrator invites employees by an
-invitation email the app sends through SMTP; an employee joins only by invitation, never by the domain
-of their address. Users sign in with email and password and reset a forgotten password by email in the
-same task. Why: the owner filter of the access boundary needs real users and organizations before a
-mailbox can belong to anyone; a built-in stub user would mean reworking the filter in every query later.
+Added 23.10. What a signed-in user and an administrator may change after task 0.2: change the password
+and the email while signed in, edit the name, delete a user or an organization, two-factor
+authentication, a per-IP limit on sign-in and registration. Why: task 0.2 covers only joining, signing
+in and resetting a forgotten password; these were left out to keep it shippable.
 
-Decided in the explore session:
-- Data is filtered on two levels: by organization, then by owner within it; organization A never sees B.
-- An invitation is single-use, expires, can be revoked; only an administrator invites.
-- When SMTP fails, the invitation stays «not sent» and can be sent again; dev uses a local mail catcher,
-  tests a fake sender.
-- Passwords are stored as a slow hash; sign-in attempts are limited.
-- Service emails of the app do not touch the «Mailbox read-only» invariant, which is about the users'
-  mailboxes; say so explicitly in `docs/domain.md`.
+**Open:** which of them the first customers need; what deleting a user does to their correspondence
+(«History is kept»).
 
-**Open:** can one email belong to two organizations; is the email of the person who registers an
-organization confirmed; can an administrator appoint another administrator and deactivate an employee;
-sign-in with Yandex ID later.
-
-**Touches:** invariants «Access boundary» and «History is kept» (the administrator sees all of the
-organization) — a new direction. Comes before «Mailbox connection».
+**Touches:** invariant «History is kept» for deletion; «Access boundary» for the email change.
 
 ## Mailbox
 

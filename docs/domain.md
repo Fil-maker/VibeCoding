@@ -1,10 +1,13 @@
 # Domain
 
-Version 0.1 · 23.10.2026
+Version 0.2 · 27.10.2026
+
+Changes in 0.2: requirements map of task 0.2; glossary terms Member, Invitation, Session; service
+emails and stored secrets in «Data and privacy».
 
 Changes in 0.1: skeleton; terms from the harness interview.
 
-Last FR number: FR-0
+Last FR number: FR-20
 
 ## Contents
 
@@ -21,8 +24,11 @@ Capability → its spec and FR numbers. A new FR number also goes into «Last FR
 
 | Capability | Spec | FR |
 |---|---|---|
-
-No capabilities are specified yet.
+| organization-registration | [spec](../openspec/specs/organization-registration/spec.md) | FR-1…FR-3 |
+| sign-in | [spec](../openspec/specs/sign-in/spec.md) | FR-4…FR-8 |
+| invitations | [spec](../openspec/specs/invitations/spec.md) | FR-9…FR-12 |
+| organization-members | [spec](../openspec/specs/organization-members/spec.md) | FR-13…FR-16 |
+| access-boundary | [spec](../openspec/specs/access-boundary/spec.md) | FR-17…FR-20 |
 
 ## Glossary
 
@@ -36,6 +42,9 @@ No capabilities are specified yet.
 | Correspondence | The emails between the organization and a counterparty |
 | Assessment | The sentiment of a counterparty computed from the correspondence, with its evidence |
 | Evidence | The emails and phrases an assessment rests on |
+| Member | A confirmed user of an organization: an administrator or an employee, active or deactivated |
+| Invitation | An emailed single-use link, valid 7 days, with which an administrator lets a person join the organization as an employee |
+| Session | The signed-in state of a user in one browser; ends at sign-out, after its lifetime, on deactivation or on a password reset |
 | Analysis model | The engine and its version that computes an assessment; shown with the result |
 
 TBD: how a counterparty is identified (address, domain, company).
@@ -48,6 +57,10 @@ TBD.
 
 - Email text and metadata are read from the mailbox and stored by the app; the mailbox is never changed.
 - Email text leaves the app for a third-party service only after the administrator's consent.
+- The app sends its own service emails (confirmation, invitation, password reset) through its own SMTP
+  account, never through a connected mailbox, so the mailbox stays read-only.
+- A user record keeps the name, the email and a password hash; links and sessions are stored only as
+  hashes of their tokens.
 - TBD: retention, deletion of a mailbox and its data.
 
 ## Non-functional notes

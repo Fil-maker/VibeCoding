@@ -1,0 +1,95 @@
+.panel {
+  max-width: var(--size-content-width);
+  margin: var(--space-5) auto;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: var(--size-border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.wide {
+  max-width: var(--size-wide-content-width);
+}
+
+.heading {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-heading);
+}
+
+.subheading {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--font-size-subheading);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.input {
+  padding: var(--space-2);
+  border: var(--size-border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  font: inherit;
+}
+
+.button {
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-3);
+  border: var(--size-border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.button:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.links {
+  display: flex;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-danger);
+}
+
+.notice {
+  margin: 0 0 var(--space-3);
+  color: var(--color-ok);
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: var(--space-2);
+  border-bottom: var(--size-border-width) solid var(--color-border);
+  text-align: left;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

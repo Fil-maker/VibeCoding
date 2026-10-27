@@ -9,6 +9,7 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
 
 WORKDIR /app/backend
 
-# Bake the locked dependencies; the named venv volume starts from them (rebuild: up --build).
+# Bake the locked dependencies; the named venv volume starts from them,
+# and the compose command re-syncs it at every start, so later dependencies arrive too.
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --frozen --no-install-project

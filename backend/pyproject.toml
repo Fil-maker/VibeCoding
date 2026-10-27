@@ -11,6 +11,8 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.1,<2.2",
     "psycopg[binary]>=3.3,<3.4",
     "alembic>=1.20,<1.21",
+    "argon2-cffi>=25,<26",
+    "aiosmtplib>=5,<6",
 ]
 
 [dependency-groups]
@@ -32,6 +34,8 @@ extend-exclude = ["migrations/versions"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "PL", "PTH", "T20", "C90", "TID", "ASYNC"]
+# The UI and the spec quotes are Russian: Cyrillic letters are text, not look-alikes of Latin ones.
+allowed-confusables = ["А", "Б", "В", "Г", "Д", "Е", "Ж", "З", "И", "Й", "К", "Л", "М", "Н", "О", "П", "Р", "С", "Т", "У", "Ф", "Х", "Ц", "Ч", "Ш", "Щ", "Ъ", "Ы", "Ь", "Э", "Ю", "Я", "а", "б", "в", "г", "д", "е", "ж", "з", "и", "й", "к", "л", "м", "н", "о", "п", "р", "с", "т", "у", "ф", "х", "ц", "ч", "ш", "щ", "ъ", "ы", "ь", "э", "ю", "я", "Ё", "ё"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/test_*.py" = ["PLR2004"]

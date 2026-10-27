@@ -26,7 +26,14 @@ class FakeRepository:
 
 def build_app(repository: HealthRepository) -> FastAPI:
     """Build the app with `get_health_repository` overridden to yield `repository`; no database."""
-    app = create_app(Settings(database_url="postgresql+psycopg://u:p@localhost/db"))
+    app = create_app(
+        Settings(
+            database_url="postgresql+psycopg://u:p@localhost/db",
+            app_base_url="http://localhost:5173",
+            mail_from="noreply@vibecoding.test",
+            smtp_host="localhost",
+        )
+    )
 
     async def fake() -> AsyncIterator[HealthRepository]:
         """Yield the fake repository in place of the SQL one."""

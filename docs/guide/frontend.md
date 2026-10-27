@@ -1,17 +1,24 @@
 # Frontend
 
-Updated 23.10.2026
+Updated 27.10.2026
 
 **Code:** `frontend/src/`, `frontend/index.html`, `frontend/vite.config.ts`, `frontend/package.json`,
 `frontend/tsconfig.json`, `frontend/eslint.config.js`, `frontend/.prettierrc.json`, `frontend/.prettierignore`.
+The tests are `frontend/src/App.*.test.tsx`, `frontend/src/features/health/HealthStatus.test.tsx` and `frontend/src/test/`.
 
-**Requirements:** none. Task 0.1 is a technical change without specs ([ADR 0004](../adr/0004-task-0-1-runs-as-a.md)).
+**Requirements:** the pages and guards carry out [FR-1 … FR-3](../../openspec/specs/organization-registration/spec.md) registration,
+[FR-4 … FR-8](../../openspec/specs/sign-in/spec.md) sign-in and password reset,
+[FR-9 … FR-12](../../openspec/specs/invitations/spec.md) invitations,
+[FR-13 … FR-16](../../openspec/specs/organization-members/spec.md) members, and
+[FR-17 … FR-20](../../openspec/specs/access-boundary/spec.md) the access boundary. The health page has no requirement:
+task 0.1 is a technical change without specs ([ADR 0004](../adr/0004-task-0-1-runs-as-a.md)).
 
 **Design:** [Components and processes](../architecture.md#components-and-processes),
-[Repository structure](../architecture.md#repository-structure), [Routes and API](../architecture.md#routes-and-api),
-[Stack](../tech.md#stack), [Environment variables](../tech.md#environment-variables).
+[Repository structure](../architecture.md#repository-structure), [Routes and API](../architecture.md#routes-and-api)
+(the SPA route table), [Stack](../tech.md#stack), [Environment variables](../tech.md#environment-variables).
 
-**Related:** [Backend](backend.md).
+**Related:** [Auth and accounts](auth.md) for the backend side of sign-in, sessions, invitations and members;
+[Backend](backend.md).
 
 ## Entry and providers
 
@@ -19,10 +26,86 @@ Updated 23.10.2026
   the module script `/src/main.tsx`.
 - `frontend/src/main.tsx` finds `#root`, throws when it is missing, and renders `<App />` inside `StrictMode`.
   It imports the design tokens (`frontend/src/styles/tokens.css`) once, so every component gets them.
-- `frontend/src/App.tsx` is the root component. Its only provider is `QueryClientProvider`; it renders the
-  health page `HealthStatus`. There is no router and no other provider yet.
-- The query client is created once, at module load of `App.tsx`, with `createQueryClient()`, and lives for the
-  whole page.
+- `frontend/src/App.tsx` is the root component. From outside in it renders `QueryClientProvider`, `BrowserRouter`,
+  `AuthProvider` and then `Routes`. See [Routing](#routing).
+- `App` takes an optional `queryClient` prop. It defaults to the page's query client, which is created once, at
+  module load of `App.tsx`, with `createQueryClient()` (see [Query client](#query-client)). Tests pass their own.
+
+## Routing
+
+- The SPA uses react-router 7 in declarative mode: `BrowserRouter`, `Routes`, `Route`, `Navigate` and `Outlet`
+  ([ADR 0015](../adr/0015-spa-routing-with-react-router-7.md)).
+- The paths and who sees each page are in [Routes and API](../architecture.md#routes-and-api), under «SPA routes».
+  This article covers how `App.tsx` nests them:
+  - `RequireGuest` wraps the pages for a signed-out visitor: registration, sign-in and the password reset request.
+  - `RequireUser` wraps the start page. Inside it, `RequireAdmin` wraps the members page.
+  - The pages that take their token from the link (email confirmation, new password, invitation), the health page
+    and the catch-all route stay outside the guards.
+- The catch-all route shows `NotFoundPage`.
+
+## Auth state
+
+`frontend/src/features/auth/AuthProvider.tsx` is the one place that knows who is signed in.
+
+- It reads `GET /api/v1/auth/me` through `apiClient` under the query key `['auth', 'me']`, with `retry: false`.
+  A 401 answer means signed out. Any other failure is the error state.
+- `useAuth()` returns `state` and `setSession`. `state.status` is `loading`, `error`, `signedOut`, or `signedIn`
+  with the signed-in `me`. `useAuth()` throws when it is used outside the provider.
+- `setSession(me)` records the user that sign-in, email confirmation or invitation acceptance returned.
+  `setSession(null)` is the sign-out. On sign-out it removes every cached query except the auth one, so nothing
+  of the previous user stays in the cache.
+- `isAdministrator(me)` is the one check of the signed-in user's role. Guards and pages call it. The members table compares a listed member's role only to pick the label of the role button.
+- `useRefreshSession()` returns a function that re-reads `GET /api/v1/auth/me`. The members sections call it when a
+  request was refused as `not_signed_in`, for example after the account was disabled.
+- The SPA never reads the session cookie `vc_session`: it is HttpOnly ([ADR 0012](../adr/0012-sessions-are-stored-server-side-in.md)),
+  so the SPA learns who is signed in only from `/auth/me`. The server side is in
+  [Sign-in, the lock and sessions](auth.md#sign-in-the-lock-and-sessions).
+
+## Route guards
+
+`frontend/src/features/auth/guards.tsx` holds the three guards. While the auth state is `loading`, `RequireUser` and
+`RequireGuest` show the waiting panel with the title `VibeCoding` and the text `Загрузка…`. In the `error` state they show
+the same panel with `Сервер не отвечает` as an alert. `RequireAdmin` has no loading branch: it sits under `RequireUser`.
+
+- `RequireUser`: a signed-out visitor goes to `/sign-in?next=…`, where `next` is the URL-encoded path and query they
+  asked for. A signed-in user gets the nested routes.
+- `RequireAdmin`: a signed-in employee gets `NotFoundPage` at the same address, not a redirect, so the page looks
+  the same as one that does not exist. It is mounted under `RequireUser`.
+- `RequireGuest`: a signed-in user goes to `next`, or to `/` when there is none. `safeNext` accepts only a path of
+  this site: it must start with `/` and not with `//`.
+
+## Pages
+
+Each page is a function component in its feature folder. Its texts are Russian and written in the component.
+Every page is a `Panel` whose `title` is its `h1`.
+
+| Page (title) | File | What it does |
+|---|---|---|
+| «Регистрация» | `frontend/src/features/auth/RegisterPage.tsx` | Posts the organization name, name, email and password. Shows the confirmation text with the email, or the mail-failure text when the mail did not go out. The link in the email signs the registrant in. |
+| «Подтверждение email» | `frontend/src/features/auth/ConfirmEmailPage.tsx` | Posts the token from the link once, on arrival, then calls `setSession` and goes to `/`. Without a token it shows `Ссылка недействительна или устарела`. |
+| «Вход» | `frontend/src/features/auth/SignInPage.tsx` | Posts email and password, then `setSession`; `RequireGuest` takes the user on. Links «Забыли пароль?» and «Регистрация». |
+| «Восстановление пароля» | `frontend/src/features/auth/ForgotPasswordPage.tsx` | Posts the email. The answer is the same text for every email. |
+| «Новый пароль» | `frontend/src/features/auth/ResetPasswordPage.tsx` | Takes the token from the link, posts it with the new password and shows `Пароль изменён. Теперь можно войти` with a link to «Вход». Without a token it shows the invalid-link text. |
+| «Приглашение» | `frontend/src/features/invitations/InvitationPage.tsx` | Loads the preview of the token (organization and email), then posts name and password to accept. On success it calls `setSession` and goes to `/`. |
+| «VibeCoding» (start page) | `frontend/src/features/home/StartPage.tsx` | Shows the signed-in user's name and organization, a link «Участники» for an administrator, and «Выйти», which ends the session and calls `setSession(null)`. |
+| «Участники» | `frontend/src/features/members/MembersPage.tsx` | A wide panel with two sections: `MembersSection` («Члены организации») and `InvitationsSection` («Приглашения»). |
+| «Состояние сервиса» | `frontend/src/features/health/HealthStatus.tsx` | The health page; see [Health feature](#health-feature). |
+| «Страница не найдена» | `frontend/src/components/NotFoundPage.tsx` | See [Components](#components). |
+
+The members page, in detail:
+
+- The members table has the columns `Имя`, `Email`, `Роль`, `Состояние` and `Действия`. The role shows `Администратор` or
+  `Сотрудник`; the state shows `Активен` or `Отключён`.
+- Each member has two actions: the state action «Отключить» or «Включить» (deactivate or reactivate), and the role action
+  «Сделать администратором» or «Сделать сотрудником» (role change). Every action re-reads the members list.
+- The invitations table has the columns `Email`, `Дата отправки`, `Статус` and `Действия`. The statuses are `Отправлено`,
+  `Не отправлено`, `Принято`, `Отозвано` and `Истекло`. «Отправить ещё раз» and «Отозвать» are offered only for an
+  open invitation (`sent` or `not_sent`). «Пригласить» posts the invite form. Dates are formatted with `Intl` for `ru-RU`.
+- Both lists load 100 rows per page through `useInfiniteQuery` (`['members']`, `['invitations']`), with «Показать ещё»
+  for the next page.
+
+Forms carry no client-side rules. Each `<form>` has `noValidate`, so the server decides; the per-field messages of
+the answer show under their fields (see [Errors and messages](#errors-and-messages)).
 
 ## API client
 
@@ -34,9 +117,10 @@ Server data reaches the SPA only through the generated client; components never 
 - The `fetch` option calls `globalThis.fetch` on each call. The code comment in `client.ts` gives the reason:
   tests can replace the global `fetch`.
 - A call looks like `apiClient.GET('/api/v1/health')`. It returns `{ data, error }`; `data` is undefined on a
-  non-2xx answer. A network failure throws from `fetch`. Both end in the query's error state, which the page
-  shows as «Сервер не отвечает».
-- Schema types come from `components['schemas'][...]`, for example `HealthStatus` in `frontend/src/features/health/useHealth.ts`.
+  non-2xx answer. Wrap the call in `unwrap(...)` to get the data or throw an `ApiError`; `unwrapEmpty(...)` does the
+  same for answers without a body (202, 204). A network failure throws from `fetch`.
+- Schema types come from `components['schemas'][...]`, for example `Me` in `AuthProvider.tsx` and `HealthStatus`
+  in `frontend/src/features/health/useHealth.ts`.
 
 ### How the client is regenerated
 
@@ -56,16 +140,70 @@ After a route changes in the backend, run `just api-client`, commit the two file
 new paths through `apiClient`. `frontend/.prettierignore` skips `frontend/src/api/generated` and `frontend/src/api/openapi.json`;
 `eslint.config.js` skips `src/api/generated`. The generated code is therefore neither formatted nor linted.
 
+## Errors and messages
+
+- `ApiError` (`frontend/src/api/request.ts`) carries `code`, `status`, `fields` and the Russian `message`. It is built
+  from the error body `{"error": {"code", "message", "fields"}}`; `fields` is optional and maps a field name to its
+  message. An answer without that shape, or no answer, becomes an `ApiError` with the code `unknown` and the text
+  `Сервер не отвечает`.
+- `errorMessage(error)` gives the message to show, `fieldErrors(error)` gives the per-field messages by name, and
+  `isNotSignedIn(error)` tells a refusal for a missing or ended session (code `not_signed_in`).
+- `ErrorAlert` shows `errorMessage` in an alert and renders nothing without an error. `FormField`'s `error` prop
+  shows one field's message under its input and sets `aria-invalid` and `aria-describedby`.
+- `frontend/src/messages.ts` holds the texts the server does not send. Every other text on an error comes from the
+  server's `message`.
+
+| Constant | Text |
+|---|---|
+| `SERVER_UNAVAILABLE_MESSAGE` | `Сервер не отвечает` |
+| `LOADING_MESSAGE` | `Загрузка…` |
+| `INVALID_LINK_MESSAGE` | `Ссылка недействительна или устарела` |
+| `INVALID_INVITATION_MESSAGE` | `Приглашение недействительно или устарело` |
+| `REGISTRATION_MAIL_FAILED_MESSAGE` | `Не удалось отправить письмо. Попробуйте зарегистрироваться ещё раз позже` |
+| `INVITATION_MAIL_FAILED_MESSAGE` | `Не удалось отправить письмо. Попробуйте отправить ещё раз` |
+| `PASSWORD_RESET_REQUESTED_MESSAGE` | `Если такой email зарегистрирован, мы отправили на него ссылку для сброса пароля` |
+| `PASSWORD_CHANGED_MESSAGE` | `Пароль изменён. Теперь можно войти` |
+| `NOT_FOUND_TITLE` | `Страница не найдена` |
+| `confirmationSentMessage(email)` | `Мы отправили письмо со ссылкой для подтверждения на {email}` |
+
 ## Query client
 
 - `frontend/src/api/queryClient.ts` exports `createQueryClient()`, which returns a TanStack Query `QueryClient`
   with one retry for queries (`QUERY_RETRIES = 1`). The code comment in `queryClient.ts` gives the reason: a missing
   backend is reported within seconds instead of after the library's default backoff.
-- Queries are wrapped in one hook per feature, for example `useHealth()`. Components use the hook, not the client.
+- The auth query, the members and invitations lists, and the invitation preview set `retry: false` themselves.
+- Queries are wrapped in one hook per feature. `useHealth()` is in its own file, `frontend/src/features/health/useHealth.ts`. The
+  members and invitations hooks, `useMembers()` and `useInvitations()`, are not exported: they live inside
+  `MembersSection.tsx` and `InvitationsSection.tsx`. Components use the hook, not the client.
+
+## Components
+
+`frontend/src/components/` holds the shared pieces. Each one takes its look from `ui.module.css`.
+
+- `Panel` is the page card: a `<main>` with the title as its only `<h1>`. `wide` widens it to `--size-wide-content-width`.
+- `FormField` is a labelled input (`type` `text`, `email` or `password`). It is uncontrolled: the form reads the values
+  from `FormData`. Its label and its message are linked through `useId`.
+- `ErrorAlert` is the `role="alert"` paragraph that shows a request's error.
+- `NotFoundPage` is a `Panel` titled `Страница не найдена` with the link «На главную» to `/`.
+- `formData.ts` exports `formValue(data, name)`, which reads a text field of a submitted form; a missing field counts
+  as empty.
+- `ui.module.css` holds the shared classes: `panel`, `wide`, `heading`, `subheading`, `form`, `field`, `input`,
+  `button`, `links`, `error`, `notice`, `muted`, `table` and `actions`. They use only tokens.
+
+## Link tokens
+
+Email confirmation, password reset and invitation links carry their token in the URL fragment: `#token=…`.
+
+- `frontend/src/urlToken.ts` exports `readFragmentToken(hash)`, which returns the token or `null` when it is missing or empty.
+  The code comment in `urlToken.ts` gives the reason: a fragment never reaches server logs.
+- The SPA sends a token in the body of a POST. `ConfirmEmailPage` posts the confirmation token once, on arrival: it keeps
+  a ref so that it posts only once, because the link is single-use. The reset token is posted once per submit of the
+  new-password form. The invitation token is posted twice: to `/api/v1/invitations/preview` to load the organization and
+  email, and to `/api/v1/invitations/accept` on submit.
 
 ## Health feature
 
-The page «Состояние сервиса» is the only feature. It is in `frontend/src/features/health/`:
+The page «Состояние сервиса» at `/health` shows the state of the server and the database. It is in `frontend/src/features/health/`:
 
 | File | What it does |
 |---|---|
@@ -94,9 +232,11 @@ replaces the list; the last successful answer is not kept on screen.
 
 ## Styles and tokens
 
-- `frontend/src/styles/tokens.css` is the one token source: colors (`--color-*`), spacing (`--space-1` to
-  `--space-5`), sizes (`--size-border-width`, `--size-content-width`), radius (`--radius-md`) and fonts
-  (`--font-family-base`, `--font-size-base`, `--font-size-heading`). It also sets the `body` font, colors and margin.
+- `frontend/src/styles/tokens.css` is the one token source: colors (`--color-background`, `--color-surface`,
+  `--color-text`, `--color-text-muted`, `--color-border`, `--color-ok`, `--color-danger`), spacing (`--space-1` to
+  `--space-5`), sizes (`--size-border-width`, `--size-content-width`, `--size-wide-content-width`), radius
+  (`--radius-md`) and fonts (`--font-family-base`, `--font-size-base`, `--font-size-heading`, `--font-size-subheading`).
+  It also sets the `body` font, colors and margin.
 - Components style themselves with CSS Modules (`*.module.css` next to the component) and use tokens with
   `var(--…)`. A component does not use raw colors or pixel sizes.
 - To change a color or a size, change the token, not each component.
@@ -111,8 +251,6 @@ replaces the list; the last successful answer is not kept on screen.
   service give the reason: file events do not cross the Windows bind mount.
 - In `just dev`, the `frontend` service of `docker-compose.yml` runs the `node:24` image: it enables corepack,
   runs `pnpm install --frozen-lockfile`, then `pnpm exec vite --host 0.0.0.0` on port 5173.
-- Known issue: the frontend container downloads pnpm through corepack on every start. On this machine Docker's
-  embedded DNS intermittently fails (`EAI_AGAIN` for registry.npmjs.org), so the first `just dev` may need a retry.
 
 ## Tests
 
@@ -120,6 +258,22 @@ replaces the list; the last successful answer is not kept on screen.
   `frontend/src/test/setup.ts` before each file (`setupFiles`).
 - `setup.ts` loads the Jest DOM matchers and, after each test, unmounts the rendered tree and restores the globals
   (`cleanup()`, `vi.unstubAllGlobals()`). Vitest globals are off, so Testing Library does not clean up by itself.
+- The page tests render the whole app. They sit in `frontend/src/App.<area>.test.tsx`: `App.guards`, `App.start`,
+  `App.signIn`, `App.registration`, `App.passwordReset`, `App.invitation`, `App.members` and
+  `App.membersInvitations`. Each test name names its FR, for example «FR-17 …».
+- `frontend/src/test/appHarness.tsx` provides `renderApp({ path, me?, routes? })`. It moves the browser to `path`,
+  stubs `fetch` with `vi.stubGlobal`, and renders `<App queryClient={…} />` with a new `QueryClient` that does not retry.
+  `me` is the signed-in user; without it the visitor is signed out.
+- The stubbed `fetch` routes each request by `'METHOD /path'`, with the `/api/v1` prefix removed. By default it answers
+  `GET /auth/me` (200 with `me`, or 401 `not_signed_in`) and `DELETE /auth/sessions/current` (204). A handler gets the
+  request body and the session and returns a `Response`; `signedIn(session, me)` records a sign-in. A request without a
+  handler answers 500 with `{"unrouted": …}`, so a missing route shows up in the test.
+- `apiError(status, code, fields?)` builds an error body. Its messages come from `MESSAGES` in the harness, a copy of the
+  server's Russian messages for the fake API.
+- Other helpers in the harness: `heading`, `alertWith`, `rowOf`, `type`, `press`, `fieldOf`, `navigate` (moves the app
+  as back and forward do) and `callsTo` (the recorded calls of one route).
+- `frontend/src/test/membersFixtures.tsx` holds the members fixtures (`ANNA_ROW`, `BORIS_ROW`, `DINA_ROW`), `invitation()`,
+  `listRoutes()`, `openMembers()` and `expectRowShows()`.
 - `HealthStatus.test.tsx` renders the component with its own `QueryClient` (`retry: false`) and stubs `fetch`
   with `vi.stubGlobal`. The five tests cover the pending state, both database states, a failed request and a
   502 answer.
@@ -138,3 +292,27 @@ replaces the list; the last successful answer is not kept on screen.
   `format` and `format:check` (Prettier), `test` (`vitest run`). The recipes that run them are in
   [Dev environment and checks](../tech.md#dev-environment-and-checks).
 - Versions of every package are in [Stack](../tech.md#stack).
+
+## How to add a page
+
+1. If the page needs a new route, add it to the backend first, then run `just api-client` and commit the generated
+   files with it ([How the client is regenerated](#how-the-client-is-regenerated)). A new behavior needs its approved
+   OpenSpec change before the code.
+2. Create `frontend/src/features/<area>/<Name>Page.tsx` as a function component with a top comment in English that
+   says what the page is and gives its Russian title. Its body is a `Panel` whose `title` is the Russian title.
+   Write the texts in Russian in the component; texts shared by several pages go to `frontend/src/messages.ts`.
+3. Read server data with a hook in the feature, using `useQuery`, `useInfiniteQuery` or `useMutation`. Call
+   `apiClient` and wrap the call in `unwrap` or `unwrapEmpty`. Do not call `fetch`.
+4. Add the `<Route>` in `frontend/src/App.tsx` under the guard the page needs: under `RequireGuest` for a page that only a
+   signed-out visitor sees; under `RequireUser` for a signed-in page; under `RequireUser` and `RequireAdmin` for an
+   administrator page; outside the guards for a page that takes its own link token. Update the path in
+   [Routes and API](../architecture.md#routes-and-api).
+5. Read the user only through `useAuth()`, and the role only through `isAdministrator()`.
+6. Show the request's error with `ErrorAlert`. For a form, give each `FormField` its message with
+   `error={fieldErrors(error).get('<field>')}`, add `noValidate` to the form, and read the values with `formValue`.
+7. Put the styles in `<Name>.module.css` next to the component and use the tokens only. Add a token to
+   `frontend/src/styles/tokens.css` when a value has none.
+8. Add `frontend/src/App.<area>.test.tsx` and render the page with `renderApp` (see [Tests](#tests)). Write one test
+   for the main scenario, one for the guard (a signed-out visitor, and an employee for an administrator page) and one
+   for each error the page shows. Name each test with its FR, as the existing tests do.
+9. Update this article: the page's row in [Pages](#pages) and its texts. Then run `just test` and `just check`.
