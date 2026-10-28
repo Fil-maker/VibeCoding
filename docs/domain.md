@@ -1,6 +1,10 @@
 # Domain
 
-Version 0.2 · 27.10.2026
+Version 0.3 · 28.10.2026
+
+Changes in 0.3: new concept without organizations: glossary terms Project, Reply chain, Thread,
+Unassigned; Counterparty and Correspondence belong to a user; consent to a third-party model is the
+user's. Organization, Employee, Administrator, Member and Invitation stay until task 1.1 removes them.
 
 Changes in 0.2: requirements map of task 0.2; glossary terms Member, Invitation, Session; service
 emails and stored secrets in «Data and privacy».
@@ -38,9 +42,13 @@ Capability → its spec and FR numbers. A new FR number also goes into «Last FR
 | Employee | A user who sees only their own correspondence |
 | Administrator | A user who sees all correspondence of their organization and gives consent to third-party analysis |
 | Mailbox | An email account connected to the app read-only |
-| Counterparty | An external person or company the organization corresponds with |
-| Correspondence | The emails between the organization and a counterparty |
-| Assessment | The sentiment of a counterparty computed from the correspondence, with its evidence |
+| Counterparty | A person or company the user corresponds with; a reply chain with several of them is shown under each |
+| Correspondence | The emails between the user and a counterparty, from all of the user's mailboxes |
+| Project | A piece of the user's work, created by hand with a description; its correspondence is laid out as a tree: project → counterparty → thread |
+| Reply chain | An email and all replies to it, linked by the `References` and `In-Reply-To` headers across all mailboxes; never split, belongs to at most one project |
+| Thread | A topic of a project formed by the engine; it groups whole reply chains |
+| Unassigned | The place of a project for reply chains the engine is not sure about; the user places them |
+| Assessment | The sentiment of a thread or a counterparty within a project, with its evidence; a later layer over the tree |
 | Evidence | The emails and phrases an assessment rests on |
 | Member | A confirmed user of an organization: an administrator or an employee, active or deactivated |
 | Invitation | An emailed single-use link, valid 7 days, with which an administrator lets a person join the organization as an employee |
@@ -56,7 +64,7 @@ TBD.
 ## Data and privacy
 
 - Email text and metadata are read from the mailbox and stored by the app; the mailbox is never changed.
-- Email text leaves the app for a third-party service only after the administrator's consent.
+- If the engine uses a third-party model, email text goes there only after the user's consent.
 - The app sends its own service emails (confirmation, invitation, password reset) through its own SMTP
   account, never through a connected mailbox, so the mailbox stays read-only.
 - A user record keeps the name, the email and a password hash; links and sessions are stored only as
