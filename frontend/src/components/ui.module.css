@@ -72,10 +72,6 @@
   color: var(--color-ok);
 }
 
-.muted {
-  color: var(--color-text-muted);
-}
-
 .table {
   width: 100%;
   border-collapse: collapse;

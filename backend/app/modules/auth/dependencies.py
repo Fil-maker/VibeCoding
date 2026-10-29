@@ -1,4 +1,4 @@
-"""The auth context of a request: `current_user` and `current_admin`.
+"""The auth context of a request: `current_user`.
 
 These are the entry point other modules' routers use to learn who is calling.
 """
@@ -10,10 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.auth.errors import NotSignedIn
 from app.modules.auth.service import resolve_session
-from app.platform.auth_context import AuthContext, Role
+from app.platform.auth_context import AuthContext
 from app.platform.clock import Clock, get_clock
 from app.platform.db import get_database_session
-from app.platform.errors import NotFound
 from app.platform.settings import Settings
 
 SESSION_COOKIE = "vc_session"
@@ -38,19 +37,10 @@ async def current_user(
     clock: Annotated[Clock, Depends(get_clock)],
     session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
 ) -> AuthContext:
-    """The caller; 401 `not_signed_in` without a live session of a confirmed, active user."""
+    """The caller; 401 `not_signed_in` without a live session of a confirmed user."""
     if session_token is None:
         raise NotSignedIn
     context = await resolve_session(session, session_token, clock.now())
     if context is None:
         raise NotSignedIn
-    return context
-
-
-async def current_admin(
-    context: Annotated[AuthContext, Depends(current_user)],
-) -> AuthContext:
-    """The caller if an administrator; anyone else gets 404, as if the page were absent."""
-    if context.role is not Role.ADMINISTRATOR:
-        raise NotFound
     return context

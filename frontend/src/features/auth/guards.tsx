@@ -1,9 +1,8 @@
 import { Navigate, Outlet, useLocation, useSearchParams } from 'react-router';
 
-import { NotFoundPage } from '../../components/NotFoundPage';
 import { Panel } from '../../components/Panel';
 import { LOADING_MESSAGE, SERVER_UNAVAILABLE_MESSAGE } from '../../messages';
-import { isAdministrator, useAuth } from './AuthProvider';
+import { useAuth } from './AuthProvider';
 
 // Only a path of this site may be a return address; "//host" would leave the site.
 function safeNext(next: string | null): string {
@@ -28,15 +27,6 @@ export function RequireUser(): React.JSX.Element {
   if (state.status === 'signedOut') {
     const next = encodeURIComponent(`${location.pathname}${location.search}`);
     return <Navigate to={`/sign-in?next=${next}`} replace />;
-  }
-  return <Outlet />;
-}
-
-// Administrator pages: an employee gets the same page as for an address that does not exist.
-export function RequireAdmin(): React.JSX.Element {
-  const { state } = useAuth();
-  if (state.status === 'signedIn' && !isAdministrator(state.me)) {
-    return <NotFoundPage />;
   }
   return <Outlet />;
 }

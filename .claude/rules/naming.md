@@ -28,7 +28,7 @@ Names of files, functions and terms. Neighbours: `server-architecture.md` for la
 ## Code
 
 - Functions start with a verb: `compute_assessment`, `list_counterparties_of_owner`.
-- Booleans read as questions: `is_administrator`, `has_consent`.
+- Booleans read as questions: `is_confirmed`, `has_consent`.
 - One term per concept, the glossary's: «counterparty», never «contact» or «partner» for the same thing;
   «assessment», never «score» or «rating».
 - Repository functions say what they read or write and by what: `get_mailbox_by_id_for_owner`.

@@ -45,8 +45,8 @@ One fact, one home: link to it, never copy it. Docs describe the product, not th
 - `### Requirement: FR-N <name>`; a new number is max + 1 over the specs, open changes and the
   `Last FR number:` line in the `docs/domain.md` header. Numbers are never reused; a removed one goes to «Cancelled numbers».
 - Text up to about 500 characters with SHALL or MUST and at least one `#### Scenario:` with WHEN/THEN.
-- Behavior only. Concrete values and glossary terms. Negative cases: another user's correspondence, an
-  employee versus the administrator, empty or too long input, a repeated action, deleted data.
+- Behavior only. Concrete values and glossary terms. Negative cases: another user's correspondence,
+  another user's identifier in the request, empty or too long input, a repeated action, deleted data.
 - One capability, one spec; `docs/domain.md` «Requirements map» lists capability → FR numbers.
 
 ## Decisions

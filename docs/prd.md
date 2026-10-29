@@ -1,6 +1,8 @@
 # Product requirements
 
-Version 0.4 · 28.10.2026 · **Draft**
+Version 0.5 · 29.10.2026 · **Draft**
+
+Changes in 0.5: task 1.1 «Personal accounts» done; stage «1. Project trees» in progress.
 
 Changes in 0.4: new concept — a personal tool without organizations: correspondence history laid out as
 trees by project across several mailboxes; sentiment becomes a later layer over the trees.
@@ -73,7 +75,7 @@ emails take their place in the tree.
 | Stage | Scope | Status |
 |---|---|---|
 | 0. Skeleton | The application starts locally: backend, SPA, database; organizations, sign-in, invitations and members | ✅ done |
-| 1. Project trees | Personal accounts instead of organizations, several mailboxes, reply chains, projects filled by the engine, rules and placement by hand | 💭 idea |
+| 1. Project trees | Personal accounts instead of organizations, several mailboxes, reply chains, projects filled by the engine, rules and placement by hand | 🚧 in progress |
 | 2. Sentiment | Sentiment of threads and counterparties over the trees | 💭 idea |
 
 ## Metrics

@@ -20,7 +20,7 @@ function postedEmail(body: unknown): string {
 }
 
 describe('sign-in page', () => {
-  it('FR-4 «Successful sign-in»: lands on the start page with the name and the organization', async () => {
+  it('FR-4 «Successful sign-in»: lands on the start page with the name', async () => {
     const app = renderApp({
       path: '/sign-in',
       routes: { 'POST /auth/sessions': (_body, session) => signedIn(session, ANNA) },
@@ -32,7 +32,7 @@ describe('sign-in page', () => {
     press('Войти');
 
     expect(await screen.findByText('Анна Петрова')).toBeInTheDocument();
-    expect(screen.getByText('ООО Ромашка')).toBeInTheDocument();
+    expect(screen.queryByText('ООО Ромашка')).not.toBeInTheDocument();
     expect(window.location.pathname).toBe('/');
     expect(screen.queryByRole('heading', { level: 1, name: 'Вход' })).not.toBeInTheDocument();
     const posted = callsTo(app, 'POST', '/auth/sessions');
@@ -61,13 +61,6 @@ describe('sign-in page', () => {
       403,
       'email_not_confirmed',
       'Подтвердите email: ссылка в письме, которое мы отправили',
-    ],
-    [
-      'FR-14 «Deactivating an employee»',
-      'boris@romashka.test',
-      403,
-      'account_disabled',
-      'Учётная запись отключена. Обратитесь к администратору организации',
     ],
     [
       'FR-5 «The fifth wrong password locks sign-in»',

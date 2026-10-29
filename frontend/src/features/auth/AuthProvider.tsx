@@ -7,11 +7,6 @@ import { ApiError, unwrap } from '../../api/request';
 
 export type Me = components['schemas']['Me'];
 
-// The one place that reads the role of the signed-in user; components ask this instead.
-export function isAdministrator(me: Me): boolean {
-  return me.role === 'administrator';
-}
-
 export type AuthState =
   | { status: 'loading' }
   | { status: 'error' }

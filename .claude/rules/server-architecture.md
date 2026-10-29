@@ -46,7 +46,7 @@ backend/app/
 - The mail reader only reads: no API that sends, moves, flags or deletes emails exists in the code.
 - An assessment stores its evidence (email and phrase references) and the analysis model version.
 - Email text goes to an external analysis service only through one gateway that checks the
-  organization's consent first.
+  user's consent first.
 - Security: the owner filter on every query (`data-access.md`), input parsed at the entry, limits on
   request size and rate.
 

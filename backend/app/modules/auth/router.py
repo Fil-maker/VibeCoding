@@ -6,7 +6,6 @@ from fastapi import APIRouter, Cookie, Depends, Response
 
 from app.modules.auth.dependencies import SESSION_COOKIE, current_user, set_session_cookie
 from app.modules.auth.errors import (
-    AccountDisabled,
     EmailNotConfirmed,
     InvalidCredentials,
     InvalidLink,
@@ -33,9 +32,6 @@ ERROR_MAPPING: dict[type[Exception], HttpError] = {
     InvalidCredentials: HttpError(401, "invalid_credentials", "Неверный email или пароль"),
     EmailNotConfirmed: HttpError(
         403, "email_not_confirmed", "Подтвердите email: ссылка в письме, которое мы отправили"
-    ),
-    AccountDisabled: HttpError(
-        403, "account_disabled", "Учётная запись отключена. Обратитесь к администратору организации"
     ),
     SignInLocked: HttpError(
         429, "sign_in_locked", "Слишком много попыток входа. Попробуйте через 15 минут"
@@ -104,7 +100,7 @@ async def read_me(
     service: Service,
     context: Annotated[AuthContext, Depends(current_user)],
 ) -> Me:
-    """The signed-in user and their organization."""
+    """The signed-in user."""
     return await service.get_me(context)
 
 

@@ -23,7 +23,7 @@ async def test_fr4_successful_sign_in_ignores_case_and_surrounding_spaces(
     factories: Factories, client: AsyncClient
 ) -> None:
     # FR-4 «Successful sign-in»
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
 
     response = await sign_in(client, " ANNA@romashka.test ", PASSWORD)
 
@@ -31,8 +31,7 @@ async def test_fr4_successful_sign_in_ignores_case_and_surrounding_spaces(
     me = response.json()
     assert me["name"] == "Анна Петрова"
     assert me["email"] == ANNA_EMAIL
-    assert me["role"] == "administrator"
-    assert me["organization"]["name"] == "ООО Ромашка"
+    assert set(me) == {"user_id", "name", "email"}
     assert "vc_session" in client.cookies
 
 
@@ -40,7 +39,7 @@ async def test_fr4_wrong_password_and_unknown_email_give_the_same_answer(
     factories: Factories, client: AsyncClient
 ) -> None:
     # FR-4 «Wrong password or unknown email»
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
 
     wrong_password = await sign_in(client, ANNA_EMAIL, WRONG)
     unknown_email = await sign_in(client, "nobody@romashka.test", PASSWORD)
@@ -69,7 +68,7 @@ async def test_fr4_empty_fields_are_not_counted_as_failed_attempts(
     factories: Factories, client: AsyncClient
 ) -> None:
     # FR-4 «Empty fields»: no failed attempt is counted
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
     for _ in range(3):
         assert (await sign_in(client, ANNA_EMAIL, "")).status_code == 422
         assert (await sign_in(client, "", PASSWORD)).status_code == 422
@@ -83,7 +82,7 @@ async def test_fr5_fifth_wrong_password_locks_even_the_right_one(
     factories: Factories, client: AsyncClient, clock: SettableClock
 ) -> None:
     # FR-5 «The fifth wrong password locks sign-in»
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
     for _ in range(5):
         assert (await sign_in(client, "anna@romashka.test", WRONG)).status_code == 401
         clock.advance(timedelta(minutes=2))
@@ -101,7 +100,7 @@ async def test_fr4_attempts_with_other_spelling_of_the_email_count_together(
 ) -> None:
     # FR-4 «A confirmed, active user SHALL sign in with their email, compared without regard to
     # case and surrounding spaces»: failures under any spelling count for one email (FR-5)
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
     for email in ["anna@romashka.test", "ANNA@romashka.test", " Anna@Romashka.test ", ANNA_EMAIL]:
         await sign_in(client, email, WRONG)
     await sign_in(client, " anna@romashka.test", WRONG)
@@ -127,7 +126,7 @@ async def test_fr5_the_lock_ends_15_minutes_after_the_fifth_failure(
     factories: Factories, client: AsyncClient, clock: SettableClock
 ) -> None:
     # FR-5 «The lock ends»: the lock began at the fifth failure, not at the first
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
     for _ in range(5):
         await fail_times(client, 1)
         clock.advance(timedelta(minutes=2))
@@ -141,14 +140,13 @@ async def test_fr5_the_lock_ends_15_minutes_after_the_fifth_failure(
 
     assert response.status_code == 200
     assert response.json()["name"] == "Анна Петрова"
-    assert response.json()["organization"]["name"] == "ООО Ромашка"
 
 
 async def test_fr5_failures_spread_over_time_do_not_lock(
     factories: Factories, client: AsyncClient, clock: SettableClock
 ) -> None:
     # FR-5 «Failures spread over time do not lock»
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
     await fail_times(client, 4)
     clock.advance(timedelta(minutes=16))
     await fail_times(client, 1)
@@ -162,10 +160,8 @@ async def test_fr5_a_lock_on_one_email_does_not_affect_another(
     factories: Factories, client: AsyncClient
 ) -> None:
     # FR-5 «Another email is not affected»
-    await factories.confirmed_admin()
-    await factories.confirmed_admin(
-        email="boris@romashka.test", name="Борис Иванов", organization_name="ИП Борис"
-    )
+    await factories.confirmed_user()
+    await factories.confirmed_user(email="boris@romashka.test", name="Борис Иванов")
     await fail_times(client, 5)
     assert (await sign_in(client, ANNA_EMAIL, PASSWORD)).status_code == 429
 
@@ -179,7 +175,7 @@ async def test_fr5_a_successful_sign_in_clears_the_count(
     factories: Factories, client: AsyncClient
 ) -> None:
     # FR-5 «A successful sign-in SHALL clear the count»
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
     await fail_times(client, 4)
     assert (await sign_in(client, ANNA_EMAIL, PASSWORD)).status_code == 200
     await fail_times(client, 4)
@@ -193,7 +189,7 @@ async def test_fr6_sign_in_sets_an_http_only_session_cookie(
     factories: Factories, client: AsyncClient
 ) -> None:
     # FR-6 «A session SHALL NOT be readable by the page's scripts»
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
 
     response = await sign_in(client, ANNA_EMAIL, PASSWORD)
 
@@ -209,7 +205,7 @@ async def test_fr6_after_sign_out_the_protected_route_refuses(
     factories: Factories, client: AsyncClient
 ) -> None:
     # FR-6 «Sign-out»
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
     await sign_in(client, ANNA_EMAIL, PASSWORD)
     old_cookie = client.cookies["vc_session"]
 
@@ -237,7 +233,7 @@ async def test_fr6_session_expires_after_14_days(
     factories: Factories, client: AsyncClient, clock: SettableClock
 ) -> None:
     # FR-6 «Expired session»
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
     await sign_in(client, ANNA_EMAIL, PASSWORD)
     clock.advance(timedelta(days=13))
     assert (await client.get(f"{API}/auth/me")).status_code == 200
@@ -251,7 +247,7 @@ async def test_fr6_session_expires_after_14_days(
 
 async def test_fr6_sign_out_on_one_device_keeps_the_other(factories: Factories) -> None:
     # FR-6 «Sign-out on one device keeps the other»
-    account = await factories.confirmed_admin()
+    account = await factories.confirmed_user()
     laptop = await factories.signed_in(account)
     phone = await factories.signed_in(account)
 

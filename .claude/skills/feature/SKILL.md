@@ -91,8 +91,8 @@ fill the plan row's FR, write `openspec/changes/<change>/handoff.md` (template i
 Checklist:
 - **proposal:** «Why» is a user problem from `docs/prd.md`; out of scope listed, deferred items in
   `docs/ideas.md`; touched invariants named (or «none»).
-- **specs:** SHALL/MUST; concrete scenarios with negative cases (another employee's correspondence, an
-  employee versus the administrator, missing consent); MODIFIED carries the whole requirement;
+- **specs:** SHALL/MUST; concrete scenarios with negative cases (another user's correspondence, another
+  user's identifier in the request, missing consent); MODIFIED carries the whole requirement;
   validation passes.
 - **design:** alternatives and reasons; existing data survives the migration, rollback clear; who may
   call each action and whose data it touches; no new services without asking; «Interface» holds only

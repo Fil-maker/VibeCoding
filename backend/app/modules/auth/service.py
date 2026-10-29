@@ -14,7 +14,6 @@ from app.modules.auth import repository
 from app.modules.auth.domain import is_locked
 from app.modules.auth.emails import password_reset_email
 from app.modules.auth.errors import (
-    AccountDisabled,
     EmailNotConfirmed,
     InvalidCredentials,
     InvalidLink,
@@ -22,8 +21,7 @@ from app.modules.auth.errors import (
     SignInLocked,
     SignInRefused,
 )
-from app.modules.auth.repository import TokenOwner
-from app.modules.auth.schemas import Me, OrganizationRef, SignInRequest
+from app.modules.auth.schemas import Me, SignInRequest
 from app.platform.auth_context import AuthContext
 from app.platform.clock import Clock
 from app.platform.db import get_database_session
@@ -46,23 +44,17 @@ class SignedIn:
 
 def me_of(record: UserRecord) -> Me:
     """The public view of a user."""
-    return Me(
-        user_id=record.id,
-        name=record.name,
-        email=record.email,
-        role=record.role.value,
-        organization=OrganizationRef(id=record.organization_id, name=record.organization_name),
-    )
+    return Me(user_id=record.id, name=record.name, email=record.email)
 
 
 async def start_session(
-    session: AsyncSession, settings: Settings, owner: TokenOwner, now: datetime
+    session: AsyncSession, settings: Settings, user_id: UUID, now: datetime
 ) -> str:
     """Store a new session inside the caller's transaction; return the raw cookie token."""
     token = new_token()
     await repository.add_session(
         session,
-        owner=owner,
+        user_id=user_id,
         token_hash=hash_token(token),
         now=now,
         expires_at=now + timedelta(days=settings.session_lifetime_days),
@@ -71,13 +63,13 @@ async def start_session(
 
 
 async def issue_confirmation_token(
-    session: AsyncSession, settings: Settings, user_id: UUID, organization_id: UUID, now: datetime
+    session: AsyncSession, settings: Settings, user_id: UUID, now: datetime
 ) -> str:
     """Store a confirmation token, replacing earlier ones, inside the caller's transaction."""
     token = new_token()
     await repository.replace_user_token(
         session,
-        owner=TokenOwner(user_id=user_id, organization_id=organization_id),
+        user_id=user_id,
         purpose=repository.CONFIRM_EMAIL,
         token_hash=hash_token(token),
         now=now,
@@ -89,22 +81,22 @@ async def issue_confirmation_token(
 async def resolve_session(session: AsyncSession, token: str, now: datetime) -> AuthContext | None:
     """The caller behind a cookie token.
 
-    `None` unless the session is live and the user is confirmed and active.
+    `None` unless the session is live and the user is confirmed.
     """
     async with session.begin():
-        owner = await repository.find_live_session(session, hash_token(token), now)
-        if owner is None:
+        user_id = await repository.find_live_session(session, hash_token(token), now)
+        if user_id is None:
             return None
-        record = await accounts.find_by_id(session, owner.organization_id, owner.user_id)
-    if record is None or record.confirmed_at is None or not record.is_active:
+        record = await accounts.find_by_id(session, user_id)
+    if record is None or record.confirmed_at is None:
         return None
-    return AuthContext(user_id=record.id, organization_id=record.organization_id, role=record.role)
+    return AuthContext(user_id=record.id)
 
 
 async def get_me(session: AsyncSession, context: AuthContext) -> Me:
     """The signed-in user's profile."""
     async with session.begin():
-        record = await accounts.find_by_id(session, context.organization_id, context.user_id)
+        record = await accounts.find_by_id(session, context.user_id)
     if record is None:
         raise NotSignedIn
     return me_of(record)
@@ -114,11 +106,6 @@ async def sign_out(session: AsyncSession, token: str) -> None:
     """End the session of this cookie token only."""
     async with session.begin():
         await repository.delete_session(session, hash_token(token))
-
-
-async def end_sessions_of_user(session: AsyncSession, organization_id: UUID, user_id: UUID) -> None:
-    """End every session of a user of the organization; runs in the caller's transaction."""
-    await repository.delete_sessions_of_user(session, organization_id, user_id)
 
 
 async def _attempt_sign_in(
@@ -141,15 +128,10 @@ async def _attempt_sign_in(
         return InvalidCredentials()
     if record.confirmed_at is None:
         return EmailNotConfirmed()
-    if not record.is_active:
-        return AccountDisabled()
     await repository.delete_failures(session, request.email)
     if check.needs_rehash:
-        await accounts.set_password_hash(
-            session, record.organization_id, record.id, await hash_password(request.password)
-        )
-    owner = TokenOwner(user_id=record.id, organization_id=record.organization_id)
-    return SignedIn(token=await start_session(session, settings, owner, now), me=me_of(record))
+        await accounts.set_password_hash(session, record.id, await hash_password(request.password))
+    return SignedIn(token=await start_session(session, settings, record.id, now), me=me_of(record))
 
 
 async def sign_in(
@@ -170,16 +152,16 @@ async def confirm_email(
     """Confirm the registrant's email by a single-use link and sign them in."""
     now = clock.now()
     async with session.begin():
-        owner = await repository.consume_user_token(
+        user_id = await repository.consume_user_token(
             session, hash_token(token), repository.CONFIRM_EMAIL, now
         )
-        if owner is None:
+        if user_id is None:
             raise InvalidLink
-        await accounts.mark_confirmed(session, owner.organization_id, owner.user_id, now)
-        record = await accounts.find_by_id(session, owner.organization_id, owner.user_id)
+        await accounts.mark_confirmed(session, user_id, now)
+        record = await accounts.find_by_id(session, user_id)
         if record is None:
             raise InvalidLink
-        session_token = await start_session(session, settings, owner, now)
+        session_token = await start_session(session, settings, user_id, now)
     return SignedIn(token=session_token, me=me_of(record))
 
 
@@ -195,7 +177,7 @@ async def request_password_reset(
             return
         await repository.replace_user_token(
             session,
-            owner=TokenOwner(user_id=record.id, organization_id=record.organization_id),
+            user_id=record.id,
             purpose=repository.RESET_PASSWORD,
             token_hash=hash_token(token),
             now=now,
@@ -221,18 +203,14 @@ async def complete_password_reset(
     now = clock.now()
     password_hash = await hash_password(password)
     async with session.begin():
-        owner = await repository.consume_user_token(
+        user_id = await repository.consume_user_token(
             session, hash_token(token), repository.RESET_PASSWORD, now
         )
-        record = (
-            await accounts.find_by_id(session, owner.organization_id, owner.user_id)
-            if owner
-            else None
-        )
-        if owner is None or record is None:
+        record = await accounts.find_by_id(session, user_id) if user_id else None
+        if record is None:
             raise InvalidLink
-        await accounts.set_password_hash(session, record.organization_id, record.id, password_hash)
-        await repository.delete_sessions_of_user(session, record.organization_id, record.id)
+        await accounts.set_password_hash(session, record.id, password_hash)
+        await repository.delete_sessions_of_user(session, record.id)
         await repository.delete_failures(session, record.email)
 
 

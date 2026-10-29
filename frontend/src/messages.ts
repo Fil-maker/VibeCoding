@@ -2,11 +2,8 @@
 export const SERVER_UNAVAILABLE_MESSAGE = 'Сервер не отвечает';
 export const LOADING_MESSAGE = 'Загрузка…';
 export const INVALID_LINK_MESSAGE = 'Ссылка недействительна или устарела';
-export const INVALID_INVITATION_MESSAGE = 'Приглашение недействительно или устарело';
 export const REGISTRATION_MAIL_FAILED_MESSAGE =
   'Не удалось отправить письмо. Попробуйте зарегистрироваться ещё раз позже';
-export const INVITATION_MAIL_FAILED_MESSAGE =
-  'Не удалось отправить письмо. Попробуйте отправить ещё раз';
 export const PASSWORD_RESET_REQUESTED_MESSAGE =
   'Если такой email зарегистрирован, мы отправили на него ссылку для сброса пароля';
 export const PASSWORD_CHANGED_MESSAGE = 'Пароль изменён. Теперь можно войти';

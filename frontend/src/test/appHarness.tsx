@@ -11,55 +11,20 @@ export interface Me {
   user_id: string;
   name: string;
   email: string;
-  role: 'administrator' | 'employee';
-  organization: { id: string; name: string };
-}
-
-export interface Member {
-  id: string;
-  name: string;
-  email: string;
-  role: 'administrator' | 'employee';
-  is_active: boolean;
-}
-
-export interface Invitation {
-  id: string;
-  email: string;
-  sent_at: string | null;
-  expires_at: string;
-  status: 'sent' | 'not_sent' | 'accepted' | 'revoked' | 'expired';
 }
 
 export const ANNA: Me = {
   user_id: '11111111-1111-4111-8111-111111111111',
   name: 'Анна Петрова',
   email: 'anna@romashka.test',
-  role: 'administrator',
-  organization: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'ООО Ромашка' },
-};
-
-export const BORIS: Me = {
-  user_id: '22222222-2222-4222-8222-222222222222',
-  name: 'Борис Иванов',
-  email: 'boris@romashka.test',
-  role: 'employee',
-  organization: ANNA.organization,
 };
 
 export const MESSAGES: Record<string, string> = {
   email_taken: 'Этот email уже зарегистрирован',
   invalid_link: 'Ссылка недействительна или устарела',
-  invalid_invitation: 'Приглашение недействительно или устарело',
   invalid_credentials: 'Неверный email или пароль',
   email_not_confirmed: 'Подтвердите email: ссылка в письме, которое мы отправили',
-  account_disabled: 'Учётная запись отключена. Обратитесь к администратору организации',
   sign_in_locked: 'Слишком много попыток входа. Попробуйте через 15 минут',
-  invitation_exists: 'Приглашение на этот email уже отправлено',
-  invitation_not_open: 'Приглашение уже принято, отозвано или истекло',
-  cannot_deactivate_self: 'Нельзя отключить свою учётную запись',
-  last_administrator: 'В организации должен остаться хотя бы один активный администратор',
-  member_inactive: 'Сначала включите учётную запись участника',
   not_signed_in: 'Войдите в систему',
   not_found: 'Не найдено',
   validation_failed: 'Проверьте поля формы',

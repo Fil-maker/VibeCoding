@@ -1,6 +1,5 @@
 """Request and response models of sign-in and sessions."""
 
-from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -15,21 +14,12 @@ from app.platform.validation import (
 )
 
 
-class OrganizationRef(BaseModel):
-    """The organization of the signed-in user."""
-
-    id: UUID
-    name: str
-
-
 class Me(BaseModel):
     """The signed-in user."""
 
     user_id: UUID
     name: str
     email: str
-    role: Literal["administrator", "employee"]
-    organization: OrganizationRef
 
 
 class SignInRequest(RequestModel):

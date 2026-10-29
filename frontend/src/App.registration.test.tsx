@@ -19,7 +19,6 @@ const CONFIRMATION = 'Мы отправили письмо со ссылкой �
 const MAIL_FAILURE = 'Не удалось отправить письмо. Попробуйте зарегистрироваться ещё раз позже';
 
 function fillRegistration(email: string, password: string): void {
-  type('Название организации', 'ООО Ромашка');
   type('Имя', 'Анна Петрова');
   type('Email', email);
   type('Пароль', password);
@@ -27,7 +26,17 @@ function fillRegistration(email: string, password: string): void {
 }
 
 describe('registration page', () => {
-  it('FR-1 «Successful registration»: posts the form and shows where the confirmation went', async () => {
+  it('FR-1 «Registration form»: has «Имя», «Email», «Пароль» and no «Название организации»', async () => {
+    renderApp({ path: '/register' });
+
+    await heading('Регистрация');
+    expect(screen.getByLabelText('Имя')).toBeInTheDocument();
+    expect(screen.getByLabelText('Email')).toBeInTheDocument();
+    expect(screen.getByLabelText('Пароль')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Название организации')).not.toBeInTheDocument();
+  });
+
+  it('FR-1 «Successful registration»: posts exactly {name, email, password} and shows where the confirmation went', async () => {
     const app = renderApp({
       path: '/register',
       routes: {
@@ -41,7 +50,6 @@ describe('registration page', () => {
 
     expect(await screen.findByText(CONFIRMATION)).toBeInTheDocument();
     expect(callsTo(app, 'POST', '/auth/registrations')[0]?.body).toEqual({
-      organization_name: 'ООО Ромашка',
       name: 'Анна Петрова',
       email: 'Anna@Romashka.test',
       password: 'correct-horse-1',
@@ -90,7 +98,7 @@ describe('registration page', () => {
       routes: {
         'POST /auth/registrations': () =>
           apiError(422, 'validation_failed', {
-            organization_name: 'Укажите название организации',
+            name: 'Укажите имя',
             email: 'Укажите корректный email',
             password: 'Пароль должен быть от 10 до 128 символов',
           }),
@@ -98,22 +106,22 @@ describe('registration page', () => {
     });
 
     await heading('Регистрация');
-    type('Имя', 'Анна Петрова');
+    type('Имя', ' ');
     type('Email', 'no-at-sign');
     type('Пароль', 'short');
     press('Зарегистрироваться');
 
-    await screen.findByText('Укажите название организации');
-    expect(fieldOf('Название организации')).toHaveTextContent('Укажите название организации');
+    await screen.findByText('Укажите имя');
+    expect(fieldOf('Имя')).toHaveTextContent('Укажите имя');
     expect(fieldOf('Email')).toHaveTextContent('Укажите корректный email');
     expect(fieldOf('Пароль')).toHaveTextContent('Пароль должен быть от 10 до 128 символов');
-    expect(fieldOf('Имя')).not.toHaveTextContent('Укажите');
+    expect(fieldOf('Email')).not.toHaveTextContent('Укажите имя');
     expect(fieldOf('Email')).not.toHaveTextContent('Пароль должен быть');
   });
 });
 
 describe('email confirmation page', () => {
-  it('FR-2 «Confirmation by a valid link»: posts the fragment token and lands on the administrator start page', async () => {
+  it('FR-2 «Confirmation by a valid link»: posts the fragment token and lands on the start page', async () => {
     const app = renderApp({
       path: '/confirm-email#token=confirm-token-1',
       routes: {
@@ -122,8 +130,7 @@ describe('email confirmation page', () => {
     });
 
     expect(await screen.findByText('Анна Петрова')).toBeInTheDocument();
-    expect(screen.getByText('ООО Ромашка')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Участники' })).toBeInTheDocument();
+    expect(screen.queryByText('Участники')).not.toBeInTheDocument();
     expect(window.location.pathname).toBe('/');
     expect(callsTo(app, 'POST', '/auth/email-confirmations')[0]?.body).toEqual({
       token: 'confirm-token-1',

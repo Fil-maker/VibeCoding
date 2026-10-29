@@ -6,6 +6,12 @@
       "runtimeExecutable": "docker",
       "runtimeArgs": ["compose", "up", "--build"],
       "port": 5173
+    },
+    {
+      "name": "spa (docker compose, local images)",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "--no-build"],
+      "port": 5173
     }
   ]
 }

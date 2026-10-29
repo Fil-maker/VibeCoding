@@ -1,11 +1,12 @@
 # Architecture
 
-Updated 27.10.2026
+Updated 29.10.2026
 
-**Status: tasks 0.1 and 0.2 are built.** Task 0.1 «Application skeleton» built the backend, the SPA and the database
+**Status: tasks 0.1, 0.2 and 1.1 are built.** Task 0.1 «Application skeleton» built the backend, the SPA and the database
 container. Task 0.2 «Sign-in and organization» built registration, email confirmation, sign-in and sessions,
-password reset, the members of an organization and invitations. The mailbox reader and the analysis engine
-are not built yet.
+password reset, and an organization with its members and invitations. Task 1.1 «Personal accounts» removed the
+organization layer: a registrant is an individual user and the root owner of their data ([ADR 0023](adr/0023-organizations-are-removed-anyone-can-register.md)).
+The mailbox reader and the analysis engine are not built yet.
 
 ## Contents
 
@@ -23,17 +24,18 @@ are not built yet.
 | Part | Status | Task |
 |---|---|---|
 | Application skeleton: backend, SPA, database | ✅ | 0.1 |
-| Sign-in and organization: registration, email confirmation, sign-in and sessions, password reset, members, invitations | ✅ | 0.2 |
+| Sign-in: registration, email confirmation, sign-in and sessions, password reset | ✅ | 0.2 |
+| Personal accounts: a registrant is an individual user; organizations, invitations, members, roles and deactivation are removed | ✅ | 1.1 |
 
 ## Components and processes
 
-- **Backend** — a FastAPI application (Python): the HTTP API, the modules `accounts`, `auth`, `invitations`
-  and `health`, the database access and the service emails.
+- **Backend** — a FastAPI application (Python): the HTTP API, the modules `accounts`, `auth` and `health`,
+  the database access and the service emails.
 - **SPA** — a React + TypeScript single-page app built with Vite; talks to the backend only through an
   API client generated from the backend's OpenAPI schema.
 - **Database** — PostgreSQL, in Docker for development.
-- **Service mail** — the backend sends three kinds of emails through SMTP: registration confirmation, password
-  reset and invitation. The app never reads a mailbox. In development the emails go to the Mailpit container
+- **Service mail** — the backend sends two kinds of emails through SMTP: registration confirmation and password
+  reset. The app never reads a mailbox. In development the emails go to the Mailpit container
   ([Deploy](#deploy)).
 
 TBD: the mailbox reader and the analysis engine (see [ideas.md](ideas.md#analysis-engine)).
@@ -56,8 +58,7 @@ backend/                 FastAPI application (own pyproject.toml, uv.lock)
       clock.py           Clock protocol, SystemClock, get_clock (tests replace it)
       errors.py          error shape, HttpError, NotFound, register_domain_errors, register_error_handlers
       origin.py          OriginGuardMiddleware: Origin check of state-changing /api/ requests
-      auth_context.py    AuthContext (user id, organization id, role) and Role
-      pagination.py      Page[T]: items and next_cursor; the limits
+      auth_context.py    AuthContext: the user id of the signed-in caller
       validation.py      RequestModel (unknown fields refused) and the Russian-worded field types
       passwords.py       Argon2id hashing and verification, in a worker thread
       tokens.py          random one-time tokens and their SHA-256 hashes
@@ -65,21 +66,19 @@ backend/                 FastAPI application (own pyproject.toml, uv.lock)
       test_mail.py       unit tests of mail
       test_passwords.py  unit tests of passwords
       test_settings.py   unit tests of settings
-    modules/<module>/    one folder per module: health, accounts, auth, invitations
-      accounts/          organizations and their users: registration, email confirmation, members;
-                         router.py, service.py, schemas.py, domain.py, repository.py, models.py, errors.py, emails.py
-                         (router.py holds two routers: /api/v1/auth for registration, /api/v1/members)
-      auth/              sign-in, the sign-in lock, sessions, password reset; the same files as accounts,
-                         plus dependencies.py (current_user, current_admin)
-      invitations/       invite, list, resend, revoke, preview, accept; the same files as accounts
+    modules/<module>/    one folder per module: health, accounts, auth
+      accounts/          registration of a user and the users table; router.py (the registration route),
+                         service.py, schemas.py, repository.py, models.py, errors.py, emails.py
+      auth/              sign-in, the sign-in lock, sessions, email confirmation, password reset;
+                         router.py, service.py, schemas.py, domain.py (the lock rule), repository.py, models.py,
+                         errors.py, emails.py, dependencies.py (current_user)
       health/            GET /api/v1/health; router.py, service.py, schemas.py, repository.py
     modules/health/test_*.py  unit tests of the health module (test_router.py, test_service.py)
-  migrations/            Alembic: env.py, script.py.mako, versions/ (0001_baseline.py, 0002_accounts_auth_invitations.py)
+  migrations/            Alembic: env.py, script.py.mako, versions/ (0001_baseline.py, 0002_accounts_auth_invitations.py,
+                         0003_personal_accounts.py)
   tests/                 test support of the integration tests
     integration/         database tests through the HTTP API, one file per group of requirements
-    factories.py         organizations, users, sessions and invitations, built through the public API
-    members_api.py       helpers shared by the members and access-boundary tests
-    invitations_api.py   helpers shared by the invitation tests
+    factories.py         users built through the public API: unconfirmed and confirmed users, signed-in clients
     settable_clock.py    a clock that the tests move by hand
     alembic_runner.py    runs Alembic against the test database (migration round trip)
     database_settings.py TEST_DATABASE_URL of the tests
@@ -90,7 +89,7 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
   src/
     main.tsx             entry: mounts App into #root, loads the design tokens
     App.tsx              root component: QueryClientProvider, BrowserRouter, AuthProvider and the routes
-    App.*.test.tsx       page tests, one file per area (sign-in, registration, members, guards, …)
+    App.*.test.tsx       page tests, one file per area (sign-in, registration, password reset, guards, start page)
     api/
       client.ts          apiClient: openapi-fetch typed by the generated schema
       queryClient.ts     createQueryClient(): TanStack Query client
@@ -101,14 +100,12 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
     urlToken.ts          readFragmentToken(): the one-time token from the URL fragment #token=
     components/          Panel, FormField, ErrorAlert, NotFoundPage, formData.ts, ui.module.css
     features/
-      auth/              AuthProvider (who is signed in), guards (RequireUser, RequireAdmin, RequireGuest),
+      auth/              AuthProvider (who is signed in), guards (RequireUser, RequireGuest),
                          sign-in, registration, email confirmation, forgot and reset password pages
-      home/              StartPage: the signed-in user, the members link for an administrator, sign-out
-      invitations/       InvitationPage: the page of an invitation link
-      members/           MembersPage, MembersSection, InvitationsSection
+      home/              StartPage: the signed-in user's name and sign-out
       health/            HealthStatus (page), useHealth (query), styles and tests
     styles/tokens.css    design tokens: colors, spacing, sizes, fonts
-    test/                appHarness.tsx (renders App with fetch stubbed), membersFixtures.tsx,
+    test/                appHarness.tsx (renders App with fetch stubbed),
                          setup.ts (Vitest setup: Testing Library cleanup, unstubbed globals)
 docker/                  backend.Dockerfile (dev image); postgres/init/ runs once, on the first start of the database
 docker-compose.yml       development stack: database, mail catcher, backend, SPA; see Deploy
@@ -121,55 +118,47 @@ scripts/                 doc checkers, the check runner (run_checks.py), the API
 
 ## Layers
 
-Built so far: the platform and the modules health, accounts, auth and invitations. The layer rules are in
+Built so far: the platform and the modules health, accounts and auth. The layer rules are in
 `.claude/rules/server-architecture.md`.
 
 Dependencies point down: router → service → domain and repository → platform.
 
 | Layer | File | What it does |
 |---|---|---|
-| Router | `router.py` | Parses the request into `schemas.py` models, takes the caller from `AuthContext`, calls one method of the module's service, which FastAPI injects; maps the module's domain errors to HTTP. A router never receives the database session |
-| Service | `service.py` | The use cases as module-level functions that open the transaction (`session.begin()`), call domain logic and repositories, and enforce the access rules; a session-bound class (`AccountsService`, `AuthService`, `InvitationsService`) delegates to them; the factory `get_<module>_service` builds the class from `get_database_session` |
-| Domain | `domain.py` | Pure functions: the sign-in lock rule, the invitation status, the page cursors |
+| Router | `router.py` | Parses the request into `schemas.py` models, takes the caller from `AuthContext` where a route needs one, calls one method of the module's service, which FastAPI injects; maps the module's domain errors to HTTP. A router never receives the database session |
+| Service | `service.py` | The use cases as module-level functions that open the transaction (`session.begin()`), call domain logic and repositories, and enforce the access rules; a session-bound class (`AccountsService`, `AuthService`) delegates to them; the factory `get_<module>_service` builds the class from `get_database_session` |
+| Domain | `domain.py` | Pure functions: the sign-in lock rule (`backend/app/modules/auth/domain.py`) |
 | Repository | `repository.py` | Named queries; no commits, no business decisions |
 | Models | `models.py` | SQLAlchemy tables of the module ([Data model](#data-model)) |
-| Platform | `backend/app/platform/` | settings, db, errors, clock, mail, passwords, tokens, validation, pagination, the Origin guard, the auth context |
+| Platform | `backend/app/platform/` | settings, db, errors, clock, mail, passwords, tokens, validation, the Origin guard, the auth context |
 
 The health module keeps its first shape: `router.py` takes a `HealthRepository` from `get_health_repository`,
 the repository is built from the session, and tests replace the factory through `dependency_overrides`. The
 health module has no domain or errors file.
 
 **Domain errors.** Each module's `errors.py` defines plain exceptions without an HTTP status (for example
-`EmailTaken`, `InvalidLink`, `MemberNotFound`). Each router declares `ERROR_MAPPING: dict[type[Exception], HttpError]`,
+`EmailTaken`, `InvalidLink`, `SignInLocked`). Each router declares `ERROR_MAPPING: dict[type[Exception], HttpError]`,
 where `HttpError(status_code, code, message)` is defined in `backend/app/platform/errors.py`. `main.py` passes each mapping
-to `register_domain_errors`. A domain error may be answered by another module's mapping: the invitations
-service raises `EmailTaken` from accounts, and the accounts mapping answers it. `register_error_handlers` adds
-the handlers every route shares: `NotFound` (404 `not_found`), request validation (422) and framework HTTP
-errors. The shape of an answer is in [Routes and API](#routes-and-api).
+to `register_domain_errors`. `register_error_handlers` adds the handlers every route shares: `NotFound` (404 `not_found`),
+request validation (422) and framework HTTP errors, so any path that no route serves also answers 404 `not_found`.
+The shape of an answer is in [Routes and API](#routes-and-api).
 
-**Auth context.** `current_user` in `backend/app/modules/auth/dependencies.py` reads the `vc_session` cookie, resolves a live session
-and returns an `AuthContext` (user id, organization id, role). It refuses a missing or dead session, and a user
-who is not confirmed or not active. The role and the active flag are read from the database on every request,
-so a role change or a deactivation applies to the next request. `current_admin` wraps `current_user` and raises
-`NotFound` for an employee, so the administrator routes look absent to them. The routers of accounts, auth and
-invitations take `AuthContext` from these two dependencies and hand it to their service, which scopes every
-query by its `organization_id`. `current_user` is the one dependency that takes the session itself (through
-`get_database_session`), because it resolves the caller before any router runs. The sign-out route also reads
-the cookie, to end that session.
+**Auth context.** `current_user` in `backend/app/modules/auth/dependencies.py` reads the `vc_session` cookie, resolves a live
+session and returns an `AuthContext`, which holds the user id only. It refuses a missing or dead session, and a user who
+is not confirmed; the confirmation is read from the database on every request. The sign-out and profile routes of the
+auth router take the context from `current_user`, and the profile query filters by its `user_id`. `current_user` is the
+one router dependency that takes the session itself (through `get_database_session`), because it resolves the caller
+before any router runs; the service factories take the session too. The sign-out route also reads the cookie, to end that session.
 
-**Services and sessions.** The routers of accounts, auth and invitations never touch the database session. Each
-module's `service.py` has the use cases as module-level functions and a session-bound class (`AccountsService`,
-`AuthService`, `InvitationsService`) that delegates to them. The dependency factory `get_<module>_service` builds
-that class from `get_database_session`, and a handler declares the service as a dependency, for example
-`service: Annotated[AccountsService, Depends(get_accounts_service)]`.
+**Services and sessions.** The routers of accounts and auth never take the database session. Each module's `service.py`
+has the use cases as module-level functions and a session-bound class (`AccountsService`, `AuthService`) that delegates to
+them. The dependency factory `get_<module>_service` builds that class from `get_database_session`, and a handler declares
+the service as a dependency, for example `service: Annotated[AccountsService, Depends(get_accounts_service)]`.
 
-**Emails after the commit.** The services send a service email only after the transaction has committed:
-the registration confirmation, the password reset and the invitation (on invite and on resend). A failed send
-is logged and never raised:
+**Emails after the commit.** The services send a service email only after the transaction has committed: the registration
+confirmation (on registration) and the password reset (on request). A failed send is logged and never raised:
 
 - registration answers `email_sent: false` and the account stays unconfirmed;
-- an invitation's outcome is written in a second transaction: `delivery` becomes `sent` or `failed`, so a
-  failed invitation shows as `not_sent` and can be resent;
 - a password reset answers 202 whether or not the mail went out.
 
 The mail sender is the `get_mail_sender` dependency, created on first use; the tests replace it with the fake.
@@ -178,113 +167,90 @@ The mail sender is the `get_mail_sender` dependency, created on first use; the t
 state-changing request (POST, PUT, PATCH, DELETE) to `/api/` whose `Origin` header is missing or differs from
 the origin of `APP_BASE_URL` ([Security](#security)).
 
-**Between modules.** A module uses another module through that module's `service.py` or `repository.py`. For example
-`backend/app/modules/auth/dependencies.py` uses the auth service; `backend/app/modules/accounts/service.py` uses the auth service to end sessions and
-issue confirmation tokens; `backend/app/modules/invitations/service.py` uses the accounts repository and service and the auth
-repository and service. Three more public imports cross module lines: the accounts and invitations routers take
-`current_admin` and `set_session_cookie` from `backend/app/modules/auth/dependencies.py`; the invitations router
-takes the `Me` schema from `backend/app/modules/auth/schemas.py`; and the invitations service raises `EmailTaken` from
-`backend/app/modules/accounts/errors.py`. No module imports another module's models or private names.
+**Between modules.** A module uses another module through that module's `service.py` or `repository.py`. Two such uses
+exist: `backend/app/modules/accounts/service.py` uses `issue_confirmation_token` from the auth service to issue the
+confirmation link, and `backend/app/modules/auth/service.py` uses the accounts repository (`find_by_id`, `find_by_email`,
+`mark_confirmed`, `set_password_hash`) and its `UserRecord`. The auth dependencies use the auth service of their own module.
+No module imports another module's models or private names.
 
 Details of the platform code and the health flow are in [Backend](guide/backend.md).
 
 ## Data model
 
-The migration `0002` (`backend/migrations/versions/0002_accounts_auth_invitations.py`) creates six tables. The
-baseline `0001` stays empty. The models are in each module's `models.py`; the declarative `Base` in
+Migration `0002` (`backend/migrations/versions/0002_accounts_auth_invitations.py`) created six tables. Migration `0003`
+(`backend/migrations/versions/0003_personal_accounts.py`) drops `invitations` and `organizations`, the `organization_id`
+columns of `users`, `sessions` and `user_tokens`, and the `users.role` and `users.is_active` columns
+([ADR 0035](adr/0035-migration-keeps-every-existing-user-as.md), [ADR 0041](adr/0041-migration-0003-drops-users-role-users.md)).
+Four tables remain. The baseline `0001` stays empty. The models are in each module's `models.py`; the declarative `Base` in
 `backend/app/platform/db.py` is the metadata Alembic works from.
+
+The downgrade to `0002` recreates one organization per user, named after the user's name, makes every user an active
+administrator, gives each session and token the organization of its user, and recreates `invitations` empty.
 
 Conventions of the tables:
 
 - ids are UUID; timestamps are `timestamptz`;
-- child rows are deleted with their parent (`ON DELETE CASCADE`);
-- only SHA-256 hashes of session, link and invitation tokens are stored, never the tokens;
+- child rows are deleted with their parent (`ON DELETE CASCADE`); a user's sessions and tokens go with the user;
+- only SHA-256 hashes of session and link tokens are stored, never the tokens;
 - passwords are stored as Argon2id hashes.
 
 | Table | Key columns | Relations and indexes |
 |---|---|---|
-| `organizations` | `id`, `name` (up to 200), `created_at` | The root: deleting an organization deletes all its rows |
-| `users` | `id`, `organization_id`, `email` (up to 254, unique in the installation, stored normalized), `name` (up to 200), `password_hash`, `role` (`administrator` or `employee`), `is_active`, `confirmed_at` (empty until the email is confirmed), `created_at` | `organization_id` → `organizations` (cascade); index on `organization_id`. An unconfirmed registration of an email is replaced by deleting its organization |
-| `sessions` | `id`, `organization_id`, `user_id`, `token_hash` (unique), `created_at`, `expires_at` | `user_id` → `users` and `organization_id` → `organizations` (cascade); indexes on both |
-| `user_tokens` | `id`, `organization_id`, `user_id`, `purpose` (`confirm_email` or `reset_password`), `token_hash` (unique), `created_at`, `expires_at` | `user_id` → `users` and `organization_id` → `organizations` (cascade); indexes on both. A new token replaces the user's earlier tokens of the same purpose; a link is consumed by one `DELETE … RETURNING`, so it works once |
-| `invitations` | `id`, `organization_id`, `email` (up to 254), `invited_by_user_id`, `token_hash` (unique), `delivery` (`pending`, `sent` or `failed`), `sent_at`, `expires_at`, `accepted_at`, `accepted_user_id`, `revoked_at`, `created_at` | `organization_id` → `organizations`, `invited_by_user_id` → `users`, `accepted_user_id` → `users` (empty until accepted); all cascade; index on `(organization_id, created_at)`. The invitation's status is derived, not stored (below) |
-| `sign_in_failures` | `id`, `email` (up to 254), `occurred_at` | No organization: the email may be unknown. Index on `(email, occurred_at)` |
-
-The invitation status shown to the administrator is derived from the row: `accepted` when `accepted_at` is set,
-`revoked` when `revoked_at` is set, `expired` when `expires_at` has passed; otherwise `sent` when `delivery` is
-`sent`, and `not_sent` in the other cases.
+| `users` | `id`, `email` (up to 254, unique in the installation, stored normalized), `name` (up to 200), `password_hash`, `confirmed_at` (empty until the email is confirmed), `created_at` | No relations: a user is the root owner of their own data. An unconfirmed registration of an email is replaced by deleting that user |
+| `sessions` | `id`, `user_id`, `token_hash` (unique), `created_at`, `expires_at` | `user_id` → `users` (cascade); index on `user_id` |
+| `user_tokens` | `id`, `user_id`, `purpose` (`confirm_email` or `reset_password`), `token_hash` (unique), `created_at`, `expires_at` | `user_id` → `users` (cascade); index on `user_id`. A new token replaces the user's earlier tokens of the same purpose; a link is consumed by one `DELETE … RETURNING`, so it works once |
+| `sign_in_failures` | `id`, `email` (up to 254), `occurred_at` | No user: the email may be unknown. Index on `(email, occurred_at)` |
 
 ## Routes and API
 
 The OpenAPI schema generated by FastAPI is the contract. `backend/app/openapi.py` prints it; `just api-client`
 writes it to `frontend/src/api/openapi.json` and regenerates the SPA's client in `frontend/src/api/generated/`.
 
-Who may call a route: **anyone** — no session needed; **signed in** — a live session of a confirmed, active user;
-**administrator** — a signed-in administrator of the caller's organization. An employee calling an administrator
-route gets 404 `not_found`, as for a missing page. A signed-out caller of a signed-in or administrator route
-gets 401 `not_signed_in`. The routes below are all under `/api/v1`.
+Who may call a route: **anyone** — no session needed; **signed in** — a live session of a confirmed user. A signed-out
+caller of a signed-in route gets 401 `not_signed_in`. The routes below are all under `/api/v1`.
 
 | Method and path | Who may call | Success | Domain errors (code, status) |
 |---|---|---|---|
 | `GET /api/v1/health` | anyone | 200, `HealthStatus` | none |
 | `POST /api/v1/auth/registrations` | anyone | 201, `RegistrationResult` | `email_taken` 409 |
 | `POST /api/v1/auth/email-confirmations` | anyone, with the link token | 200, `Me`; sets `vc_session` | `invalid_link` 400 |
-| `POST /api/v1/auth/sessions` | anyone | 200, `Me`; sets `vc_session` | `invalid_credentials` 401, `email_not_confirmed` 403, `account_disabled` 403, `sign_in_locked` 429 |
+| `POST /api/v1/auth/sessions` | anyone | 200, `Me`; sets `vc_session` | `invalid_credentials` 401, `email_not_confirmed` 403, `sign_in_locked` 429 |
 | `DELETE /api/v1/auth/sessions/current` | signed in | 204; deletes `vc_session` | `not_signed_in` 401 |
 | `GET /api/v1/auth/me` | signed in | 200, `Me` | `not_signed_in` 401 |
 | `POST /api/v1/auth/password-resets` | anyone | 202, no body | none; the same answer for every email |
 | `POST /api/v1/auth/password-resets/complete` | anyone, with the link token | 204 | `invalid_link` 400 |
-| `GET /api/v1/members` | administrator | 200, `Page[Member]` | `invalid_cursor` 400 |
-| `POST /api/v1/members/{member_id}/deactivate` | administrator | 200, `Member` | `not_found` 404, `cannot_deactivate_self` 409, `last_administrator` 409 |
-| `POST /api/v1/members/{member_id}/reactivate` | administrator | 200, `Member` | `not_found` 404 |
-| `PUT /api/v1/members/{member_id}/role` | administrator | 200, `Member` | `not_found` 404, `member_inactive` 409, `last_administrator` 409 |
-| `GET /api/v1/invitations` | administrator | 200, `Page[Invitation]` | `invalid_cursor` 400 |
-| `POST /api/v1/invitations` | administrator | 201, `Invitation` | `email_taken` 409, `invitation_exists` 409 |
-| `POST /api/v1/invitations/preview` | anyone, with the link token | 200, `InvitationPreview` | `invalid_invitation` 400 |
-| `POST /api/v1/invitations/accept` | anyone, with the link token | 200, `Me`; sets `vc_session` | `invalid_invitation` 400, `email_taken` 409 |
-| `POST /api/v1/invitations/{invitation_id}/resend` | administrator | 200, `Invitation` | `not_found` 404, `invitation_not_open` 409 |
-| `POST /api/v1/invitations/{invitation_id}/revoke` | administrator | 200, `Invitation`; an invitation that is not open is returned unchanged | `not_found` 404 |
 
-Registration lives in the accounts router under `/api/v1/auth`, next to the auth routes. The members routes
-are the administrator's member list and changes.
+Registration is `POST /api/v1/auth/registrations`, next to the other auth routes of the same prefix. Its body is `name`,
+`email` and `password` ([ADR 0037](adr/0037-registration-asks-for-name-email-and.md)); any other field, such as
+`organization_name`, answers 422 `validation_failed`. There are no organization, invitation or member routes: a request to
+`/api/v1/members` or `/api/v1/invitations` answers 404 `not_found`, as any unknown path does.
 
 Every state-changing request also answers 403 `forbidden_origin` when its `Origin` is missing or foreign, and
 a body with an unknown field, or an invalid one, answers 422 `validation_failed`.
 
-Schemas of the responses: `Me` is `user_id`, `name`, `email`, `role`, `organization` (`id`, `name`); `Member` is
-`id`, `name`, `email`, `role`, `is_active`; `Invitation` is `id`, `email`, `sent_at`, `expires_at`, `status`
-(`sent`, `not_sent`, `accepted`, `revoked` or `expired`); `InvitationPreview` is `organization_name`, `email`;
-`RegistrationResult` is `email`, `email_sent`. `role` is `administrator` or `employee`.
+Schemas of the responses: `Me` is `user_id`, `name`, `email`; `RegistrationResult` is `email`, `email_sent`.
 
 **Error shape.** A handled error answers `{"error": {"code": "…", "message": "…"}}`, where `message` is the Russian
 text of the error. A validation error adds `fields`: `{"error": {"code": "validation_failed", "message": "Проверьте поля формы", "fields": {"<field>": "<Russian message>"}}}`.
 A framework HTTP error other than 404 keeps FastAPI's `{"detail": …}` shape; a 404 answers `not_found`.
 
-**Pagination.** The list routes take `limit` (default 50, from 1 to 100) and an opaque `cursor` (up to 200
-characters). An answer is `{"items": [...], "next_cursor": "…" | null}`; `next_cursor` is `null` on the last
-page. Members are ordered by name, then id; invitations are ordered newest first, then by id. A cursor that the
-API did not issue answers 400 `invalid_cursor`.
-
 **SPA routes.** The browser routes of `frontend/src/App.tsx` (`BrowserRouter`):
 
 | Path | Page | Who sees it |
 |---|---|---|
-| `/register` | «Регистрация» | a signed-out visitor |
+| `/register` | «Регистрация», with the fields «Имя», «Email», «Пароль» | a signed-out visitor |
 | `/sign-in` | «Вход» | a signed-out visitor |
 | `/forgot-password` | «Восстановление пароля» | a signed-out visitor |
 | `/confirm-email` | «Подтверждение email» | anyone, with the link |
 | `/reset-password` | «Новый пароль» | anyone, with the link |
-| `/invitation` | «Приглашение» | anyone, with the link |
 | `/health` | «Состояние сервиса» (page heading) | anyone |
-| `/` | «VibeCoding» (start page) | a signed-in user |
-| `/members` | «Участники» | an administrator; an employee sees «Страница не найдена» |
-| `*` | «Страница не найдена» | anyone |
+| `/` | «VibeCoding» (start page): the signed-in user's name and «Выйти» | a signed-in user |
+| `*` | «Страница не найдена» | anyone; `/members` and `/invitation` fall here too |
 
 A signed-out visitor who opens a signed-in page goes to `/sign-in?next=…` and returns after signing in. A
 signed-in user who opens a guest page goes to `next` (a path of this site) or to `/`. The link tokens are read
-from the URL fragment `#token=`. The invitation page sends its token twice: to `POST /api/v1/invitations/preview` when
-it loads, and to `POST /api/v1/invitations/accept` when the person submits the form. The password reset form sends
-its token in the body of `POST /api/v1/auth/password-resets/complete` on each submit.
+from the URL fragment `#token=`. The password reset form sends its token in the body of
+`POST /api/v1/auth/password-resets/complete` on each submit.
 
 ## Deploy
 
@@ -318,16 +284,14 @@ What is built:
   recomputed. An unknown email is checked against a dummy hash, so the answer takes as long as for a known one.
   The dependency is recorded in [ADR 0013](adr/0013-new-dependencies-argon2-cffi-for-password.md).
 - **Tokens.** Session cookies and link tokens are random URL-safe values of 32 bytes. Only their SHA-256 hashes
-  are stored. A password-reset or confirmation link works once; an invitation link works until it is accepted,
-  revoked, expired or replaced by a resend.
+  are stored. A password-reset or confirmation link works once.
 - **Links in the URL fragment.** The emailed links carry the token after `#token=`. The fragment is not sent to
   the server, so the token stays out of server logs and of the `Referer` header.
 - **Sessions.** The browser holds a random token in the `vc_session` cookie: `HttpOnly`, `SameSite=Lax`, `Path=/`,
   with a lifetime of the session lifetime. `Secure` follows the setting `SESSION_COOKIE_SECURE`, which is off by
   default for local HTTP ([Environment variables](tech.md#environment-variables)). Sessions are rows of PostgreSQL
   ([ADR 0012](adr/0012-sessions-are-stored-server-side-in.md)); each request resolves the cookie. Signing out ends
-  that browser's session only. Deactivating a member and completing a password reset delete all of the user's
-  sessions at once.
+  that browser's session only. Completing a password reset deletes all of the user's sessions at once.
 - **Origin check.** A POST, PUT, PATCH or DELETE request to `/api/` must carry an `Origin` header equal to the
   origin of `APP_BASE_URL`. A request without the header, or with another origin, answers 403 `forbidden_origin`.
 - **Sign-in lock.** Failed sign-ins are recorded per email, normalized, in `sign_in_failures`, including emails
@@ -340,19 +304,15 @@ What is built:
   password-reset request is 202 whether or not the email is registered, and only a confirmed user gets the mail.
   A registration of a confirmed user's email answers `email_taken` 409, and a new registrant must confirm the
   email before they can sign in ([ADR 0009](adr/0009-the-registrant-s-email-is-confirmed.md)).
-- **Organization filter.** Every query of the administrator's member and invitation routes filters by the
-  `organization_id` of the caller's `AuthContext`, never by a value from the request. The only exceptions are
-  the anonymous link lookups: the invitation behind a link is found by the token hash alone
-  (`get_by_token_hash` in `backend/app/modules/invitations/repository.py`), and the user of an email is found
-  across the installation (`find_by_email` in `backend/app/modules/accounts/repository.py`), because an email
-  belongs to one user of the installation ([ADR 0008](adr/0008-one-email-belongs-to-one-user.md)). The request bodies refuse unknown fields, so `organization_id`
-  cannot be sent. A record of another organization, or an administrator route for an employee, answers 404
-  `not_found`, the same as a missing record.
-- **Last administrator.** Deactivating or demoting an administrator locks the organization row (`SELECT … FOR
-  UPDATE`) before counting the active administrators. The last active administrator cannot be deactivated or
-  demoted; an administrator cannot deactivate their own account ([ADR 0010](adr/0010-in-this-task-the-administrator-lists.md),
-  [ADR 0019](adr/0019-when-the-only-administrator-deactivates-themselves.md)).
-- **One email, one organization.** An email belongs to one user in one organization across the installation
+- **No active flag.** An account has no `is_active` flag and no route can disable one: a user is refused only for an
+  unconfirmed email or for a dead session ([ADR 0036](adr/0036-the-is-active-flag-and-deactivation.md)).
+- **Owner filter.** A query that acts for the signed-in user takes its `user_id` from the `AuthContext` of the request,
+  never from a value in the request; the profile read (`get_me` in `backend/app/modules/auth/service.py`) is such a query.
+  The other lookups are not owner-scoped by design: `find_by_email` (`backend/app/modules/accounts/repository.py`) finds
+  the user of an email across the installation, because sign-in, registration and password reset start before anyone is
+  signed in; sessions and link tokens are found by their token hash. The request bodies refuse unknown fields, so a
+  `user_id` sent by the client answers 422 `validation_failed`.
+- **One email, one user.** An email belongs to one user across the installation
   ([ADR 0008](adr/0008-one-email-belongs-to-one-user.md)).
 
 Not built yet: the mailbox reader, with its read-only access to mailboxes, and the consent gate that must pass

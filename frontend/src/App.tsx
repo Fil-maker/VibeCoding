@@ -7,14 +7,12 @@ import { NotFoundPage } from './components/NotFoundPage';
 import { AuthProvider } from './features/auth/AuthProvider';
 import { ConfirmEmailPage } from './features/auth/ConfirmEmailPage';
 import { ForgotPasswordPage } from './features/auth/ForgotPasswordPage';
-import { RequireAdmin, RequireGuest, RequireUser } from './features/auth/guards';
+import { RequireGuest, RequireUser } from './features/auth/guards';
 import { RegisterPage } from './features/auth/RegisterPage';
 import { ResetPasswordPage } from './features/auth/ResetPasswordPage';
 import { SignInPage } from './features/auth/SignInPage';
 import { StartPage } from './features/home/StartPage';
 import { HealthStatus } from './features/health/HealthStatus';
-import { InvitationPage } from './features/invitations/InvitationPage';
-import { MembersPage } from './features/members/MembersPage';
 
 const pageQueryClient = createQueryClient();
 
@@ -35,13 +33,9 @@ export function App({
             </Route>
             <Route path="/confirm-email" element={<ConfirmEmailPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route path="/invitation" element={<InvitationPage />} />
             <Route path="/health" element={<HealthStatus />} />
             <Route element={<RequireUser />}>
               <Route path="/" element={<StartPage />} />
-              <Route element={<RequireAdmin />}>
-                <Route path="/members" element={<MembersPage />} />
-              </Route>
             </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

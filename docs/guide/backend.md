@@ -1,14 +1,14 @@
 # Backend
 
-Updated 27.10.2026
+Updated 29.10.2026
 
 **Code:** `backend/app/main.py`, `backend/app/openapi.py`, `backend/app/platform/`, `backend/app/modules/`,
 `backend/migrations/`, `backend/alembic.ini`, `backend/tests/`, `backend/pyproject.toml`,
 `docker/backend.Dockerfile`.
 
-**Requirements:** the modules `accounts`, `auth` and `invitations` build FR-1 … FR-20 of task 0.2; they are described
-in [Auth and accounts](auth.md). The health module has no requirement. The map of capabilities is in
-[Requirements map](../domain.md#requirements-map).
+**Requirements:** the modules `accounts` and `auth` build FR-1 … FR-8 and the access boundary FR-17, FR-20 and
+FR-21; they are described in [Auth and accounts](auth.md). The health module has no requirement. The map of
+capabilities is in [Requirements map](../domain.md#requirements-map).
 
 **Design:** [Components and processes](../architecture.md#components-and-processes),
 [Repository structure](../architecture.md#repository-structure), [Layers](../architecture.md#layers),
@@ -28,7 +28,7 @@ in [Auth and accounts](auth.md). The health module has no requirement. The map o
   `get_mail_sender` dependency creates the SMTP sender on first use;
 - titles the app `VibeCoding`, registers the shared error handlers (`register_error_handlers`) and the domain error
   mapping of each module (`register_domain_errors`), adds the `OriginGuardMiddleware` with `APP_BASE_URL`, and
-  includes the routers: health, accounts (its `router` and its `members_router`), auth and invitations;
+  includes the routers: health, accounts and auth;
 - its lifespan disposes the connection pool on shutdown.
 
 In `just dev` the `backend` service of `docker-compose.yml` runs `uv sync`, then `alembic upgrade head`, then
@@ -55,13 +55,14 @@ which writes the schema to `frontend/src/api/openapi.json` and generates the cli
 
 - Each business module is a package `backend/app/modules/<module>/`; the package `__init__.py` files are empty, and
   `backend/app/modules/__init__.py` is empty too.
-- The modules of task 0.2 are `accounts`, `auth` and `invitations`; `health` is the smallest one. They are described
+- The business modules are `accounts` and `auth`; `health` is the smallest one. They are described
   in [Auth and accounts](auth.md#modules-and-their-files).
 - The layers are `router.py` → `service.py` → `domain.py` and `repository.py` → platform, as in
   [Layers](../architecture.md#layers). `models.py` holds the tables, `errors.py` the domain errors, `schemas.py` the
-  request and response models, and `emails.py` the texts of service emails.
-- A router holds no session and runs no query. Each router of accounts, auth and invitations takes a session-bound
-  service class (`AccountsService`, `AuthService`, `InvitationsService`) from its dependency factory
+  request and response models, and `emails.py` the texts of service emails. A module without pure rules has no
+  `domain.py`.
+- A router holds no session and runs no query. Each router of accounts and auth takes a session-bound
+  service class (`AccountsService`, `AuthService`) from its dependency factory
   `get_<module>_service`, which takes the session from `get_database_session`. The `health` module keeps the
   repository shape: its router takes a `HealthRepository` from `Depends(get_health_repository)`
   ([Health module](#health-module)). `current_user` in `backend/app/modules/auth/dependencies.py` is a dependency,
@@ -81,8 +82,8 @@ which writes the schema to `frontend/src/api/openapi.json` and generates the cli
    and add a revision in `backend/migrations/versions/`, from `backend/migrations/script.py.mako`.
 3. Declare the domain errors and the module's `ERROR_MAPPING` in its `router.py`; in `main.py`, call
    `register_domain_errors` for the mapping and include the router.
-4. Take the caller with the dependencies of `backend/app/modules/auth/dependencies.py` (`current_user`, `current_admin`), and follow the
-   steps of [Adding an administrator-only route](auth.md#adding-an-administrator-only-route).
+4. Take the caller with the dependency `current_user` of `backend/app/modules/auth/dependencies.py`, and follow the
+   steps of [Adding a route of the signed-in user](auth.md#adding-a-route-of-the-signed-in-user).
 5. Test the route through HTTP in `backend/tests/integration/`, and update the route and data model in
    [Architecture](../architecture.md) and this guide.
 
@@ -125,14 +126,14 @@ which writes the schema to `frontend/src/api/openapi.json` and generates the cli
 - `Clock` in `backend/app/platform/clock.py` is a protocol with one method, `now()`, which returns a
   timezone-aware UTC `datetime`.
 - `SystemClock` is the real implementation: `datetime.now(UTC)`.
-- `get_clock` is the FastAPI dependency; it is cached, so one clock serves the process. The services of accounts,
-  auth and invitations take the time from the clock they are given, and tests replace the dependency. The fakes are
+- `get_clock` is the FastAPI dependency; it is cached, so one clock serves the process. The services of accounts
+  and auth take the time from the clock they are given, and tests replace the dependency. The fakes are
   in [Emails and time in tests](auth.md#emails-and-time-in-tests).
 
 ### Other shared platform files
 
-- `auth_context.py` (`AuthContext`, `Role`), `tokens.py`, `passwords.py`, `mail.py`, `origin.py`, `errors.py`,
-  `validation.py` and `pagination.py` are described in [Modules and their files](auth.md#modules-and-their-files).
+- `auth_context.py` (`AuthContext`), `tokens.py`, `passwords.py`, `mail.py`, `origin.py`, `errors.py` and
+  `validation.py` are described in [Modules and their files](auth.md#modules-and-their-files).
 
 ### Logging
 
@@ -191,7 +192,14 @@ which writes the schema to `frontend/src/api/openapi.json` and generates the cli
 - The revision `0001` (`backend/migrations/versions/0001_baseline.py`) is the empty baseline: it creates and drops
   nothing.
 - The revision `0002` (`backend/migrations/versions/0002_accounts_auth_invitations.py`) creates the tables of the
-  modules accounts, auth and invitations. Their columns and rules are in [Data model](../architecture.md#data-model).
+  modules accounts and auth, the `organizations` table and the `invitations` table; revision `0003` drops the last two.
+- The revision `0003` (`backend/migrations/versions/0003_personal_accounts.py`) drops the organization layer: the
+  invitations and organizations tables, the `organization_id` columns of `users`, `sessions` and `user_tokens`, and
+  the `role` and `is_active` columns of `users`. Users, password hashes, confirmation, sessions and tokens stay. Its
+  downgrade recreates one organization per user, named after the user, with that user as an active administrator;
+  the invitations come back empty. The columns after the upgrade are in [Data model](../architecture.md#data-model).
+  The reasons are in [ADR 0035](../adr/0035-migration-keeps-every-existing-user-as.md) and
+  [ADR 0041](../adr/0041-migration-0003-drops-users-role-users.md).
 - `backend/migrations/versions/` is excluded from ruff and pyright strict, because Alembic generates those files.
 
 Apply the migrations to the dev database: `uv run --directory backend alembic upgrade head`
@@ -204,7 +212,7 @@ Apply the migrations to the dev database: `uv run --directory backend alembic up
 - `backend/tests/integration/conftest.py` reads `TEST_DATABASE_URL` through `TestDatabaseSettings` in
   `backend/tests/database_settings.py`, a small settings class of its own.
   The app's `Settings` gets only the test URL as `database_url`, so the tests never read the dev `DATABASE_URL`.
-- `test_database_url` empties every table of the test database before a test; `migrated_database_url` upgrades it
+- `test_database_url` empties every table of the test database except `alembic_version` before a test; `migrated_database_url` upgrades it
   to the head revision once per session.
 - The database container creates the test database on its first start, from
   `docker/postgres/init/01-create-test-database.sql`.
@@ -216,5 +224,8 @@ Apply the migrations to the dev database: `uv run --directory backend alembic up
   mode cannot run on the Windows default Proactor loop.
 - Pytest settings are in `backend/pyproject.toml`: `asyncio_mode = "auto"` and `testpaths = ["app", "tests"]`.
 - The integration tests sit in `backend/tests/integration/` by requirement group: `test_registration.py`,
-  `test_sign_in.py`, `test_password_reset.py`, `test_invitations_*.py`, `test_members.py`, `test_member_roles.py`,
-  `test_access_boundary.py`, `test_platform_http.py`, `test_migrations.py` and `test_health.py`.
+  `test_sign_in.py`, `test_password_reset.py`, `test_access_boundary.py`, `test_platform_http.py`,
+  `test_migrations.py` and `test_health.py`.
+- `test_migrations.py` runs the migration round trip with no drift; it seeds data at revision `0002`, then checks
+  the upgrade (every user keeps the email, password hash and confirmation; the organization, role and invitation
+  columns and tables are gone), that a user whose `is_active` was `false` signs in after it, and the downgrade.

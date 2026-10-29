@@ -17,7 +17,7 @@ EMPTY_CREDENTIALS_MESSAGE = "Укажите email и пароль"
 
 
 class RequestModel(BaseModel):
-    """Base of request bodies: an unknown field, such as `organization_id`, is refused."""
+    """Base of request bodies: an unknown field, such as a client's `user_id`, is refused."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -68,7 +68,6 @@ def _check_sign_in_password(value: str) -> str:
     return value
 
 
-OrganizationName = Annotated[str, _text(FIELD_MESSAGES["organization_name"])]
 PersonName = Annotated[str, _text(FIELD_MESSAGES["name"])]
 EmailAddress = Annotated[str, AfterValidator(_check_email)]
 NewPassword = Annotated[str, AfterValidator(_check_password)]

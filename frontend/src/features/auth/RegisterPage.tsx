@@ -13,12 +13,8 @@ import { confirmationSentMessage, REGISTRATION_MAIL_FAILED_MESSAGE } from '../..
 // «Регистрация». The confirmation link in the email signs the registrant in.
 export function RegisterPage(): React.JSX.Element {
   const register = useMutation({
-    mutationFn: (body: {
-      organization_name: string;
-      name: string;
-      email: string;
-      password: string;
-    }) => unwrap(apiClient.POST('/api/v1/auth/registrations', { body })),
+    mutationFn: (body: { name: string; email: string; password: string }) =>
+      unwrap(apiClient.POST('/api/v1/auth/registrations', { body })),
   });
   const errors = fieldErrors(register.error);
 
@@ -38,7 +34,6 @@ export function RegisterPage(): React.JSX.Element {
           event.preventDefault();
           const data = new FormData(event.currentTarget);
           register.mutate({
-            organization_name: formValue(data, 'organization_name'),
             name: formValue(data, 'name'),
             email: formValue(data, 'email'),
             password: formValue(data, 'password'),
@@ -46,11 +41,6 @@ export function RegisterPage(): React.JSX.Element {
         }}
       >
         <ErrorAlert error={register.error} />
-        <FormField
-          name="organization_name"
-          label="Название организации"
-          error={errors.get('organization_name')}
-        />
         <FormField name="name" label="Имя" autoComplete="name" error={errors.get('name')} />
         <FormField
           name="email"

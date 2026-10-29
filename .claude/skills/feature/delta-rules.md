@@ -22,7 +22,7 @@ Read before writing `openspec/changes/<change>/specs/<capability>/spec.md`. The 
 Numbers: a new requirement takes «next FR» from `change_state.py` (it also reads the `Last FR number:`
 line of `docs/domain.md`); never reuse a number.
 
-Scenarios for this product almost always need these negative cases: an employee asks for another
-employee's correspondence; an employee asks for organization-wide data; email text would go to an
-external service without the administrator's consent; the same emails analysed twice (the assessment
+Scenarios for this product almost always need these negative cases: a user asks for another
+user's correspondence or projects; a request names another user's identifier; email text would go to an
+external service without the user's consent; the same emails analysed twice (the assessment
 must not change); the analysis model changed (the result shows it).

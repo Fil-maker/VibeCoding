@@ -21,7 +21,6 @@ OPTIONAL = [
     "SESSION_LIFETIME_DAYS",
     "CONFIRMATION_LINK_HOURS",
     "PASSWORD_RESET_LINK_MINUTES",
-    "INVITATION_LIFETIME_DAYS",
     "SIGN_IN_MAX_FAILURES",
     "SIGN_IN_FAILURE_WINDOW_MINUTES",
     "SIGN_IN_LOCK_MINUTES",
@@ -81,7 +80,6 @@ def test_settings_defaults_of_the_lifetimes_and_limits(required_env: pytest.Monk
     assert settings.session_lifetime_days == 14
     assert settings.confirmation_link_hours == 24
     assert settings.password_reset_link_minutes == 60
-    assert settings.invitation_lifetime_days == 7
     assert settings.sign_in_max_failures == 5
     assert settings.sign_in_failure_window_minutes == 15
     assert settings.sign_in_lock_minutes == 15

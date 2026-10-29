@@ -1,36 +1,39 @@
 # organization-registration Specification
 
 ## Purpose
-Lets a company start using the app on its own: it registers an organization, and the person who
-registers it confirms their email and becomes its first administrator.
+Lets a person start using the app on their own: they register as a user with a name, an email and a
+password and confirm the email before they can sign in.
 
 ## Requirements
 
-### Requirement: FR-1 Register an organization
+### Requirement: FR-1 Register a user
 
-A visitor SHALL register an organization by giving the organization name (1–200 characters), their
-name (1–200 characters), their email and a password of 10–128 characters. The app SHALL create the
-organization and its first user as an administrator who is not confirmed yet. It SHALL send a
-confirmation email to that address. The email is compared without regard to case and surrounding
-spaces. An email SHALL belong to at most one user of the installation.
+A visitor SHALL register as a user by giving their name (1–200 characters), their email and a password
+of 10–128 characters. The app SHALL create a user who is not confirmed yet and belongs to no
+organization. It SHALL send a confirmation email to that address. The email is compared without regard
+to case and surrounding spaces. An email SHALL belong to at most one user of the installation.
 
 #### Scenario: Successful registration
-- **WHEN** a visitor registers «ООО Ромашка» with the name «Анна Петрова», the email «Anna@Romashka.test» and the password «correct-horse-1»
-- **THEN** the organization «ООО Ромашка» exists with one administrator «Анна Петрова» whose email is «anna@romashka.test», not confirmed
+- **WHEN** a visitor registers with the name «Анна Петрова», the email «Anna@Romashka.test» and the password «correct-horse-1»
+- **THEN** a user «Анна Петрова» exists whose email is «anna@romashka.test», not confirmed
 - **AND** one confirmation email goes to «anna@romashka.test»
 - **AND** the page shows «Мы отправили письмо со ссылкой для подтверждения на anna@romashka.test»
 
 #### Scenario: Email already belongs to a confirmed user
-- **WHEN** a visitor registers with «anna@romashka.test», which belongs to a confirmed user of any organization
-- **THEN** no organization is created and the form shows «Этот email уже зарегистрирован»
+- **WHEN** a visitor registers with «anna@romashka.test», which belongs to a confirmed user
+- **THEN** no user is created or changed and the form shows «Этот email уже зарегистрирован»
 
 #### Scenario: The mail server is unavailable
-- **WHEN** a visitor registers «ООО Ромашка» while the mail server refuses connections
+- **WHEN** a visitor registers as «Анна Петрова» while the mail server refuses connections
 - **THEN** the page shows «Не удалось отправить письмо. Попробуйте зарегистрироваться ещё раз позже», and a repeated registration with the same email is accepted
 
 #### Scenario: Invalid input
-- **WHEN** a visitor registers with an empty organization name, an email without «@» or the password «short»
-- **THEN** nothing is created and the form names each invalid field: «Укажите название организации», «Укажите корректный email», «Пароль должен быть от 10 до 128 символов»
+- **WHEN** a visitor registers with an empty name, an email without «@» or the password «short»
+- **THEN** nothing is created and the form names each invalid field: «Укажите имя», «Укажите корректный email», «Пароль должен быть от 10 до 128 символов»
+
+#### Scenario: An organization name is refused
+- **WHEN** a request to register carries an organization name besides the name, the email and the password
+- **THEN** the request is refused as invalid and no user is created
 
 ### Requirement: FR-2 Confirm the registrant's email
 
@@ -39,7 +42,7 @@ single-use and valid for 24 hours. Until confirmation the app SHALL refuse the r
 
 #### Scenario: Confirmation by a valid link
 - **WHEN** Анна follows the confirmation link 2 hours after registering
-- **THEN** her email is confirmed, she is signed in and lands on the start page as the administrator of «ООО Ромашка»
+- **THEN** her email is confirmed, she is signed in and lands on the start page, which shows «Анна Петрова» and «Выйти» and no organization
 
 #### Scenario: Sign-in before confirmation
 - **WHEN** Анна signs in with the right password before following the link
@@ -52,9 +55,9 @@ single-use and valid for 24 hours. Until confirmation the app SHALL refuse the r
 ### Requirement: FR-3 Repeat an unconfirmed registration
 
 A registration whose email is not confirmed SHALL NOT block that email. A new registration with the
-same email SHALL replace the unconfirmed organization and its user. It SHALL send a new confirmation
-link, and the earlier links SHALL stop working.
+same email SHALL replace the unconfirmed user. It SHALL send a new confirmation link, and the earlier
+links SHALL stop working.
 
 #### Scenario: The registrant registers again
-- **WHEN** Анна registered «ООО Ромашка» yesterday without confirming and today registers «Ромашка» with the same email
-- **THEN** only the organization «Ромашка» exists for her email, a new confirmation email goes out, and yesterday's link shows «Ссылка недействительна или устарела»
+- **WHEN** Анна registered as «Анна» yesterday without confirming and today registers as «Анна Петрова» with the same email
+- **THEN** only one user «Анна Петрова» exists for her email, a new confirmation email goes out, and yesterday's link shows «Ссылка недействительна или устарела»

@@ -17,10 +17,6 @@ class EmailNotConfirmed(SignInRefused):
     """The registrant has not followed the confirmation link."""
 
 
-class AccountDisabled(SignInRefused):
-    """The user was deactivated by an administrator."""
-
-
 class SignInLocked(SignInRefused):
     """Too many failed attempts for this email."""
 

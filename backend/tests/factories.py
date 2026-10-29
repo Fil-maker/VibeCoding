@@ -1,11 +1,9 @@
-"""Small factories: organizations, users, sessions and invitations, built through the public API."""
+"""Small factories: users and sessions, built through the public API."""
 
 import re
 from contextlib import AsyncExitStack
 from dataclasses import dataclass
-from datetime import timedelta
 from http import HTTPStatus
-from typing import Literal
 
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient, Response
@@ -18,8 +16,6 @@ API = "/api/v1"
 APP_BASE_URL = "http://localhost:5173"
 PASSWORD = "correct-horse-1"
 ANNA_EMAIL = "anna@romashka.test"
-
-InvitationStatus = Literal["sent", "not_sent", "accepted", "revoked", "expired"]
 
 
 def settings_for(database_url: str) -> Settings:
@@ -46,8 +42,6 @@ class Account:
     email: str
     password: str
     name: str
-    organization_name: str
-    role: str
     user_id: str = ""
 
 
@@ -56,11 +50,9 @@ def registration_body(
     email: str = ANNA_EMAIL,
     password: str = PASSWORD,
     name: str = "Анна Петрова",
-    organization_name: str = "ООО Ромашка",
 ) -> dict[str, str]:
     """A valid body of POST /auth/registrations."""
     return {
-        "organization_name": organization_name,
         "name": name,
         "email": email,
         "password": password,
@@ -93,51 +85,38 @@ class Factories:
         """Close every client that was opened."""
         await self._stack.aclose()
 
-    async def unconfirmed_admin(
+    async def unconfirmed_user(
         self,
         *,
         email: str = ANNA_EMAIL,
         password: str = PASSWORD,
         name: str = "Анна Петрова",
-        organization_name: str = "ООО Ромашка",
     ) -> Account:
-        """Register an organization; the confirmation email is the last one in `mail.sent`."""
+        """Register a user; the confirmation email is the last one in `mail.sent`."""
         client = await self.open_client()
         response = await client.post(
             f"{API}/auth/registrations",
-            json=registration_body(
-                email=email, password=password, name=name, organization_name=organization_name
-            ),
+            json=registration_body(email=email, password=password, name=name),
         )
         assert response.status_code == HTTPStatus.CREATED
-        return Account(email.strip().lower(), password, name, organization_name, "administrator")
+        return Account(email.strip().lower(), password, name)
 
-    async def confirmed_admin(
+    async def confirmed_user(
         self,
         *,
         email: str = ANNA_EMAIL,
         password: str = PASSWORD,
         name: str = "Анна Петрова",
-        organization_name: str = "ООО Ромашка",
     ) -> Account:
-        """Register an organization and confirm its administrator."""
-        account = await self.unconfirmed_admin(
-            email=email, password=password, name=name, organization_name=organization_name
-        )
+        """Register a user and confirm the email."""
+        account = await self.unconfirmed_user(email=email, password=password, name=name)
         client = await self.open_client()
         response = await client.post(
             f"{API}/auth/email-confirmations",
             json={"token": token_from(self.mail.sent[-1])},
         )
         assert response.status_code == HTTPStatus.OK
-        return Account(
-            account.email,
-            password,
-            name,
-            organization_name,
-            "administrator",
-            response.json()["user_id"],
-        )
+        return Account(account.email, password, name, response.json()["user_id"])
 
     async def signed_in(self, account: Account) -> AsyncClient:
         """A new client signed in as `account`: one session."""
@@ -145,63 +124,3 @@ class Factories:
         response = await sign_in(client, account.email, account.password)
         assert response.status_code == HTTPStatus.OK
         return client
-
-    async def employee(
-        self,
-        admin: AsyncClient,
-        *,
-        email: str = "boris@romashka.test",
-        name: str = "Борис Иванов",
-        password: str = PASSWORD,
-        active: bool = True,
-    ) -> Account:
-        """An employee of the administrator's organization, invited and accepted."""
-        invited = await admin.post(f"{API}/invitations", json={"email": email})
-        assert invited.status_code == HTTPStatus.CREATED
-        anonymous = await self.open_client()
-        accepted = await anonymous.post(
-            f"{API}/invitations/accept",
-            json={"token": token_from(self.mail.sent[-1]), "name": name, "password": password},
-        )
-        assert accepted.status_code == HTTPStatus.OK
-        me = accepted.json()
-        if not active:
-            deactivated = await admin.post(f"{API}/members/{me['user_id']}/deactivate")
-            assert deactivated.status_code == HTTPStatus.OK
-        return Account(
-            email.strip().lower(),
-            password,
-            name,
-            me["organization"]["name"],
-            "employee",
-            me["user_id"],
-        )
-
-    async def invitation(
-        self, admin: AsyncClient, status: InvitationStatus, *, email: str = "boris@romashka.test"
-    ) -> dict[str, object]:
-        """An invitation in the given status; "expired" moves the shared clock past 7 days."""
-        if status == "not_sent":
-            self.mail.fail_next(1)
-        created = await admin.post(f"{API}/invitations", json={"email": email})
-        assert created.status_code == HTTPStatus.CREATED
-        invitation: dict[str, object] = created.json()
-        if status == "revoked":
-            revoked = await admin.post(f"{API}/invitations/{invitation['id']}/revoke")
-            invitation = revoked.json()
-        elif status == "accepted":
-            anonymous = await self.open_client()
-            accepted = await anonymous.post(
-                f"{API}/invitations/accept",
-                json={
-                    "token": token_from(self.mail.sent[-1]),
-                    "name": "Борис Иванов",
-                    "password": PASSWORD,
-                },
-            )
-            assert accepted.status_code == HTTPStatus.OK
-            invitation = {**invitation, "status": "accepted"}
-        elif status == "expired":
-            self.clock.advance(timedelta(days=8))
-            invitation = {**invitation, "status": "expired"}
-        return invitation

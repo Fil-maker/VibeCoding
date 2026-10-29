@@ -103,14 +103,6 @@ async def test_origin_request_with_the_matching_origin_passes(client: AsyncClien
         ("DELETE", "/auth/sessions/current", None),
         ("POST", "/auth/password-resets", {"email": ANNA_EMAIL}),
         ("POST", "/auth/password-resets/complete", {"token": "x", "password": "y" * 10}),
-        ("POST", "/invitations", {"email": "boris@romashka.test"}),
-        ("POST", "/invitations/00000000-0000-0000-0000-000000000001/resend", None),
-        ("POST", "/invitations/00000000-0000-0000-0000-000000000001/revoke", None),
-        ("POST", "/invitations/accept", {"token": "x", "name": "Борис", "password": "y" * 10}),
-        ("POST", "/invitations/preview", {"token": "x"}),
-        ("POST", "/members/00000000-0000-0000-0000-000000000001/deactivate", None),
-        ("POST", "/members/00000000-0000-0000-0000-000000000001/reactivate", None),
-        ("PUT", "/members/00000000-0000-0000-0000-000000000001/role", {"role": "employee"}),
     ],
 )
 async def test_origin_every_state_changing_auth_route_checks_the_origin(
@@ -143,7 +135,7 @@ async def test_origin_foreign_request_with_a_session_cookie_is_refused_and_the_s
     factories: Factories,
 ) -> None:
     # FR-20 «even if the browser sends the user's session along»
-    account = await factories.confirmed_admin()
+    account = await factories.confirmed_user()
     signed_in = await factories.signed_in(account)
     cookie = signed_in.cookies["vc_session"]
     foreign = await factories.open_client(origin="http://evil.test")

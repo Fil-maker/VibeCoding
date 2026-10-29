@@ -23,8 +23,8 @@ The range to review (`main...HEAD` plus uncommitted changes), the change name, i
 1. `git diff --stat main...HEAD` and `git status --short`, then the full diff file by file.
 2. For each changed file, open every rule in `.claude/rules/` whose `paths` match it, and
    `CLAUDE.md` «Product invariants».
-3. Check each changed line against each verifiable statement. Typical: a query without the owner and
-   organization filter; email text sent out without the consent gateway; a mailbox write; an assessment
+3. Check each changed line against each verifiable statement. Typical: a query without the owner
+   `user_id` filter; email text sent out without the consent gateway; a mailbox write; an assessment
    without evidence or model version; non-determinism (clock, randomness) in domain logic; an escape
    hatch without a reason; a swallowed error; `dangerouslySetInnerHTML`; a hand-edited generated client;
    a migration edited after it ran.

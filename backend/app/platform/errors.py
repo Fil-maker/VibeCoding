@@ -20,7 +20,6 @@ NOT_FOUND_MESSAGE = "Не найдено"
 FALLBACK_FIELD_MESSAGE = "Проверьте поле"
 # Used when a field is missing or of the wrong type, before any field validator could speak.
 FIELD_MESSAGES = {
-    "organization_name": "Укажите название организации",
     "name": "Укажите имя",
     "email": "Укажите корректный email",
     "password": "Пароль должен быть от 10 до 128 символов",

@@ -29,7 +29,7 @@ async def test_fr7_reset_for_a_registered_email_sends_one_email(
     factories: Factories, client: AsyncClient, mail: FakeMailSender
 ) -> None:
     # FR-7 «Reset requested for a registered email»
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
     sent_before = len(mail.sent)
 
     response = await client.post(f"{API}/auth/password-resets", json={"email": ANNA_EMAIL})
@@ -45,7 +45,7 @@ async def test_fr7_reset_for_an_unknown_email_sends_nothing_and_answers_the_same
     factories: Factories, client: AsyncClient, mail: FakeMailSender
 ) -> None:
     # FR-7 «Reset requested for an unknown email»
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
     known = await client.post(f"{API}/auth/password-resets", json={"email": ANNA_EMAIL})
     sent_after_known = len(mail.sent)
 
@@ -62,7 +62,7 @@ async def test_fr7_reset_for_an_unconfirmed_registrant_sends_nothing(
     factories: Factories, client: AsyncClient, mail: FakeMailSender
 ) -> None:
     # FR-7: the link goes only to a confirmed user
-    await factories.unconfirmed_admin()
+    await factories.unconfirmed_user()
     sent_before = len(mail.sent)
 
     status = await request_reset(client)
@@ -75,7 +75,7 @@ async def test_fr7_a_new_request_replaces_the_earlier_link(
     factories: Factories, client: AsyncClient, mail: FakeMailSender
 ) -> None:
     # FR-7 «A new request replaces the earlier link»
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
     await request_reset(client)
     first_token = token_from(mail.sent[-1])
     await request_reset(client)
@@ -106,7 +106,7 @@ async def test_fr8_reset_ends_old_sessions_and_switches_to_the_new_password(
     factories: Factories, client: AsyncClient, mail: FakeMailSender, clock: SettableClock
 ) -> None:
     # FR-8 «Password reset ends old sessions»
-    account = await factories.confirmed_admin()
+    account = await factories.confirmed_user()
     phone = await factories.signed_in(account)
     await request_reset(client)
     clock.advance(timedelta(minutes=30))
@@ -123,7 +123,7 @@ async def test_fr8_reset_after_61_minutes_changes_nothing(
     factories: Factories, client: AsyncClient, mail: FakeMailSender, clock: SettableClock
 ) -> None:
     # FR-8 «Expired or used reset link»
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
     await request_reset(client)
     clock.advance(timedelta(minutes=61))
 
@@ -140,7 +140,7 @@ async def test_fr8_reset_link_used_a_second_time_changes_nothing(
     factories: Factories, client: AsyncClient, mail: FakeMailSender
 ) -> None:
     # FR-8 «Expired or used reset link»
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
     await request_reset(client)
     token = token_from(mail.sent[-1])
     assert (await complete_reset(client, token)).status_code == 204
@@ -157,7 +157,7 @@ async def test_fr8_too_short_password_keeps_the_password_and_the_link(
     factories: Factories, client: AsyncClient, mail: FakeMailSender
 ) -> None:
     # FR-8 «Too short new password»
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
     await request_reset(client)
     token = token_from(mail.sent[-1])
 
@@ -176,7 +176,7 @@ async def test_fr8_completed_reset_clears_the_sign_in_lock(
     factories: Factories, client: AsyncClient, mail: FakeMailSender
 ) -> None:
     # FR-5 «A completed password reset SHALL clear the count», FR-8
-    await factories.confirmed_admin()
+    await factories.confirmed_user()
     for _ in range(5):
         await sign_in(client, ANNA_EMAIL, "wrong-horse-99")
     assert (await sign_in(client, ANNA_EMAIL, PASSWORD)).status_code == 429
@@ -185,43 +185,3 @@ async def test_fr8_completed_reset_clears_the_sign_in_lock(
     await complete_reset(client, token_from(mail.sent[-1]))
 
     assert (await sign_in(client, ANNA_EMAIL, NEW_PASSWORD)).status_code == 200
-
-
-async def test_fr7_reset_for_a_deactivated_user_still_sends_the_link(
-    factories: Factories, client: AsyncClient, mail: FakeMailSender
-) -> None:
-    # FR-7 «For a confirmed user, active or not»
-    admin = await factories.signed_in(await factories.confirmed_admin())
-    boris = await factories.employee(admin, active=False)
-    sent_before = len(mail.sent)
-
-    response = await client.post(f"{API}/auth/password-resets", json={"email": boris.email})
-
-    assert response.status_code == 202
-    assert len(mail.sent) == sent_before + 1
-    assert mail.sent[-1].to == boris.email
-    assert mail.sent[-1].subject == "Сброс пароля в VibeCoding"
-    assert f"{APP_BASE_URL}/reset-password#token=" in mail.sent[-1].text
-
-
-async def test_fr8_a_deactivated_user_sets_a_new_password_but_is_still_refused_sign_in(
-    factories: Factories, client: AsyncClient, mail: FakeMailSender
-) -> None:
-    # FR-8: a deactivated user can set a new password, sign-in stays refused (FR-14)
-    admin = await factories.signed_in(await factories.confirmed_admin())
-    boris = await factories.employee(admin, active=False)
-    await request_reset(client, boris.email)
-
-    completed = await complete_reset(client, token_from(mail.sent[-1]))
-
-    assert completed.status_code == 204
-    refused = await sign_in(client, boris.email, NEW_PASSWORD)
-    assert refused.status_code == 403
-    assert refused.json()["error"]["code"] == "account_disabled"
-    assert (
-        refused.json()["error"]["message"]
-        == "Учётная запись отключена. Обратитесь к администратору организации"
-    )
-    reactivated = await admin.post(f"{API}/members/{boris.user_id}/reactivate")
-    assert reactivated.status_code == 200
-    assert (await sign_in(client, boris.email, NEW_PASSWORD)).status_code == 200

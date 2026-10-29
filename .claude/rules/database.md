@@ -19,9 +19,9 @@ data model doc. Facts: `docs/architecture.md` «Data model».
 - Ids: UUID primary keys named `id`; foreign keys `<entity>_id`; tables plural snake_case.
 - Timestamps `timestamptz`, set from the injected clock, never `now()` defaults in Python code paths.
 - Closed sets stored as strings, validated by a `StrEnum` in code; no PostgreSQL enums.
-- Every table with user data carries `organization_id`; correspondence carries its mailbox and owner.
-- Deletes cascade from the organization and the mailbox; emails read from a mailbox are kept as the
-  interaction history until their mailbox or organization is deleted.
+- Every table with user data carries its owner `user_id`; correspondence carries its mailbox too.
+- Deletes cascade from the user and the mailbox; emails read from a mailbox are kept as the
+  correspondence history until their mailbox or user is deleted.
 - An assessment row records the analysis model and its version, and links to its evidence rows.
 - JSON columns get a pydantic schema in code.
 

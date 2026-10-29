@@ -1,6 +1,6 @@
 # Tech
 
-Updated 27.10.2026
+Updated 29.10.2026
 
 ## Contents
 
@@ -67,7 +67,7 @@ Requires: git, uv, just, prek, node with pnpm, Docker, openspec (`npm install -g
 
 Frontend unit tests are not part of `just check`; `just check` stays static.
 
-In the dev stack the service emails (registration confirmation, invitations, password reset) go to the Mailpit
+In the dev stack the service emails (registration confirmation, password reset) go to the Mailpit
 container; open its web UI at http://localhost:8025 to read them. Mailpit's SMTP port (1025) is reachable only inside the
 compose network, so the mail flow works through `just dev`, not through a backend started on the host.
 
@@ -106,7 +106,6 @@ Secrets live only in `.env` (gitignored); `.env.example` is the template.
 | `SESSION_LIFETIME_DAYS` | Lifetime of a session after sign-in, in days | `14` |
 | `CONFIRMATION_LINK_HOURS` | Lifetime of the email confirmation link, in hours | `24` |
 | `PASSWORD_RESET_LINK_MINUTES` | Lifetime of the password reset link, in minutes | `60` |
-| `INVITATION_LIFETIME_DAYS` | Lifetime of an invitation, in days | `7` |
 | `SIGN_IN_MAX_FAILURES` | Failed sign-ins for one email that lock sign-in for that email | `5` |
 | `SIGN_IN_FAILURE_WINDOW_MINUTES` | Window in which the failed sign-ins are counted, in minutes | `15` |
 | `SIGN_IN_LOCK_MINUTES` | How long sign-in for that email stays locked, in minutes | `15` |

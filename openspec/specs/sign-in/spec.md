@@ -1,20 +1,20 @@
 # sign-in Specification
 
 ## Purpose
-Lets a member of an organization sign in with email and password, keeps them signed in for a limited
+Lets a user sign in with email and password, keeps them signed in for a limited
 time, and lets them regain access by email when the password is forgotten.
 
 ## Requirements
 
 ### Requirement: FR-4 Sign in with email and password
 
-A confirmed, active user SHALL sign in with their email, compared without regard to case and
-surrounding spaces, and their password. A wrong password and an unknown email SHALL give the same
-answer, «Неверный email или пароль», so the answer never tells whether an email is registered.
+A confirmed user SHALL sign in with their email, compared without regard to case and surrounding
+spaces, and their password. A wrong password and an unknown email SHALL give the same answer, «Неверный
+email или пароль», so the answer never tells whether an email is registered.
 
 #### Scenario: Successful sign-in
-- **WHEN** Анна, a confirmed administrator of «ООО Ромашка», signs in with « ANNA@romashka.test » and her password
-- **THEN** she is signed in and lands on the start page with her name «Анна Петрова» and the organization «ООО Ромашка» shown
+- **WHEN** Анна, a confirmed user, signs in with « ANNA@romashka.test » and her password
+- **THEN** she is signed in and lands on the start page with her name «Анна Петрова» shown
 
 #### Scenario: Wrong password or unknown email
 - **WHEN** someone signs in as «anna@romashka.test» with a wrong password, or as «nobody@romashka.test»
@@ -53,7 +53,7 @@ or expired session SHALL be treated as signed out: a protected page sends the vi
 session SHALL NOT be readable by the page's scripts.
 
 #### Scenario: Sign-out
-- **WHEN** Анна presses «Выйти» and then opens the page «Участники»
+- **WHEN** Анна presses «Выйти» and then opens the start page
 - **THEN** she sees the page «Вход»
 
 #### Scenario: Expired session
@@ -66,10 +66,10 @@ session SHALL NOT be readable by the page's scripts.
 
 ### Requirement: FR-7 Request a password reset
 
-A visitor SHALL request a password reset by entering an email. For a confirmed user, active or not,
-the app SHALL send a reset link that is single-use and valid for 1 hour. The page SHALL show the same
-answer whether or not the email belongs to a user: «Если такой email зарегистрирован, мы отправили на
-него ссылку для сброса пароля».
+A visitor SHALL request a password reset by entering an email. For a confirmed user the app SHALL send
+a reset link that is single-use and valid for 1 hour. The page SHALL show the same answer whether or not
+the email belongs to a user: «Если такой email зарегистрирован, мы отправили на него ссылку для сброса
+пароля».
 
 #### Scenario: Reset requested for a registered email
 - **WHEN** Анна requests a reset for «anna@romashka.test»
@@ -86,8 +86,7 @@ answer whether or not the email belongs to a user: «Если такой email �
 ### Requirement: FR-8 Set a new password by the reset link
 
 Following a valid reset link, the user SHALL set a new password of 10–128 characters. Setting it SHALL
-end all of the user's sessions and clear the sign-in lock. A deactivated user SHALL be able to set the
-password but SHALL still be refused sign-in.
+end all of the user's sessions and clear the sign-in lock.
 
 #### Scenario: Password reset ends old sessions
 - **WHEN** Анна is signed in on her phone, follows a reset link 30 minutes after requesting it and sets «new-correct-horse-2»

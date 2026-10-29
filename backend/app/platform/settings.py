@@ -31,7 +31,6 @@ class Settings(BaseSettings):
     session_lifetime_days: int = 14
     confirmation_link_hours: int = 24
     password_reset_link_minutes: int = 60
-    invitation_lifetime_days: int = 7
 
     sign_in_max_failures: int = 5
     sign_in_failure_window_minutes: int = 15

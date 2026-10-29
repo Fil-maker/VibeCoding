@@ -10,7 +10,7 @@ How this repository's agent harness is set up and why. For agents; English.
 - Languages: talk Russian; agent files English; docs English; commits English; UI Russian
 - Modes: guide on; code by subagents; tests two agents (sandbox); commit gate ask; git branch + ff-only; sessions design/code/finish
 - Stack: Python + FastAPI (uv, pytest, ruff, pyright strict, SQLAlchemy + Alembic) · React + TypeScript SPA (Vite, pnpm, Vitest, ESLint, Prettier, client generated from OpenAPI) · PostgreSQL in Docker · just · prek
-- Invariants: (1) explainable verdicts; (2) mailbox read-only; (3) reproducible assessments, model change visible; (4) interaction history with each counterparty kept, administrator sees all correspondence of the organization; (5) access boundary — employee sees only own correspondence, administrator all of their organization, email text goes to a third-party service only with the administrator's consent
+- Invariants: (1) explainable verdicts; (2) mailbox read-only; (3) reproducible assessments, model change visible; (4) history kept — the engine never moves a placed reply chain; (5) access boundary — a user sees only their own mailboxes, projects and correspondence, email text goes to a third-party model only with the user's consent (since ADR 0023, CLAUDE.md «Product invariants»)
 - Decisions home: `docs/adr/` (ADR files), `docs/decisions.md` is the ADR index; decision draft script writes ADRs after confirmation
 
 ## Approved file plan (R7, 23.10.2026)

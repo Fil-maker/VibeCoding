@@ -9,9 +9,8 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.main import load_settings
-from app.modules.accounts.models import Organization, User
+from app.modules.accounts.models import User
 from app.modules.auth.models import SignInFailure, UserSession, UserToken
-from app.modules.invitations.models import Invitation
 from app.platform.db import Base
 
 config = context.config
@@ -19,7 +18,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Importing the models registers their tables on the metadata; the tuple keeps the imports used.
-MODELS = (Organization, User, UserSession, UserToken, SignInFailure, Invitation)
+MODELS = (User, UserSession, UserToken, SignInFailure)
 target_metadata = Base.metadata
 LOG = logging.getLogger("alembic.env")
 
