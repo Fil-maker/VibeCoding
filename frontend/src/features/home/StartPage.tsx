@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import { Link } from 'react-router';
 
 import { apiClient } from '../../api/client';
 import { unwrapEmpty } from '../../api/request';
@@ -7,7 +8,7 @@ import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
 import { useAuth } from '../auth/AuthProvider';
 
-// The start page: who is signed in and sign-out.
+// The start page: who is signed in, the links to the mailboxes and the chains, and sign-out.
 export function StartPage(): React.JSX.Element | null {
   const { state, setSession } = useAuth();
   const signOut = useMutation({
@@ -24,6 +25,10 @@ export function StartPage(): React.JSX.Element | null {
   return (
     <Panel title="VibeCoding">
       <p>{me.name}</p>
+      <p className={styles.links}>
+        <Link to="/mailboxes">Почтовые ящики</Link>
+        <Link to="/chains">Переписка</Link>
+      </p>
       <ErrorAlert error={signOut.error} />
       <button
         type="button"

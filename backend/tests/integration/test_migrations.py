@@ -17,6 +17,7 @@ from sqlalchemy import create_engine, inspect, text
 from app.main import create_app
 from app.platform.clock import get_clock
 from app.platform.mail import FakeMailSender, get_mail_sender
+from app.platform.mail_reader import FakeMailReader
 from app.platform.passwords import hash_password
 from tests.alembic_runner import alembic_config, current_revision, upgrade_to_head
 from tests.database_settings import TestDatabaseSettings
@@ -305,7 +306,7 @@ async def test_formerly_deactivated_user_and_administrator_sign_in_after_the_upg
     signed_in: dict[str, tuple[int, Any]] = {}
 
     async with app.router.lifespan_context(app):
-        factories = Factories(app, mail, clock)
+        factories = Factories(app, mail, clock, FakeMailReader())
         try:
             for u in task_02_data.users[:3]:
                 client = await factories.open_client()

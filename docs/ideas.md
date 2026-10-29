@@ -1,6 +1,6 @@
 # Ideas
 
-Updated 28.10.2026
+Updated 29.10.2026
 
 Ideas not yet planned, by product area, then the technical backlog. `/idea` adds an entry; `/explore`
 discusses a raw one.
@@ -96,33 +96,51 @@ were left out to keep it shippable.
 
 ## Mailbox
 
-### Mailbox connection
+### OAuth sign-in to Gmail and Outlook
 
-Added 23.10, changed 28.10. A user connects one or more mailboxes on a page of the app: server, login and
-app password over IMAP; the app checks the connection and keeps each mailbox as the user's. Why: without
-a connected mailbox there is no correspondence to lay out, and one project's correspondence is spread
-over several mailboxes.
+Added 29.10. Connect Gmail and Outlook through OAuth instead of an app password. Why: task 1.2 connects
+mailboxes over IMAP with an app password only, which these services make hard or forbid.
 
-Proposed in the explore session:
-- IMAP with an app password first (Yandex 360, Mail.ru, Exchange); OAuth for Gmail later.
-- Reading never changes the mailbox: the folder is opened read-only and messages are fetched without
-  setting the «seen» flag, so unread emails stay unread — a scenario in the spec.
-- The mailbox password is stored encrypted with a key from `.env`.
+**Open:** which providers first; how a revoked grant is shown.
 
-**Open:** does «connect» only check and save or also start reading emails; how a mailbox is disconnected
-and what happens to its data; retention.
+**Touches:** invariants «Mailbox read-only» (read-only scopes) and «Access boundary».
 
-**Touches:** invariants «Mailbox read-only» and «Access boundary». Needs «Personal accounts» first.
+### More folders and reading depth
 
-### Reply chains
+Added 29.10. Read folders other than Inbox and Sent and let the user set how far back a mailbox is read.
+Why: task 1.2 reads Inbox and Sent of the last 12 months only; some correspondence sits in other folders
+or is older.
 
-Added 28.10. Read the emails of all of a user's mailboxes and collect them into reply chains by the
-`References` and `In-Reply-To` headers; an email present in two mailboxes (by `Message-ID`) is one
-email. Why: the reply chain is the unit the engine places, and it is never split.
+**Open:** which folders by default; what a smaller depth does to emails already read («History is kept»).
 
-**Open:** which folders are read (inbox, sent, all); how far back.
+**Touches:** invariant «History is kept».
 
-**Touches:** invariant «Mailbox read-only». Needs «Mailbox connection».
+### Attachments' content and search
+
+Added 29.10. Keep the content of attachments and search the text of emails and attachments. Why: task 1.2
+keeps only attachment names, and the user cannot find an agreement by a word.
+
+**Open:** size limits; which file types are read.
+
+**Touches:** invariant «Access boundary»; storage size.
+
+### Deleting a disconnected mailbox's emails
+
+Added 29.10. Let the user delete the emails and reply chains read from a disconnected mailbox. Why: task
+1.2 keeps them after disconnecting and offers no way to delete them.
+
+**Open:** what happens to chains with emails from other mailboxes and to placements of task 1.3.
+
+**Touches:** invariant «History is kept».
+
+### Encryption key rotation
+
+Added 29.10. Change the key that encrypts mailbox passwords without reconnecting every mailbox. Why: a
+lost or changed key now makes every mailbox fail to sign in until it is reconnected.
+
+**Open:** how both keys coexist during the change.
+
+**Touches:** nothing new.
 
 ## Technical backlog
 

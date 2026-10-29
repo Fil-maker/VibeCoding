@@ -164,10 +164,124 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mailboxes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Mailboxes
+         * @description The user's connected mailboxes.
+         */
+        get: operations["list_mailboxes_api_v1_mailboxes_get"];
+        put?: never;
+        /**
+         * Connect Mailbox
+         * @description Check the sign-in, then save the mailbox; it is read soon after.
+         */
+        post: operations["connect_mailbox_api_v1_mailboxes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mailboxes/{mailbox_id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Mailbox
+         * @description Ask for a read of the mailbox at the next tick.
+         */
+        post: operations["refresh_mailbox_api_v1_mailboxes__mailbox_id__refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mailboxes/{mailbox_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Disconnect Mailbox
+         * @description Delete the password and stop reading; the read emails stay.
+         */
+        delete: operations["disconnect_mailbox_api_v1_mailboxes__mailbox_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reply-chains": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Reply Chains
+         * @description The user's reply chains, the chain with the latest email first.
+         */
+        get: operations["list_reply_chains_api_v1_reply_chains_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reply-chains/{chain_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Reply Chain
+         * @description One reply chain with its emails, the oldest first.
+         */
+        get: operations["read_reply_chain_api_v1_reply_chains__chain_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * Address
+         * @description An email address with the name written beside it, if any.
+         */
+        Address: {
+            /** Address */
+            address: string;
+            /** Name */
+            name?: string | null;
+        };
         /**
          * EmailConfirmationRequest
          * @description The token from the confirmation link.
@@ -175,6 +289,33 @@ export interface components {
         EmailConfirmationRequest: {
             /** Token */
             token: string;
+        };
+        /**
+         * EmailView
+         * @description One email of a reply chain.
+         */
+        EmailView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            sender: components["schemas"]["Address"];
+            /** To */
+            to: components["schemas"]["Address"][];
+            /** Cc */
+            cc: components["schemas"]["Address"][];
+            /**
+             * Sent At
+             * Format: date-time
+             */
+            sent_at: string;
+            /** Subject */
+            subject: string;
+            /** Text */
+            text: string;
+            /** Attachment Names */
+            attachment_names: string[];
         };
         /**
          * ErrorBody
@@ -219,6 +360,51 @@ export interface components {
             database: "ok" | "unavailable";
         };
         /**
+         * Mailbox
+         * @description A connected mailbox as the list shows it.
+         */
+        Mailbox: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Server */
+            server: string;
+            /** Port */
+            port: number;
+            /** Login */
+            login: string;
+            status: components["schemas"]["MailboxStatus"];
+            /** Error */
+            error: string | null;
+            /** Last Read At */
+            last_read_at: string | null;
+        };
+        /**
+         * MailboxConnect
+         * @description The form «Подключить ящик».
+         */
+        MailboxConnect: {
+            /** Server */
+            server: string;
+            /**
+             * Port
+             * @default 993
+             */
+            port: number;
+            /** Login */
+            login: string;
+            /** Password */
+            password: string;
+        };
+        /**
+         * MailboxStatus
+         * @description Where a mailbox is in its reading cycle.
+         * @enum {string}
+         */
+        MailboxStatus: "pending" | "reading" | "read" | "failed";
+        /**
          * Me
          * @description The signed-in user.
          */
@@ -232,6 +418,13 @@ export interface components {
             name: string;
             /** Email */
             email: string;
+        };
+        /** Page[ReplyChainSummary] */
+        Page_ReplyChainSummary_: {
+            /** Items */
+            items: components["schemas"]["ReplyChainSummary"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /**
          * PasswordResetCompletion
@@ -272,6 +465,45 @@ export interface components {
             email: string;
             /** Email Sent */
             email_sent: boolean;
+        };
+        /**
+         * ReplyChain
+         * @description A reply chain with its emails, the oldest first.
+         */
+        ReplyChain: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Subject */
+            subject: string;
+            /** Participants */
+            participants: components["schemas"]["Address"][];
+            /** Emails */
+            emails: components["schemas"]["EmailView"][];
+        };
+        /**
+         * ReplyChainSummary
+         * @description A row of the list of reply chains.
+         */
+        ReplyChainSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Subject */
+            subject: string;
+            /** Participants */
+            participants: components["schemas"]["Address"][];
+            /** Email Count */
+            email_count: number;
+            /**
+             * Latest Email At
+             * Format: date-time
+             */
+            latest_email_at: string;
         };
         /**
          * SignInRequest
@@ -661,6 +893,329 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_mailboxes_api_v1_mailboxes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                vc_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Mailbox"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    connect_mailbox_api_v1_mailboxes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                vc_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MailboxConnect"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Mailbox"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    refresh_mailbox_api_v1_mailboxes__mailbox_id__refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mailbox_id: string;
+            };
+            cookie?: {
+                vc_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Mailbox"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disconnect_mailbox_api_v1_mailboxes__mailbox_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mailbox_id: string;
+            };
+            cookie?: {
+                vc_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reply_chains_api_v1_reply_chains_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                vc_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ReplyChainSummary_"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_reply_chain_api_v1_reply_chains__chain_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chain_id: string;
+            };
+            cookie?: {
+                vc_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplyChain"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

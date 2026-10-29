@@ -11,6 +11,9 @@ import { RequireGuest, RequireUser } from './features/auth/guards';
 import { RegisterPage } from './features/auth/RegisterPage';
 import { ResetPasswordPage } from './features/auth/ResetPasswordPage';
 import { SignInPage } from './features/auth/SignInPage';
+import { ChainPage } from './features/correspondence/ChainPage';
+import { ChainsPage } from './features/correspondence/ChainsPage';
+import { MailboxesPage } from './features/mailboxes/MailboxesPage';
 import { StartPage } from './features/home/StartPage';
 import { HealthStatus } from './features/health/HealthStatus';
 
@@ -36,6 +39,9 @@ export function App({
             <Route path="/health" element={<HealthStatus />} />
             <Route element={<RequireUser />}>
               <Route path="/" element={<StartPage />} />
+              <Route path="/mailboxes" element={<MailboxesPage />} />
+              <Route path="/chains" element={<ChainsPage />} />
+              <Route path="/chains/:id" element={<ChainPage />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

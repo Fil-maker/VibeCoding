@@ -17,6 +17,8 @@ export default defineConfig(({ mode }) => {
     },
     test: {
       environment: 'jsdom',
+      // Dates are formatted in local time; the tests pin one zone so they pass on any machine.
+      env: { TZ: 'UTC' },
       setupFiles: ['./src/test/setup.ts'],
       include: ['src/**/*.test.{ts,tsx}'],
     },

@@ -1,0 +1,29 @@
+From: =?utf-8?b?0KHQtdGA0LPQtdC5INCf0LXRgtGA0L7Qsg==?=
+ <s.petrov@stroymaster.example>
+To: =?utf-8?b?0JDQvdC90LAg0JjQstCw0L3QvtCy0LA=?= <anna@demo.test>
+Subject: =?utf-8?b?0JDQutGCINGB0LrRgNGL0YLRi9GFINGA0LDQsdC+0YI=?=
+Date: Mon, 16 Mar 2026 10:00:00 +0300
+Message-ID: <c04m1@demo.test>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============3636098386565397305=="
+
+--===============3636098386565397305==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+
+0JDQvdC90LAsINGN0LvQtdC60YLRgNC40LrQsCDQsiDQtNCy0YPRhSDQutCw0LHQuNC90LXRgtCw
+0YUg0LfQsNC60L7QvdGH0LXQvdCwLiDQn9GA0LjQutC70LDQtNGL0LLQsNGOINCw0LrRgiDRgdC6
+0YDRi9GC0YvRhSDRgNCw0LHQvtGCINC90LAg0L/QvtC00L/QuNGB0YwsINC00L4g0LfQsNC60YDR
+i9GC0LjRjyDQv9C+0YLQvtC70LrQvtCyINC90YPQttC90L4g0LLQsNGI0LUg0YHQvtCz0LvQsNGB
+0LjQtS4KCi0tIArQodC10YDQs9C10Lkg0J/QtdGC0YDQvtCyCg==
+
+--===============3636098386565397305==
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="akt_skrytyh_rabot.pdf"
+MIME-Version: 1.0
+
+0JTQtdC80L7QvdGB0YLRgNCw0YbQuNC+0L3QvdC+0LUg0LLQu9C+0LbQtdC90LjQtTogYWt0X3Nr
+cnl0eWhfcmFib3QucGRmCg==
+
+--===============3636098386565397305==--

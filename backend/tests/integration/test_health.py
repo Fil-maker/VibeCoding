@@ -6,6 +6,9 @@ from httpx import ASGITransport, AsyncClient
 from app.main import create_app
 from app.platform.settings import Settings
 
+# A valid Fernet key (32 bytes, url-safe base64) used only by tests.
+ENCRYPTION_KEY = "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
+
 
 async def test_health_reports_database_ok(client: AsyncClient) -> None:
     response = await client.get("/api/v1/health")
@@ -22,6 +25,7 @@ async def test_health_reports_unavailable_when_the_database_is_unreachable() -> 
             app_base_url="http://localhost:5173",
             mail_from="noreply@vibecoding.test",
             smtp_host="localhost",
+            mailbox_encryption_key=ENCRYPTION_KEY,
         )
     )
 

@@ -4,11 +4,14 @@ import re
 from contextlib import AsyncExitStack
 from dataclasses import dataclass
 from http import HTTPStatus
+from typing import Any
 
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient, Response
 
+from app.modules.mailboxes.service import read_due_mailboxes
 from app.platform.mail import FakeMailSender, OutgoingEmail
+from app.platform.mail_reader import FakeMailReader
 from app.platform.settings import Settings
 from tests.settable_clock import SettableClock
 
@@ -16,6 +19,10 @@ API = "/api/v1"
 APP_BASE_URL = "http://localhost:5173"
 PASSWORD = "correct-horse-1"
 ANNA_EMAIL = "anna@romashka.test"
+VERA_EMAIL = "vera@romashka.test"
+APP_PASSWORD = "app-pass-1234"
+# A valid Fernet key (32 bytes, url-safe base64) used only by tests.
+TEST_ENCRYPTION_KEY = "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
 
 
 def settings_for(database_url: str) -> Settings:
@@ -25,6 +32,8 @@ def settings_for(database_url: str) -> Settings:
         app_base_url=APP_BASE_URL,
         mail_from="noreply@vibecoding.test",
         smtp_host="localhost",
+        mailbox_encryption_key=TEST_ENCRYPTION_KEY,
+        mailbox_reading_enabled=False,
     )
 
 
@@ -67,10 +76,13 @@ async def sign_in(client: AsyncClient, email: str, password: str) -> Response:
 class Factories:
     """Builds data through HTTP with the mail and the clock the test controls."""
 
-    def __init__(self, app: FastAPI, mail: FakeMailSender, clock: SettableClock) -> None:
+    def __init__(
+        self, app: FastAPI, mail: FakeMailSender, clock: SettableClock, reader: FakeMailReader
+    ) -> None:
         self.app = app
         self.mail = mail
         self.clock = clock
+        self.reader = reader
         self._stack = AsyncExitStack()
 
     async def open_client(self, origin: str | None = APP_BASE_URL) -> AsyncClient:
@@ -124,3 +136,56 @@ class Factories:
         response = await sign_in(client, account.email, account.password)
         assert response.status_code == HTTPStatus.OK
         return client
+
+    async def connect_mailbox(
+        self,
+        client: AsyncClient,
+        login: str,
+        *,
+        server: str = "imap.yandex.ru",
+        port: int = 993,
+        password: str = APP_PASSWORD,
+    ) -> dict[str, Any]:
+        """Connect a mailbox through the API (the fake reader accepts it); returns the `Mailbox`."""
+        response = await client.post(
+            f"{API}/mailboxes",
+            json={"server": server, "port": port, "login": login, "password": password},
+        )
+        assert response.status_code == HTTPStatus.CREATED, response.text
+        mailbox: dict[str, Any] = response.json()
+        return mailbox
+
+    async def read_due(self) -> int:
+        """Run one reading pass over the mailboxes that are due; returns how many were read."""
+        return await read_due_mailboxes(
+            self.app.state.database, self.reader, self.clock, self.app.state.settings
+        )
+
+
+async def list_mailboxes(client: AsyncClient) -> list[dict[str, Any]]:
+    """GET /mailboxes of a signed-in client."""
+    response = await client.get(f"{API}/mailboxes")
+    assert response.status_code == HTTPStatus.OK, response.text
+    mailboxes: list[dict[str, Any]] = response.json()
+    return mailboxes
+
+
+async def list_chains(client: AsyncClient, *, limit: int = 100) -> list[dict[str, Any]]:
+    """GET /reply-chains: the first page of summaries, latest email first."""
+    response = await client.get(f"{API}/reply-chains", params={"limit": limit})
+    assert response.status_code == HTTPStatus.OK, response.text
+    items: list[dict[str, Any]] = response.json()["items"]
+    return items
+
+
+async def open_chain(client: AsyncClient, chain_id: str) -> dict[str, Any]:
+    """GET /reply-chains/{id}."""
+    response = await client.get(f"{API}/reply-chains/{chain_id}")
+    assert response.status_code == HTTPStatus.OK, response.text
+    chain: dict[str, Any] = response.json()
+    return chain
+
+
+async def count_emails(client: AsyncClient) -> int:
+    """How many emails the user has: the sum over the first 100 chains."""
+    return sum(chain["email_count"] for chain in await list_chains(client))

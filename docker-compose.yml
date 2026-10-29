@@ -26,6 +26,17 @@ services:
     ports:
       - "8025:8025"
 
+  # Demo IMAP/SMTP server (in memory, no TLS): IMAP 3143 also on the host for `just demo-mail`.
+  # After a restart the mail is gone; run `just demo-mail` again.
+  greenmail:
+    image: greenmail/standalone:2.1.8
+    environment:
+      GREENMAIL_OPTS: >-
+        -Dgreenmail.setup.test.imap -Dgreenmail.setup.test.smtp -Dgreenmail.hostname=0.0.0.0
+        -Dgreenmail.users=anna@demo.test:${DEMO_MAIL_PASSWORD}@demo.test,anna.work@demo.test:${DEMO_MAIL_PASSWORD}@demo.test
+    ports:
+      - "3143:3143"
+
   backend:
     build:
       context: .
@@ -44,6 +55,9 @@ services:
       APP_BASE_URL: http://localhost:5173
       # The repo-root .env is not mounted into the container, so required settings come from here.
       MAIL_FROM: ${MAIL_FROM}
+      MAILBOX_ENCRYPTION_KEY: ${MAILBOX_ENCRYPTION_KEY}
+      # The demo mail server speaks IMAP without TLS.
+      IMAP_INSECURE_HOSTS: greenmail
     ports:
       - "8000:8000"
     volumes:

@@ -11,6 +11,7 @@ REQUIRED = {
     "APP_BASE_URL": "http://localhost:5173",
     "MAIL_FROM": "noreply@vibecoding.test",
     "SMTP_HOST": "mailpit",
+    "MAILBOX_ENCRYPTION_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
 }
 OPTIONAL = [
     "SMTP_PORT",
@@ -24,6 +25,12 @@ OPTIONAL = [
     "SIGN_IN_MAX_FAILURES",
     "SIGN_IN_FAILURE_WINDOW_MINUTES",
     "SIGN_IN_LOCK_MINUTES",
+    "MAILBOX_READING_ENABLED",
+    "MAILBOX_READ_INTERVAL_MINUTES",
+    "MAILBOX_READ_TICK_SECONDS",
+    "MAILBOX_READ_DEPTH_DAYS",
+    "IMAP_TIMEOUT_SECONDS",
+    "IMAP_INSECURE_HOSTS",
 ]
 
 
@@ -54,7 +61,10 @@ def test_settings_reads_the_required_mail_and_link_values(required_env: pytest.M
     assert settings.smtp_host == "mailpit"
 
 
-@pytest.mark.parametrize("missing", ["DATABASE_URL", "APP_BASE_URL", "MAIL_FROM", "SMTP_HOST"])
+@pytest.mark.parametrize(
+    "missing",
+    ["DATABASE_URL", "APP_BASE_URL", "MAIL_FROM", "SMTP_HOST", "MAILBOX_ENCRYPTION_KEY"],
+)
 def test_settings_fails_loudly_when_a_required_value_is_missing(
     required_env: pytest.MonkeyPatch, missing: str
 ) -> None:
@@ -83,3 +93,26 @@ def test_settings_defaults_of_the_lifetimes_and_limits(required_env: pytest.Monk
     assert settings.sign_in_max_failures == 5
     assert settings.sign_in_failure_window_minutes == 15
     assert settings.sign_in_lock_minutes == 15
+
+
+def test_settings_reads_the_mailbox_encryption_key(required_env: pytest.MonkeyPatch) -> None:
+    assert build_settings().mailbox_encryption_key == REQUIRED["MAILBOX_ENCRYPTION_KEY"]
+
+
+def test_settings_defaults_of_the_mailbox_reading(required_env: pytest.MonkeyPatch) -> None:
+    settings = build_settings()
+
+    assert settings.mailbox_reading_enabled is True
+    assert settings.mailbox_read_interval_minutes == 5
+    assert settings.mailbox_read_tick_seconds == 10
+    assert settings.mailbox_read_depth_days == 365
+    assert settings.imap_timeout_seconds == 30
+    assert not settings.imap_insecure_hosts
+
+
+def test_settings_reading_can_be_switched_off_from_the_environment(
+    required_env: pytest.MonkeyPatch,
+) -> None:
+    required_env.setenv("MAILBOX_READING_ENABLED", "false")
+
+    assert build_settings().mailbox_reading_enabled is False

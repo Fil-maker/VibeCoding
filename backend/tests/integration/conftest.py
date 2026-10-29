@@ -11,6 +11,7 @@ from sqlalchemy import create_engine, text
 from app.main import create_app
 from app.platform.clock import get_clock
 from app.platform.mail import FakeMailSender, get_mail_sender
+from app.platform.mail_reader import FakeMailReader, get_mail_reader
 from tests.alembic_runner import upgrade_to_head
 from tests.database_settings import TestDatabaseSettings
 from tests.factories import Factories, settings_for
@@ -66,20 +67,29 @@ def clock() -> SettableClock:
 
 
 @pytest.fixture
-def app(test_database_url: str, mail: FakeMailSender, clock: SettableClock) -> FastAPI:
+def reader() -> FakeMailReader:
+    """The fake mailbox reader: the mailboxes of the test live in it."""
+    return FakeMailReader()
+
+
+@pytest.fixture
+def app(
+    test_database_url: str, mail: FakeMailSender, clock: SettableClock, reader: FakeMailReader
+) -> FastAPI:
     """The app wired to the test database, with the fake mail sender and the settable clock."""
     application = create_app(settings_for(test_database_url))
     application.dependency_overrides[get_mail_sender] = lambda: mail
+    application.dependency_overrides[get_mail_reader] = lambda: reader
     application.dependency_overrides[get_clock] = lambda: clock
     return application
 
 
 @pytest.fixture
 async def factories(
-    app: FastAPI, mail: FakeMailSender, clock: SettableClock
+    app: FastAPI, mail: FakeMailSender, clock: SettableClock, reader: FakeMailReader
 ) -> AsyncIterator[Factories]:
     """Factories and clients over the running app; requests stay in-process, no port opens."""
-    built = Factories(app, mail, clock)
+    built = Factories(app, mail, clock, reader)
     async with app.router.lifespan_context(app):
         yield built
         await built.close()

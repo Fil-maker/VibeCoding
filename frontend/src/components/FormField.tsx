@@ -7,6 +7,7 @@ interface FormFieldProps {
   label: string;
   type?: 'text' | 'email' | 'password';
   autoComplete?: string;
+  defaultValue?: string;
   error?: string | undefined;
 }
 
@@ -16,6 +17,7 @@ export function FormField({
   label,
   type = 'text',
   autoComplete,
+  defaultValue,
   error,
 }: FormFieldProps): React.JSX.Element {
   const id = useId();
@@ -28,6 +30,7 @@ export function FormField({
         name={name}
         type={type}
         autoComplete={autoComplete}
+        defaultValue={defaultValue}
         className={styles.input}
         aria-invalid={error === undefined ? undefined : true}
         aria-describedby={error === undefined ? undefined : errorId}

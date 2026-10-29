@@ -450,10 +450,539 @@
           }
         }
       }
+    },
+    "/api/v1/mailboxes": {
+      "get": {
+        "tags": [
+          "mailboxes"
+        ],
+        "summary": "List Mailboxes",
+        "description": "The user's connected mailboxes.",
+        "operationId": "list_mailboxes_api_v1_mailboxes_get",
+        "parameters": [
+          {
+            "name": "vc_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vc Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Mailbox"
+                  },
+                  "title": "Response List Mailboxes Api V1 Mailboxes Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "mailboxes"
+        ],
+        "summary": "Connect Mailbox",
+        "description": "Check the sign-in, then save the mailbox; it is read soon after.",
+        "operationId": "connect_mailbox_api_v1_mailboxes_post",
+        "parameters": [
+          {
+            "name": "vc_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vc Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MailboxConnect"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mailbox"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/mailboxes/{mailbox_id}/refresh": {
+      "post": {
+        "tags": [
+          "mailboxes"
+        ],
+        "summary": "Refresh Mailbox",
+        "description": "Ask for a read of the mailbox at the next tick.",
+        "operationId": "refresh_mailbox_api_v1_mailboxes__mailbox_id__refresh_post",
+        "parameters": [
+          {
+            "name": "mailbox_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Mailbox Id"
+            }
+          },
+          {
+            "name": "vc_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vc Session"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mailbox"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mailboxes/{mailbox_id}": {
+      "delete": {
+        "tags": [
+          "mailboxes"
+        ],
+        "summary": "Disconnect Mailbox",
+        "description": "Delete the password and stop reading; the read emails stay.",
+        "operationId": "disconnect_mailbox_api_v1_mailboxes__mailbox_id__delete",
+        "parameters": [
+          {
+            "name": "mailbox_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Mailbox Id"
+            }
+          },
+          {
+            "name": "vc_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vc Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reply-chains": {
+      "get": {
+        "tags": [
+          "reply-chains"
+        ],
+        "summary": "List Reply Chains",
+        "description": "The user's reply chains, the chain with the latest email first.",
+        "operationId": "list_reply_chains_api_v1_reply_chains_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "vc_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vc Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_ReplyChainSummary_"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reply-chains/{chain_id}": {
+      "get": {
+        "tags": [
+          "reply-chains"
+        ],
+        "summary": "Read Reply Chain",
+        "description": "One reply chain with its emails, the oldest first.",
+        "operationId": "read_reply_chain_api_v1_reply_chains__chain_id__get",
+        "parameters": [
+          {
+            "name": "chain_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chain Id"
+            }
+          },
+          {
+            "name": "vc_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vc Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyChain"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "Address": {
+        "properties": {
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "address"
+        ],
+        "title": "Address",
+        "description": "An email address with the name written beside it, if any."
+      },
       "EmailConfirmationRequest": {
         "properties": {
           "token": {
@@ -469,6 +998,65 @@
         ],
         "title": "EmailConfirmationRequest",
         "description": "The token from the confirmation link."
+      },
+      "EmailView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "sender": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "to": {
+            "items": {
+              "$ref": "#/components/schemas/Address"
+            },
+            "type": "array",
+            "title": "To"
+          },
+          "cc": {
+            "items": {
+              "$ref": "#/components/schemas/Address"
+            },
+            "type": "array",
+            "title": "Cc"
+          },
+          "sent_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Sent At"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "attachment_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Attachment Names"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "sender",
+          "to",
+          "cc",
+          "sent_at",
+          "subject",
+          "text",
+          "attachment_names"
+        ],
+        "title": "EmailView",
+        "description": "One email of a reply chain."
       },
       "ErrorBody": {
         "properties": {
@@ -553,6 +1141,106 @@
         "title": "HealthStatus",
         "description": "The state of the service and its database."
       },
+      "Mailbox": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "server": {
+            "type": "string",
+            "title": "Server"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port"
+          },
+          "login": {
+            "type": "string",
+            "title": "Login"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MailboxStatus"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "last_read_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Read At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "server",
+          "port",
+          "login",
+          "status",
+          "error",
+          "last_read_at"
+        ],
+        "title": "Mailbox",
+        "description": "A connected mailbox as the list shows it."
+      },
+      "MailboxConnect": {
+        "properties": {
+          "server": {
+            "type": "string",
+            "title": "Server"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "default": 993
+          },
+          "login": {
+            "type": "string",
+            "title": "Login"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "server",
+          "login",
+          "password"
+        ],
+        "title": "MailboxConnect",
+        "description": "The form «Подключить ящик»."
+      },
+      "MailboxStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "reading",
+          "read",
+          "failed"
+        ],
+        "title": "MailboxStatus",
+        "description": "Where a mailbox is in its reading cycle."
+      },
       "Me": {
         "properties": {
           "user_id": {
@@ -577,6 +1265,34 @@
         ],
         "title": "Me",
         "description": "The signed-in user."
+      },
+      "Page_ReplyChainSummary_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReplyChainSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "Page[ReplyChainSummary]"
       },
       "PasswordResetCompletion": {
         "properties": {
@@ -657,6 +1373,81 @@
         ],
         "title": "RegistrationResult",
         "description": "The address the confirmation went to, and whether the mail server took it."
+      },
+      "ReplyChain": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/Address"
+            },
+            "type": "array",
+            "title": "Participants"
+          },
+          "emails": {
+            "items": {
+              "$ref": "#/components/schemas/EmailView"
+            },
+            "type": "array",
+            "title": "Emails"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "subject",
+          "participants",
+          "emails"
+        ],
+        "title": "ReplyChain",
+        "description": "A reply chain with its emails, the oldest first."
+      },
+      "ReplyChainSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/Address"
+            },
+            "type": "array",
+            "title": "Participants"
+          },
+          "email_count": {
+            "type": "integer",
+            "title": "Email Count"
+          },
+          "latest_email_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Latest Email At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "subject",
+          "participants",
+          "email_count",
+          "latest_email_at"
+        ],
+        "title": "ReplyChainSummary",
+        "description": "A row of the list of reply chains."
       },
       "SignInRequest": {
         "properties": {

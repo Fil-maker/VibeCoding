@@ -59,6 +59,7 @@ just test        # unit tests
 just test-db     # database tests
 just test-all    # unit and database tests
 just api-client  # regenerate the SPA's API client from the backend's OpenAPI schema
+just demo-mail   # load the demo mailboxes into GreenMail (also: status, add-new)
 ```
 
 Python scripts run as

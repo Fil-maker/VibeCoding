@@ -1,0 +1,13 @@
+.email {
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: var(--size-border-width) solid var(--color-border);
+}
+
+.email p {
+  margin: var(--space-1) 0;
+}
+
+.text {
+  white-space: pre-wrap;
+}

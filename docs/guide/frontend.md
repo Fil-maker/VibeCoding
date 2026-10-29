@@ -7,8 +7,10 @@ Updated 29.10.2026
 The tests are `frontend/src/App.*.test.tsx`, `frontend/src/features/health/HealthStatus.test.tsx` and `frontend/src/test/`.
 
 **Requirements:** the pages and guards carry out [FR-1 … FR-3](../../openspec/specs/organization-registration/spec.md) registration,
-[FR-4 … FR-8](../../openspec/specs/sign-in/spec.md) sign-in and password reset, and
-[FR-17, FR-20 and FR-21](../../openspec/specs/access-boundary/spec.md) the access boundary. The health page has no requirement:
+[FR-4 … FR-8](../../openspec/specs/sign-in/spec.md) sign-in and password reset,
+[FR-17, FR-20 and FR-21](../../openspec/specs/access-boundary/spec.md) the access boundary,
+[FR-22, FR-23, FR-24, FR-26 and FR-27](../../openspec/specs/mailboxes/spec.md) the mailbox page and
+[FR-30 and FR-31](../../openspec/specs/reply-chains/spec.md) the correspondence pages. The health page has no requirement:
 task 0.1 is a technical change without specs ([ADR 0004](../adr/0004-task-0-1-runs-as-a.md)).
 
 **Design:** [Components and processes](../architecture.md#components-and-processes),
@@ -16,7 +18,7 @@ task 0.1 is a technical change without specs ([ADR 0004](../adr/0004-task-0-1-ru
 (the SPA route table), [Stack](../tech.md#stack), [Environment variables](../tech.md#environment-variables).
 
 **Related:** [Auth and accounts](auth.md) for the backend side of sign-in, sessions and registration;
-[Backend](backend.md).
+[Backend](backend.md); [Mail reading](mail-reading.md) for the backend side of mailboxes and reply chains.
 
 ## Entry and providers
 
@@ -36,7 +38,7 @@ task 0.1 is a technical change without specs ([ADR 0004](../adr/0004-task-0-1-ru
 - The paths and who sees each page are in [Routes and API](../architecture.md#routes-and-api), under «SPA routes».
   This article covers how `App.tsx` nests them:
   - `RequireGuest` wraps the pages for a signed-out visitor: registration, sign-in and the password reset request.
-  - `RequireUser` wraps the start page.
+  - `RequireUser` wraps the start page, `/mailboxes`, `/chains` and `/chains/:id`.
   - The pages that take their token from the link (email confirmation, new password), the health page
     and the catch-all route stay outside the guards.
 - The catch-all route shows `NotFoundPage`. The addresses `/members` and `/invitation` have no route, so they show
@@ -81,12 +83,74 @@ Every page is a `Panel` whose `title` is its `h1`.
 | «Вход» | `frontend/src/features/auth/SignInPage.tsx` | Posts email and password, then `setSession`; `RequireGuest` takes the user on. Links «Забыли пароль?» and «Регистрация». |
 | «Восстановление пароля» | `frontend/src/features/auth/ForgotPasswordPage.tsx` | Posts the email. The answer is the same text for every email. |
 | «Новый пароль» | `frontend/src/features/auth/ResetPasswordPage.tsx` | Takes the token from the link, posts it with the new password and shows `Пароль изменён. Теперь можно войти` with a link to «Вход». Without a token it shows the invalid-link text. |
-| «VibeCoding» (start page) | `frontend/src/features/home/StartPage.tsx` | Shows the signed-in user's name and the button «Выйти», which ends the session and calls `setSession(null)`. |
+| «VibeCoding» (start page) | `frontend/src/features/home/StartPage.tsx` | Shows the signed-in user's name, the links «Почтовые ящики» (to `/mailboxes`) and «Переписка» (to `/chains`), and the button «Выйти», which ends the session and calls `setSession(null)`. |
+| «Почтовые ящики» | `frontend/src/features/mailboxes/MailboxesPage.tsx` | The connected mailboxes, their reading status, «Обновить», «Отключить», and the connect form. See [Mailboxes feature](#mailboxes-feature). |
+| «Переписка» | `frontend/src/features/correspondence/ChainsPage.tsx` | The reply chains, the latest first, a page at a time. See [Correspondence feature](#correspondence-feature). |
+| The chain's subject (`/chains/:id`) | `frontend/src/features/correspondence/ChainPage.tsx` | One reply chain: its emails oldest first, each as plain text. See [Correspondence feature](#correspondence-feature). |
 | «Состояние сервиса» | `frontend/src/features/health/HealthStatus.tsx` | The health page; see [Health feature](#health-feature). |
 | «Страница не найдена» | `frontend/src/components/NotFoundPage.tsx` | See [Components](#components). |
 
 Forms carry no client-side rules. Each `<form>` has `noValidate`, so the server decides; the per-field messages of
 the answer show under their fields (see [Errors and messages](#errors-and-messages)).
+
+## Mailboxes feature
+
+`frontend/src/features/mailboxes/MailboxesPage.tsx` is the whole feature: one file, with `MailboxRow` for a row of the list and
+`ConnectForm` for the form. The server side is in [Mail reading](mail-reading.md).
+
+- The page is a `Panel` titled «Почтовые ящики» with a link «На главную» to `/`. It reads `GET /api/v1/mailboxes` under the
+  query key `['mailboxes']`. While the query loads it shows `Загрузка…`; with no mailbox it shows `Ящики ещё не подключены`.
+- The list is a table with the login, the server, the status and the actions of each mailbox. The page never shows a password.
+- **Status text.** The text comes from `statusText` in the page file; the values are exactly:
+
+  | `status` | Text |
+  |---|---|
+  | `pending` | `Ожидает чтения` |
+  | `reading` | `Читается…` |
+  | `read` | `Прочитан` when `last_read_at` is null; `Прочитан ` and the local date and time of `last_read_at` otherwise |
+  | `failed` | `Ошибка: ` and the mailbox's `error` text |
+
+- **Polling.** The list query refetches every 5 seconds (`POLL_INTERVAL_MS = 5000`) only while some mailbox is `pending` or
+  `reading`. When every mailbox is `read` or `failed`, it does not poll.
+- **«Обновить».** It calls `POST /api/v1/mailboxes/{mailbox_id}/refresh` for that row only. The button is disabled while the
+  request runs; on success the list is invalidated. The reading itself happens at the next tick of the server's reading loop.
+- **«Отключить» with a confirmation.** The first click does not send anything. It replaces the row's buttons with the text
+  `Отключить ящик {login}? Прочитанные письма останутся.` and two buttons: «Отключить» (sends `DELETE /api/v1/mailboxes/{mailbox_id}`;
+  the button is disabled while the request runs) and «Отмена» (returns the row's buttons, sends nothing). Whatever the answer,
+  the confirmation closes. On success the list is invalidated and the mailbox disappears. A failure shows its message in the row.
+- **The connect form.** The heading «Подключить ящик» sits above a form with the fields «Сервер IMAP», «Порт» (default `993`,
+  set with `defaultValue`), «Логин» and «Пароль приложения» (a password field), and the button «Подключить». It posts
+  `POST /api/v1/mailboxes` with `server`, `port` (a number), `login` and `password`. The form has `noValidate`; the server's
+  per-field messages show under their fields. When no field has a message, the answer's message shows above the form (for example
+  «Этот ящик уже подключён» for `mailbox_exists`). On success the form is cleared and the list is invalidated.
+
+## Correspondence feature
+
+The files are `frontend/src/features/correspondence/`: `ChainsPage.tsx` (the list), `ChainPage.tsx` (one chain),
+`ChainPage.module.css` (its styles) and `format.ts` (the date, count and address texts of both pages). The server side is in
+[Mail reading](mail-reading.md#reading-a-reply-chain).
+
+- **The list (`/chains`).** The page «Переписка» reads `GET /api/v1/reply-chains` as an infinite query under the key
+  `['reply-chains']`. The SPA sends no `limit`, so the server's default page size applies. Each row shows the subject as a link to
+  `/chains/{id}`, the participants (`formatAddresses`), the email count (`emailCountLabel`, for example «1 письмо», «2 письма»,
+  «5 писем») and the date of the latest email (`formatDate`, date only). With no chain it shows `Писем пока нет: подключите почтовый ящик`.
+  The button «Показать ещё» loads the next page with the `cursor` of the last answer. It is disabled while that page loads, and it
+  is not shown when the last answer has no `next_cursor`.
+- **One chain (`/chains/:id`).** `ChainPage` reads `GET /api/v1/reply-chains/{chain_id}` under the key `['reply-chains', id]`.
+  The page title is the chain's subject, and the link «К переписке» goes back to `/chains`. It retries once on an error, except a
+  404, which shows `NotFoundPage` (`Страница не найдена`): another user's chain and an unknown id look the same. While loading, and
+  on any other error, the page is a «Переписка» panel with `Загрузка…` or the error alert.
+- **Each email** is an `<article>` in the order of the answer, oldest first: `Тема:` with the email's subject, `От:` with the sender, `Кому:` with the recipients,
+  `Копия:` only when there are copies, the sent date and time (`formatDateTime`), the text, and `Вложения: ` with the attachment
+  names joined by `, ` only when there are attachments. The server keeps only the file names of attachments, so the page shows names only
+  ([Mail reading](mail-reading.md#html-to-text)).
+- **The text is plain text.** The text is rendered as a React child in an element with the class `.text`, which sets
+  `white-space: pre-wrap` (`ChainPage.module.css`). The SPA never sets HTML from it: no `dangerouslySetInnerHTML`, and the ESLint
+  rule `react/no-danger` is an error. Markup in an email shows as the characters it is.
+- **Formatting (`format.ts`).** Dates use `Intl.DateTimeFormat('ru-RU')` in the user's local time: `formatDate` gives `29.10.2026`,
+  `formatDateTime` gives `29.10.2026, 14:05`. `emailCountLabel` picks the Russian plural with `Intl.PluralRules('ru')`.
+  `formatAddress` gives `Имя <адрес>` when the name is known and the bare address otherwise. The `Address` type is taken from the
+  generated schema.
 
 ## API client
 
@@ -101,7 +165,8 @@ Server data reaches the SPA only through the generated client; components never 
   non-2xx answer. Wrap the call in `unwrap(...)` to get the data or throw an `ApiError`; `unwrapEmpty(...)` does the
   same for answers without a body (202, 204). A network failure throws from `fetch`.
 - Schema types come from `components['schemas'][...]`, for example `Me` in `AuthProvider.tsx` and `HealthStatus`
-  in `frontend/src/features/health/useHealth.ts`.
+  in `frontend/src/features/health/useHealth.ts`, `Mailbox` and `MailboxConnect` in `MailboxesPage.tsx`, and `EmailView`
+  and `Address` in the correspondence files.
 
 ### How the client is regenerated
 
@@ -159,7 +224,8 @@ new paths through `apiClient`. `frontend/.prettierignore` skips `frontend/src/ap
 `frontend/src/components/` holds the shared pieces. Each one takes its look from `ui.module.css`.
 
 - `Panel` is the page card: a `<main>` with the title as its only `<h1>`. `wide` widens it to `--size-wide-content-width`.
-- `FormField` is a labelled input (`type` `text`, `email` or `password`). It is uncontrolled: the form reads the values
+- `FormField` is a labelled input (`type` `text`, `email` or `password`). It takes an optional `defaultValue`, which the
+  input shows at first (the mailbox form uses it for the port `993`). It is uncontrolled: the form reads the values
   from `FormData`. Its label and its message are linked through `useId`.
 - `ErrorAlert` is the `role="alert"` paragraph that shows a request's error.
 - `NotFoundPage` is a `Panel` titled `Страница не найдена` with the link «На главную» to `/`.
@@ -220,7 +286,8 @@ replaces the list; the last successful answer is not kept on screen.
 
 ## Dev server
 
-- `frontend/vite.config.ts` sets the React plugin, the `/api` proxy and the test settings.
+- `frontend/vite.config.ts` sets the React plugin, the `/api` proxy and the test settings (`environment`, `setupFiles`,
+  `include`, and `TZ`, see [Tests](#tests)).
 - The proxy target is `VITE_PROXY_TARGET`, read through `loadEnv`; it defaults to `http://localhost:8000`.
   `docker-compose.yml` sets `http://backend:8000`. The variable is listed in
   [Environment variables](../tech.md#environment-variables).
@@ -236,8 +303,16 @@ replaces the list; the last successful answer is not kept on screen.
 - `setup.ts` loads the Jest DOM matchers and, after each test, unmounts the rendered tree and restores the globals
   (`cleanup()`, `vi.unstubAllGlobals()`). Vitest globals are off, so Testing Library does not clean up by itself.
 - The page tests render the whole app. They sit in `frontend/src/App.<area>.test.tsx`: `App.guards`, `App.start`,
-  `App.signIn`, `App.registration` and `App.passwordReset`. A scenario test names its FR, for example «FR-17 …»;
+  `App.signIn`, `App.registration`, `App.passwordReset`, `App.mailboxes` (the «Почтовые ящики» page) and `App.chains` (the start
+  page links, «Переписка» and one chain). A scenario test names its FR, for example «FR-17 …»;
   a test of an SPA page without an FR, such as «Вход» or «Страница не найдена», names the page.
+- The dates of `format.ts` are in local time. `vite.config.ts` sets `TZ` to `UTC` for the test run (its `test` settings), and
+  `App.chains.test.tsx` and `App.mailboxes.test.tsx` set `process.env.TZ = 'UTC'` again at their top, so «14:05» in a test means
+  14:05 on any machine. The app itself does not set a zone.
+- `App.mailboxes.test.tsx` covers the list and its statuses, «Обновить», the disconnect confirmation (confirm and «Отмена»)
+  and the connect form with its refusals. `App.chains.test.tsx` covers the start page links, the guard for `/chains`, the
+  list with «Показать ещё», the empty list, reading a chain (order, attachments, plain text, line breaks) and the
+  «Страница не найдена» answer for another user's chain.
 - `frontend/src/test/appHarness.tsx` provides `renderApp({ path, me?, routes? })`. It moves the browser to `path`,
   stubs `fetch` with `vi.stubGlobal`, and renders `<App queryClient={…} />` with a new `QueryClient` that does not retry.
   `me` is the signed-in user, `{user_id, name, email}`; without it the visitor is signed out.

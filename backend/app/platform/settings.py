@@ -36,6 +36,22 @@ class Settings(BaseSettings):
     sign_in_failure_window_minutes: int = 15
     sign_in_lock_minutes: int = 15
 
+    # Mailboxes: reading in the background (FR-24) and the password box (FR-23).
+    mailbox_encryption_key: str
+    mailbox_reading_enabled: bool = True
+    mailbox_read_interval_minutes: int = 5
+    mailbox_read_tick_seconds: int = 10
+    mailbox_read_depth_days: int = 365
+    imap_timeout_seconds: int = 30
+    # Comma-separated hosts reached without TLS (local test servers only).
+    imap_insecure_hosts: str = ""
+
+    @property
+    def insecure_hosts(self) -> frozenset[str]:
+        """The hosts of `imap_insecure_hosts`, trimmed and lower-cased."""
+        parts = (part.strip().lower() for part in self.imap_insecure_hosts.split(","))
+        return frozenset(part for part in parts if part)
+
 
 def get_settings(request: Request) -> Settings:
     """Dependency: the settings the app was built with."""
