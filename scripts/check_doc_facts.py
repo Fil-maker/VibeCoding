@@ -35,8 +35,9 @@ KNOWN_EXT = {
 }  # fmt: skip
 TOP_DIRS = {"backend", "frontend", "docs", "scripts", "openspec", ".claude", ".github"}
 LOCAL_ONLY = (
-    ".env", ".venv", "node_modules", "dist", ".cache", ".claude/session", "__pycache__",
-    "coverage", ".claude/settings.local.json", "CLAUDE.local.md", ".ruff_cache", "build",
+    ".env", ".venv", "node_modules", "dist", ".cache", ".claude/session", ".claude/worktrees",
+    "__pycache__", "coverage", ".claude/settings.local.json", "CLAUDE.local.md", ".ruff_cache",
+    "build",
 )  # fmt: skip
 # Docs that describe future work by design: no existence checks (look-alikes still checked).
 FUTURE_DOCS = {"docs/plan.md", "docs/ideas.md"}
