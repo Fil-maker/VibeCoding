@@ -18,7 +18,7 @@ Versions are pinned in the manifests and lock files: `backend/pyproject.toml` an
 | Component | Version | Why |
 |---|---|---|
 | Python + FastAPI | Python 3.12 (`>=3.12,<3.13`), FastAPI `>=0.161,<0.162` | Backend; typed, async, OpenAPI out of the box — [ADR 0001](adr/0001-fastapi-backend.md) |
-| uv `0.9.3` (pinned in `docker/backend.Dockerfile`; the host `uv --version` is also 0.9.3) | — | Python packages and environments |
+| uv `0.9.3` (pinned in `docker/backend.Dockerfile` as the PyPI install `pip install uv==0.9.3`; the host `uv --version` is also 0.9.3) | — | Python packages and environments; the dev image installs it from PyPI — [ADR 0050](adr/0050-the-backend-dev-image-installs-uv.md) |
 | uvicorn | `>=0.54,<0.55` | Serves the app in `just dev` (reload, port 8000) |
 | pydantic-settings | `>=2.16,<3` | Typed `Settings` read from the environment (`backend/app/platform/settings.py`) |
 | pytest | `>=9.1,<10` | Python tests (`just test`, `just test-db`) |

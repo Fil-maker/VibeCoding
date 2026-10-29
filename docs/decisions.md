@@ -65,3 +65,4 @@ them.
 | 29.10.2026 | [0047](adr/0047-read-folders-inbox-and-sent-emails.md) | Read folders Inbox and Sent, emails of the last 12 months (an app setting) | [human] | Accepted |
 | 29.10.2026 | [0048](adr/0048-disconnecting-a-mailbox-deletes-its-password.md) | Disconnecting a mailbox deletes its password and stops reading; emails and reply chains already read stay | [human] | Accepted |
 | 29.10.2026 | [0049](adr/0049-demo-mailboxes-run-on-greenmail-in.md) | Demo mailboxes run on GreenMail in Docker; just demo-mail loads prepared Russian correspondence; manual checks use it, automated tests fake the mailbox | [human] | Accepted |
+| 29.10.2026 | [0050](adr/0050-the-backend-dev-image-installs-uv.md) | The backend dev image installs uv 0.9.3 from PyPI (pip install) instead of copying it from the ghcr.io/astral-sh/uv image | [human] | Accepted |

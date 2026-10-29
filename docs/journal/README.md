@@ -17,3 +17,4 @@ mistakes and lessons, what remains. Written by `/journal` at `/finish`.
 | 27.10.2026 | [Fix of the harness: sandbox close and CRLF](2026-10-27-02-fix-harness-close-and-crlf.md) | - | fix-harness-close-and-crlf |
 | 29.10.2026 | [Personal accounts](2026-10-29-01-1-1-personal-accounts.md) | 1.1 | 1-1-personal-accounts |
 | 29.10.2026 | [Mailboxes and reply chains](2026-10-29-02-1-2-mailboxes-and-reply-chains.md) | 1.2 | 1-2-mailboxes-and-reply-chains |
+| 29.10.2026 | [Fix of the backend image: uv from PyPI](2026-10-29-03-fix-uv-from-pypi.md) | - | fix-uv-from-pypi |
