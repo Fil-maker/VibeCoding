@@ -222,7 +222,7 @@ def main() -> int:
         return 0
     out: Path = args.out or project / ".claude/session" / f"digest-{date.today().isoformat()}.md"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     sys.stdout.write(f"Digest of {len(ids)} session(s), {len(lines)} lines: {out}\n")
     return 0
 

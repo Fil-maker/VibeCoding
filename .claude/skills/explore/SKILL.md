@@ -37,7 +37,7 @@ invariants. Say what is already there.
 Two or three ways, each with what the user gets, the cost (effort, risk, which invariants it strains),
 and your recommendation with the reason. The deferred question «Analysis engine» (`docs/ideas.md`) is
 settled here: weigh reproducibility (model version pinned, deterministic settings) and the access
-boundary (does email text leave the app, what the administrator's consent covers).
+boundary (does email text leave the app, what the user's consent covers).
 
 ## 4. Цели
 

@@ -3,7 +3,7 @@
 # pyproject.toml in backend/ with task 0.1.
 [project]
 name = "vibecoding"
-version = "0.0.0" # the product version: changed only by /release
+version = "0.1.0" # the product version: changed only by /release
 description = "Email sentiment analysis: an opinion of each counterparty, built from the correspondence."
 requires-python = ">=3.12"
 

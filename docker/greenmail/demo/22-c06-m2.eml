@@ -1,0 +1,30 @@
+From: =?utf-8?b?0JzQsNGA0LjRjyDQmtGD0LfQvdC10YbQvtCy0LA=?=
+ <m.kuznetsova@officeline.example>
+To: =?utf-8?b?0JDQvdC90LAg0JjQstCw0L3QvtCy0LA=?= <anna@demo.test>
+Subject: Re: =?utf-8?b?0KHRh9GR0YIg0L3QsCDQvNC+0L3QuNGC0L7RgNGL?=
+Date: Sat, 14 Mar 2026 15:00:00 +0300
+Message-ID: <c06m2@demo.test>
+In-Reply-To: <c06m1@demo.test>
+References: <c06m1@demo.test>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============5610714486118379252=="
+
+--===============5610714486118379252==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+
+0JDQvdC90LAsINGB0YfRkdGCINC90LAgMjUg0LzQvtC90LjRgtC+0YDQvtCyINCy0L4g0LLQu9C+
+0LbQtdC90LjQuCwg0YHRg9C80LzQsCA2MTIgNTAwINGA0YPQsdC70LXQuS4g0J7RgtCz0YDRg9C3
+0LrQsCDRh9C10YDQtdC3IDcg0YDQsNCx0L7Rh9C40YUg0LTQvdC10Lkg0L/QvtGB0LvQtSDQvtC/
+0LvQsNGC0YsuCgotLSAK0JzQsNGA0LjRjyDQmtGD0LfQvdC10YbQvtCy0LAK
+
+--===============5610714486118379252==
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="schet_monitory.pdf"
+MIME-Version: 1.0
+
+0JTQtdC80L7QvdGB0YLRgNCw0YbQuNC+0L3QvdC+0LUg0LLQu9C+0LbQtdC90LjQtTogc2NoZXRf
+bW9uaXRvcnkucGRmCg==
+
+--===============5610714486118379252==--

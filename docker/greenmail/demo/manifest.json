@@ -1,0 +1,260 @@
+[
+ {
+  "file": "01-c01-m1.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "INBOX",
+  "seen": true
+ },
+ {
+  "file": "02-c01-m2.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "03-c01-m3.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "INBOX",
+  "seen": true
+ },
+ {
+  "file": "04-c01-m4.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "04-c01-m4.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "INBOX",
+  "seen": false
+ },
+ {
+  "file": "05-c01-m5.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "INBOX",
+  "seen": false
+ },
+ {
+  "file": "06-c02-m1.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "07-c02-m2.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "INBOX",
+  "seen": true
+ },
+ {
+  "file": "08-c02-m3.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "09-c02-m4.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "INBOX",
+  "seen": false
+ },
+ {
+  "file": "10-c03-m1.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "11-c03-m2.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "INBOX",
+  "seen": true
+ },
+ {
+  "file": "12-c03-m3.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "13-c04-m1.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "INBOX",
+  "seen": true
+ },
+ {
+  "file": "14-c04-m2.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "15-c04-m3.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "INBOX",
+  "seen": false
+ },
+ {
+  "file": "16-c05-m1.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "INBOX",
+  "seen": true
+ },
+ {
+  "file": "17-c05-m2.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "18-c05-m3.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "INBOX",
+  "seen": true
+ },
+ {
+  "file": "19-c05-m4.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "19-c05-m4.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "INBOX",
+  "seen": false
+ },
+ {
+  "file": "20-c05-m5.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "INBOX",
+  "seen": false
+ },
+ {
+  "file": "21-c06-m1.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "22-c06-m2.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "INBOX",
+  "seen": true
+ },
+ {
+  "file": "23-c06-m3.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "24-c06-m4.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "INBOX",
+  "seen": false
+ },
+ {
+  "file": "25-c07-m1.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "26-c07-m2.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "INBOX",
+  "seen": true
+ },
+ {
+  "file": "27-c07-m3.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "28-c07-m4.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "INBOX",
+  "seen": false
+ },
+ {
+  "file": "29-c08-m1.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "INBOX",
+  "seen": true
+ },
+ {
+  "file": "30-c08-m2.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "31-c08-m3.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "INBOX",
+  "seen": true
+ },
+ {
+  "file": "32-c08-m4.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "32-c08-m4.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "INBOX",
+  "seen": false
+ },
+ {
+  "file": "33-c08-m5.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "INBOX",
+  "seen": false
+ },
+ {
+  "file": "34-c09-m1.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "INBOX",
+  "seen": true
+ },
+ {
+  "file": "35-c09-m2.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "36-c09-m3.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "INBOX",
+  "seen": true
+ },
+ {
+  "file": "37-c09-m4.eml",
+  "mailbox": "anna.work@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "38-c10-m1.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "Sent",
+  "seen": true
+ },
+ {
+  "file": "39-c10-m2.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "INBOX",
+  "seen": true
+ },
+ {
+  "file": "40-c10-m3.eml",
+  "mailbox": "anna@demo.test",
+  "folder": "INBOX",
+  "seen": false
+ }
+]

@@ -41,6 +41,9 @@ def walk(root: Path, suffixes: set[str], names: set[str] | None = None) -> Itera
     """Yield project files with the given suffixes (or exact names), skipping vendor dirs."""
     for base, dirs, files in os.walk(root):
         dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
+        # Nested git worktrees of other sessions are not part of this working copy.
+        if Path(base) == root / ".claude" and "worktrees" in dirs:
+            dirs.remove("worktrees")
         for name in sorted(files):
             if Path(name).suffix in suffixes or (names and name in names):
                 yield Path(base) / name

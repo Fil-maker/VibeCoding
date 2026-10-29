@@ -1,8 +1,9 @@
 # VibeCoding
 
-An app that analyses the sentiment of emails, so that nobody has to form an opinion of a counterparty by
-hand. For the employees of an organization and its administrator. Stage: the application skeleton is built
-by task 0.1; no product features yet.
+A personal app that gathers the correspondence of a user's projects from several mailboxes and lays it out
+as trees: project → counterparty → thread; sentiment comes later as a layer over the trees. Anyone
+registers on their own; there are no organizations. Stage: skeleton and sign-in are built (tasks 0.1,
+0.2, still with organizations); stage 1 «Project trees» is next.
 
 Talk to the user in Russian.
 
@@ -58,6 +59,7 @@ just test        # unit tests
 just test-db     # database tests
 just test-all    # unit and database tests
 just api-client  # regenerate the SPA's API client from the backend's OpenAPI schema
+just demo-mail   # load the demo mailboxes into GreenMail (also: status, add-new)
 ```
 
 Python scripts run as
@@ -80,14 +82,17 @@ Task 0.1 has built the skeleton:
 
 IMPORTANT: these are the product's core promises. Never trade them for convenience.
 
-- **Explainable verdicts:** every assessment of a counterparty links to the emails and phrases it rests on.
 - **Mailbox read-only:** never send, delete or modify emails in a mailbox.
-- **Reproducible assessments:** the same emails and settings give the same assessment; a change of the
-  analysis model is visible in the result.
-- **History is kept:** the interaction history with each counterparty is kept; the administrator sees
-  all correspondence of the organization.
-- **Access boundary:** an employee sees only their own correspondence, the administrator all of their
-  organization; email text goes to a third-party service only with the administrator's consent.
+- **Explainable placement:** every placement of a reply chain in a project and a thread says why — by
+  hand, by a user's rule or by the engine with its similarity; every sentiment assessment links to the
+  emails and phrases it rests on.
+- **Reproducible placement:** the same emails, project description, rules and engine version give the
+  same placement and assessment; a change of the engine's model is visible in the result.
+- **History is kept:** the correspondence history of every project is kept; the engine never moves an
+  already placed reply chain — only the user does, by hand or by an explicit re-sorting that keeps
+  placements made by hand.
+- **Access boundary:** a user sees only their own mailboxes, projects and correspondence; if the engine
+  uses a third-party model, email text goes there only with the user's consent.
 
 ## Conventions
 

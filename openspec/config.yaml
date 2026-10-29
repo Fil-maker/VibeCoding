@@ -5,19 +5,20 @@ context: |
   All artifacts must be written in English. User-visible UI texts are Russian and quoted exactly.
   Keep OpenSpec structural headings and SHALL/MUST keywords in English.
 
-  Project: an app that analyses the sentiment of emails so that nobody has to form an opinion of a
-  counterparty by hand; every assessment is explained by the emails and phrases it rests on. Users:
-  employees of an organization and its administrator. Read CLAUDE.md first; docs map: docs/README.md.
+  Project: a personal app that gathers the correspondence of a user's projects from several mailboxes
+  and lays it out as trees (project, counterparty, thread); sentiment comes later as a layer over the
+  trees. Anyone registers on their own; there are no organizations. Read CLAUDE.md first; docs map: docs/README.md.
   Stack: Python + FastAPI backend (uv, pytest, ruff, pyright strict, SQLAlchemy + Alembic), React +
   TypeScript SPA (Vite, pnpm, Vitest) with an API client generated from OpenAPI, PostgreSQL in Docker,
   just. Details: docs/architecture.md, docs/tech.md; why: docs/decisions.md and docs/adr/.
-  Product invariants (never trade them away): (1) explainable verdicts - every assessment links to the
-  emails and phrases it rests on; (2) the mailbox is read-only - never send, delete or modify emails;
-  (3) reproducible assessments - the same emails and settings give the same assessment, and a change of
-  the analysis model is visible in the result; (4) the history of interaction with each counterparty is
-  kept, and the administrator sees all correspondence of the organization; (5) access boundary - an
-  employee sees only their own correspondence, the administrator all of their organization, and email
-  text goes to a third-party service only with the administrator's consent.
+  Product invariants (never trade them away): (1) mailbox read-only - never send, delete or modify
+  emails; (2) explainable placement - every placement of a reply chain says why (by hand, by a user's
+  rule or by the engine with its similarity), every sentiment assessment links to its emails and
+  phrases; (3) reproducible placement - the same emails, project description, rules and engine version
+  give the same result, and a change of the engine's model is visible; (4) history is kept - the
+  engine never moves a placed reply chain, only the user does; (5) access boundary - a user sees only
+  their own mailboxes, projects and correspondence, and email text goes to a third-party model only
+  with the user's consent.
   Requirements: openspec/specs/<capability>/spec.md, map in docs/domain.md «Requirements map».
   Glossary: docs/domain.md «Glossary»; use its terms.
   Work items come from docs/plan.md tasks with «Done when».
@@ -31,7 +32,7 @@ rules:
     - "Before writing a delta, read the capability's current spec (openspec show <capability> --type spec) and the neighbouring requirements that need MODIFIED."
     - "Every requirement name starts with its stable number, FR-N <name>; a new requirement takes the next free number."
     - "MODIFIED copies the whole requirement with every scenario and keeps their names; when a scenario must go away, the requirement becomes REMOVED plus ADDED with a new number."
-    - "Describe behavior without libraries, tables or file names; scenarios use concrete values, glossary terms and negative cases (another user's correspondence, an employee versus the administrator, empty input, a repeated action)."
+    - "Describe behavior without libraries, tables or file names; scenarios use concrete values, glossary terms and negative cases (another user's correspondence, another user's identifier in the request, empty input, a repeated action)."
   design:
     - "Follow docs/architecture.md and .claude/rules/; record decisions with alternatives and reasons."
     - "For a schema change, describe how existing data survives the migration and how to roll back."

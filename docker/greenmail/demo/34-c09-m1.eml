@@ -1,0 +1,29 @@
+From:
+ =?utf-8?b?0JTQvNC40YLRgNC40Lkg0J7RgNC70L7Qsg==?= <d.orlov@expo-forum.example>
+To: =?utf-8?b?0JDQvdC90LAg0JjQstCw0L3QvtCy0LA=?= <anna.work@demo.test>
+Subject: =?utf-8?b?0J/RgNC+0LPRgNCw0LzQvNCwINC4INC00L7QutC70LDQtA==?=
+Date: Sun, 29 Mar 2026 10:00:00 +0300
+Message-ID: <c09m1@demo.test>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============4278485099589687615=="
+
+--===============4278485099589687615==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+
+0JDQvdC90LAsINC/0YDQuNC60LvQsNC00YvQstCw0Y4g0L/RgNC10LTQstCw0YDQuNGC0LXQu9GM
+0L3Rg9GOINC/0YDQvtCz0YDQsNC80LzRgyDQutC+0L3RhNC10YDQtdC90YbQuNC4LiDQn9GA0L7R
+gdC40Lwg0LLQsNGBINC/0YDQvtCy0LXRgNC40YLRjCDQstGA0LXQvNGPINC4INC90LDQt9Cy0LDQ
+vdC40LUg0LLQsNGI0LXQs9C+INC00L7QutC70LDQtNCwLgoKLS0gCtCU0LzQuNGC0YDQuNC5INCe
+0YDQu9C+0LIK
+
+--===============4278485099589687615==
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="programma.pdf"
+MIME-Version: 1.0
+
+0JTQtdC80L7QvdGB0YLRgNCw0YbQuNC+0L3QvdC+0LUg0LLQu9C+0LbQtdC90LjQtTogcHJvZ3Jh
+bW1hLnBkZgo=
+
+--===============4278485099589687615==--

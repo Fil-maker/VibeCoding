@@ -15,10 +15,10 @@ schema and migrations. Facts: `docs/architecture.md` «Data model», «Security�
 
 - Only `repository.py` builds queries; services call repositories; routers never touch the session.
 - One use case, one transaction, opened by the service (`async with session.begin()`).
-- Owner first: every query over correspondence, assessments or counterparties filters by the owner
-  scope — the employee's own mailboxes, or the whole organization for its administrator. The scope comes
-  from the auth context, never from the request body or query string.
-- Another organization's data is unreachable: every query also filters by `organization_id`.
+- Owner first: every query over the user's data (mailboxes, correspondence, projects, assessments)
+  filters by the owner `user_id`, taken from the auth context, never from the request body or query
+  string. Another user's data answers «not found», like data that does not exist.
+- Installation-wide reads by email (registration, sign-in, password reset) say so in their docstring.
 - SQLAlchemy expressions or bound parameters only; never build SQL from strings.
 - Bounded reads: every list query has a limit and a stable order; pagination by keyset.
 - No network call inside an open transaction (mail fetch, analysis engine); use an outbox table for work

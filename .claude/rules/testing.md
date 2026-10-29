@@ -28,8 +28,8 @@ for databases. Tests are derived from the requirement scenarios, not from the co
   `describe("CounterpartyCard")` / `it("shows the analysis model with the assessment")`.
 - Arrange-act-assert; one behavior per test; small factories; no shared mutable fixtures.
 - A scenario test names its requirement: `# FR-12 «Archived task leaves Today»` or `it("FR-12 …")`.
-- Failure paths are tested: another user's correspondence, an employee asking for the organization's
-  data, a missing consent, empty input.
+- Failure paths are tested: another user's correspondence, another user's identifier
+  in the request, a missing consent, empty input.
 - A bug fix starts with a failing test at the lowest layer that shows the bug.
 - Deterministic: a fake clock, fixed ids, no sleeps, no network (fake the mailbox and the analysis
   engine). Every test asserts.

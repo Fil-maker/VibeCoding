@@ -185,7 +185,7 @@ def write_brief(
     if iface:
         parts += ["", "## Interface", "", iface]
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text("\n".join(parts) + "\n", encoding="utf-8")
+    out.write_text("\n".join(parts) + "\n", encoding="utf-8", newline="\n")
 
 
 def cmd_brief(project: Path, change: str, out: Path, words: list[str]) -> int:

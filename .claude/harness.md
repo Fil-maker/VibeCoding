@@ -10,7 +10,7 @@ How this repository's agent harness is set up and why. For agents; English.
 - Languages: talk Russian; agent files English; docs English; commits English; UI Russian
 - Modes: guide on; code by subagents; tests two agents (sandbox); commit gate ask; git branch + ff-only; sessions design/code/finish
 - Stack: Python + FastAPI (uv, pytest, ruff, pyright strict, SQLAlchemy + Alembic) · React + TypeScript SPA (Vite, pnpm, Vitest, ESLint, Prettier, client generated from OpenAPI) · PostgreSQL in Docker · just · prek
-- Invariants: (1) explainable verdicts; (2) mailbox read-only; (3) reproducible assessments, model change visible; (4) interaction history with each counterparty kept, administrator sees all correspondence of the organization; (5) access boundary — employee sees only own correspondence, administrator all of their organization, email text goes to a third-party service only with the administrator's consent
+- Invariants: (1) explainable verdicts; (2) mailbox read-only; (3) reproducible assessments, model change visible; (4) history kept — the engine never moves a placed reply chain; (5) access boundary — a user sees only their own mailboxes, projects and correspondence, email text goes to a third-party model only with the user's consent (since ADR 0023, CLAUDE.md «Product invariants»)
 - Decisions home: `docs/adr/` (ADR files), `docs/decisions.md` is the ADR index; decision draft script writes ADRs after confirmation
 
 ## Approved file plan (R7, 23.10.2026)
@@ -126,6 +126,7 @@ Generate on `main` (no product code yet). Command entry is `just` everywhere the
 - Procedural skills (`db-migration`, `contract-change`) — add one when its procedure has repeated twice.
 - Formatter-after-edit hook — prek formats at commit; add it if unformatted code keeps reaching review.
 - pstack — not chosen in R2-Q2.
+- Test-file splits in `tdd_sandbox.py close` — it refuses any deleted test file, so splitting one file into several needs a manual step; allow the deletion when every test name of the deleted file is found in the new files (decided 27.10.2026, `fix/harness-close-and-crlf`).
 
 ## Bootstrap status
 

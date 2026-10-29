@@ -93,7 +93,9 @@ def _supersede(root: Path, old: str, new_number: str, new_file: str) -> None:
         text = path.read_text(encoding="utf-8")
         status = f"Superseded by [{new_number}]({new_file})"
         path.write_text(
-            re.sub(r"Status: [^·\n]*?(?= ·|\n)", f"Status: {status}", text, count=1), "utf-8"
+            re.sub(r"Status: [^·\n]*?(?= ·|\n)", f"Status: {status}", text, count=1),
+            encoding="utf-8",
+            newline="\n",
         )
     index = root / INDEX
     if not index.is_file():
@@ -106,7 +108,7 @@ def _supersede(root: Path, old: str, new_number: str, new_file: str) -> None:
             out.append(f"{cells[0]}| Superseded by [{new_number}](adr/{new_file}) |")
         else:
             out.append(line)
-    index.write_text("\n".join(out), encoding="utf-8")
+    index.write_text("\n".join(out), encoding="utf-8", newline="\n")
 
 
 def write_decisions(root: Path, draft: Draft) -> list[str]:
@@ -118,13 +120,15 @@ def write_decisions(root: Path, draft: Draft) -> list[str]:
     for d in draft.pending_write():
         number = f"{next_number(adr_dir):04d}"
         file_name = f"{number}-{make_slug(d.what)}.md"
-        (adr_dir / file_name).write_text(render_adr(d, number, draft), encoding="utf-8")
+        (adr_dir / file_name).write_text(
+            render_adr(d, number, draft), encoding="utf-8", newline="\n"
+        )
         row = (
             f"| {display_date(d.date)} | [{number}](adr/{file_name}) | {_escape_cell(d.what)} "
             f"| {who_label(d)} | Accepted |"
         )
         text = index.read_text(encoding="utf-8") if index.is_file() else "# Decisions\n"
-        index.write_text(_append_index_row(text, d, row), encoding="utf-8")
+        index.write_text(_append_index_row(text, d, row), encoding="utf-8", newline="\n")
         if d.replaces:
             _supersede(root, d.replaces, number, file_name)
         d.written = number

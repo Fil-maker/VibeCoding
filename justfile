@@ -47,3 +47,7 @@ test:
 # Run all tests, including the database suite
 test-all:
     uv run --no-project python .claude/skills/test/scripts/run_tests.py . all
+
+# Demo mail server (GreenMail): `load` (default) fills the demo mailboxes, `status`, `add-new`; start it with `docker compose up -d greenmail`
+demo-mail *args='load':
+    uv run --no-project python scripts/demo_mail.py {{args}}

@@ -20,17 +20,44 @@ services:
       timeout: 3s
       retries: 30
 
+  # Dev mail catcher: SMTP on 1025 inside the network, web UI on the host.
+  mailpit:
+    image: axllent/mailpit:v1.29
+    ports:
+      - "8025:8025"
+
+  # Demo IMAP/SMTP server (in memory, no TLS): IMAP 3143 also on the host for `just demo-mail`.
+  # After a restart the mail is gone; run `just demo-mail` again.
+  greenmail:
+    image: greenmail/standalone:2.1.8
+    environment:
+      GREENMAIL_OPTS: >-
+        -Dgreenmail.setup.test.imap -Dgreenmail.setup.test.smtp -Dgreenmail.hostname=0.0.0.0
+        -Dgreenmail.users=anna@demo.test:${DEMO_MAIL_PASSWORD}@demo.test,anna.work@demo.test:${DEMO_MAIL_PASSWORD}@demo.test
+    ports:
+      - "3143:3143"
+
   backend:
     build:
       context: .
       dockerfile: docker/backend.Dockerfile
     working_dir: /app/backend
-    command: sh -c "alembic upgrade head && uvicorn app.main:create_app --factory --reload --host 0.0.0.0 --port 8000"
+    # `uv sync` first: the named venv volume is filled from the image only once, so a dependency
+    # added later would never reach the container without it.
+    command: sh -c "uv sync --frozen --no-install-project && alembic upgrade head && uvicorn app.main:create_app --factory --reload --host 0.0.0.0 --port 8000"
     environment:
       # The container reaches the database by the service name, not localhost.
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_USER}
       # File events do not cross the Windows bind mount.
       WATCHFILES_FORCE_POLLING: "true"
+      # Service emails go to the Mailpit container; links point to the SPA on the host.
+      SMTP_HOST: mailpit
+      APP_BASE_URL: http://localhost:5173
+      # The repo-root .env is not mounted into the container, so required settings come from here.
+      MAIL_FROM: ${MAIL_FROM}
+      MAILBOX_ENCRYPTION_KEY: ${MAILBOX_ENCRYPTION_KEY}
+      # The demo mail server speaks IMAP without TLS.
+      IMAP_INSECURE_HOSTS: greenmail
     ports:
       - "8000:8000"
     volumes:
@@ -39,6 +66,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
 
   frontend:
     image: node:24

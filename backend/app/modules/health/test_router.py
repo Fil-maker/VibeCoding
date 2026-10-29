@@ -10,6 +10,9 @@ from app.main import create_app
 from app.modules.health.repository import HealthRepository, get_health_repository
 from app.platform.settings import Settings
 
+# A valid Fernet key (32 bytes, url-safe base64) used only by tests.
+ENCRYPTION_KEY = "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
+
 
 class FakeRepository:
     """Ping that returns or raises."""
@@ -26,7 +29,15 @@ class FakeRepository:
 
 def build_app(repository: HealthRepository) -> FastAPI:
     """Build the app with `get_health_repository` overridden to yield `repository`; no database."""
-    app = create_app(Settings(database_url="postgresql+psycopg://u:p@localhost/db"))
+    app = create_app(
+        Settings(
+            database_url="postgresql+psycopg://u:p@localhost/db",
+            app_base_url="http://localhost:5173",
+            mail_from="noreply@vibecoding.test",
+            smtp_host="localhost",
+            mailbox_encryption_key=ENCRYPTION_KEY,
+        )
+    )
 
     async def fake() -> AsyncIterator[HealthRepository]:
         """Yield the fake repository in place of the SQL one."""
