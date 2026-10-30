@@ -70,6 +70,28 @@ Generate on `main` (no product code yet). Command entry is `just` everywhere the
 | Settings | `.claude/settings.json` | Foreground agents, journal hook, script permissions, plugins (mattpocock-skills, pyright-lsp, typescript-lsp) |
 | Commands, git hooks | `justfile`, `.pre-commit-config.yaml`, root `pyproject.toml` | `just` entry points (R4-Q2), prek (R4-Q3), harness tooling and the product version |
 
+## TDD sandbox
+
+- Location: `tdd_sandbox.py create` puts the sandbox, a detached git worktree, at
+  `<main checkout>-sandboxes/<name>`, next to the main checkout (the holder of the git common dir),
+  even when it runs from a Claude Code worktree session under `.claude/worktrees/<name>`. Claude Code
+  refuses writes into another worktree under `.claude/worktrees/` («belongs to a different worktree»),
+  and the sandbox guard would see the main checkout's path in `cd <sandbox>`; a sibling folder avoids
+  both, so `test-writer` works from a worktree session too. The snapshot, the dependency links and the
+  `.env` come from the checkout the command runs in; `--base` still picks another parent folder.
+- Test paths: `backend/app/**/test_*.py`, `backend/tests/**`, `frontend/src/**/*.test.ts(x)` and
+  `frontend/src/test/**`. A runnable test is a `test_*.py` under `backend/app/` or `backend/tests/`
+  or a `*.test.ts(x)` under `frontend/src/`; every other file under the test paths is a helper
+  (factories, `conftest.py`, the SPA test harness).
+- `red` runs only the new and changed runnable tests; each new or changed helper is listed as
+  `HELPER` and is neutral: it never makes the check «NOT all red», and the auditor briefs list the
+  helpers under «Helpers».
+- `collect` and `close` copy the tests and the helpers into the checkout (helpers are test paths, so no
+  `--ignore-other` is needed for them); `close` runs only the runnable ones plus `--also`; `drop`
+  counts an uncollected helper as an uncollected change.
+- The sandbox guard is unchanged: it still blocks file tools, searches and commands aimed at
+  `$CLAUDE_PROJECT_DIR` outside the registered sandboxes.
+
 ## Decisions
 
 | Date | Id | Decision | Alternatives | Reason (user's words) | Who |

@@ -1,9 +1,10 @@
 """TDD sandbox: tests written against the spec in a copy of the repo that holds none of the code.
 
 Why it exists: when tests and code are written in one checkout, the tests drift toward the code
-they check. A git worktree outside the repo (HEAD plus the uncommitted change artifacts, no code),
-with its own test database, makes the tests describe the spec. The main session runs the red check
-itself and collects the tests into the checkout.
+they check. A git worktree next to the main checkout, so outside every Claude Code worktree (HEAD
+plus the uncommitted change artifacts, no code), with its own test database, makes the tests
+describe the spec. The main session runs the red check itself and collects the tests into the
+checkout.
 
     tdd_sandbox.py <project-dir> create <name> [--base <dir>]
     tdd_sandbox.py <project-dir> red <name> [--change <c> --briefs <dir>] [--no-old]
@@ -46,7 +47,17 @@ class Diff:
 
     @property
     def tests(self) -> list[str]:
-        """New and changed test files."""
+        """New and changed test files a runner runs."""
+        return [f for f in self.files if sc.is_runnable_test(f)]
+
+    @property
+    def helpers(self) -> list[str]:
+        """New and changed files under the test paths that are not tests (factories, harnesses)."""
+        return [f for f in self.files if not sc.is_runnable_test(f)]
+
+    @property
+    def files(self) -> list[str]:
+        """All new and changed files under the test paths: tests and helpers."""
         return sorted(self.new + self.changed)
 
 
@@ -67,7 +78,7 @@ def diff_sandbox(box: dict[str, Any]) -> Diff:
             new.append(rel)
         elif before != now:
             changed.append(rel)
-        else:
+        elif sc.is_runnable_test(rel):
             old.append(rel)
     deleted = [r for r, h in snap.items() if h and sc.is_test_file(r) and not (path / r).is_file()]
     outside = [
@@ -115,6 +126,9 @@ def cmd_red(root: Path, name: str, change: str | None, briefs: Path | None, run_
         labels[rel] = label
         kind = "new" if rel in diff.new else "changed"
         out(f"{label:9} {rel} ({kind}): {detail}\n")
+    for rel in diff.helpers:
+        kind = "new" if rel in diff.new else "changed"
+        out(f"HELPER    {rel} ({kind}): not a test, not run\n")
     for rel in diff.deleted:
         out(f"DELETED   {rel}: a test was deleted in the sandbox\n")
     for note in report.notes:
@@ -135,7 +149,9 @@ def cmd_red(root: Path, name: str, change: str | None, briefs: Path | None, run_
     all_red = bool(diff.tests) and all(v == "RED" for v in labels.values())
     out(f"\nRED check: {'ALL RED' if all_red else 'NOT all red'}; problems: {problems}\n")
     if all_red and change and briefs:
-        paths = sb.write_auditor_briefs(root, sandbox, change, briefs, report.results, diff.tests)
+        paths = sb.write_auditor_briefs(
+            root, sandbox, change, briefs, report.results, diff.tests, diff.helpers
+        )
         out("Auditor briefs:\n" + "".join(f"  {p}\n" for p in paths))
     return 0 if all_red and not problems else 1
 
@@ -154,7 +170,7 @@ def collect_tests(
     if diff.outside and not ignore_other:
         refusals += [f"file outside the tests: {r}" for r in diff.outside]
     todo: list[str] = []
-    for rel in diff.tests:
+    for rel in diff.files:
         mine = sc.file_hash(sandbox / rel)
         theirs = sc.file_hash(root / rel)
         if theirs == mine:
@@ -213,7 +229,8 @@ def cmd_close(root: Path, args: argparse.Namespace) -> int:
     copied = collect_tests(root, box, args.ignore_other, args.force)
     if copied is None:
         return 1
-    files = list(dict.fromkeys(copied + [f.replace("\\", "/") for f in args.also]))
+    more = [f.replace("\\", "/") for f in args.also]
+    files = list(dict.fromkeys([f for f in copied if sc.is_runnable_test(f)] + more))
     report = st.run_tests(root, files, pythonpath_backend=False)
     out = sys.stdout.write
     count = {
@@ -247,7 +264,7 @@ def cmd_drop(root: Path, name: str, force: bool) -> int:
         return 2
     diff = diff_sandbox(box)
     uncollected = [
-        r for r in diff.tests if sc.file_hash(Path(str(box["path"])) / r) != sc.file_hash(root / r)
+        r for r in diff.files if sc.file_hash(Path(str(box["path"])) / r) != sc.file_hash(root / r)
     ]
     if (uncollected or diff.deleted) and not force:
         sys.stdout.write("Refused: uncollected test changes (use --force to drop anyway):\n")

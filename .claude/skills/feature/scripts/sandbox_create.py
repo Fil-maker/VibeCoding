@@ -114,7 +114,8 @@ def sandbox_block(name: str, path: Path, has_db: bool) -> str:
             "- Never read, search or edit anything outside it; never touch the main checkout.",
             "- The code of the change does not exist here: tests describe the spec and fail.",
             "- Test files go to: backend/app/**/test_*.py, backend/tests/**, "
-            "frontend/src/**/*.test.ts(x).",
+            "frontend/src/**/*.test.ts(x); test helpers to backend/tests/** and "
+            "frontend/src/test/**.",
             "- Backend tests: uv run --directory backend pytest <files> -q -rA",
             "- Frontend tests: pnpm --dir frontend exec vitest run <files> --reporter=verbose",
             db_line,
@@ -135,7 +136,8 @@ def create(root: Path, name: str, base: Path | None) -> int:
     if name in boxes:
         sys.stderr.write(f"Sandbox {name!r} already exists (see `list`); drop it first.\n")
         return 1
-    parent = (base or root.parent / f"{root.name}-sandboxes").resolve()
+    main = sc.main_root(root)  # next to the main checkout: outside every Claude Code worktree
+    parent = (base or main.parent / f"{main.name}-sandboxes").resolve()
     path = parent / name
     if path.exists():
         sys.stderr.write(f"{path} already exists\n")

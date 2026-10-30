@@ -46,6 +46,15 @@ def repo_root(project: Path) -> Path | None:
     return Path(out.strip()).resolve() if code == 0 and out.strip() else None
 
 
+def main_root(root: Path) -> Path:
+    """The main checkout of the repository (holder of the git common dir); `root` when unknown."""
+    out = git(root, "rev-parse", "--path-format=absolute", "--git-common-dir")[1].strip()
+    common = Path(out) if out else None
+    if common is None or not common.is_absolute() or common.name != ".git":
+        return root
+    return common.parent.resolve()
+
+
 def has_head(root: Path) -> bool:
     """True when the repository has at least one commit."""
     return git(root, "rev-parse", "--verify", "-q", "HEAD")[0] == 0
@@ -106,11 +115,18 @@ def all_files(root: Path) -> list[str]:
 
 
 def is_test_file(rel: str) -> bool:
-    """Test files: backend/app/**/test_*.py, backend/tests/**, frontend/src/**/*.test.ts(x)."""
-    if rel.startswith("backend/app/"):
+    """Files under the test paths: tests and their helpers.
+
+    Paths: backend/app/**/test_*.py, backend/tests/**, frontend/src/**/*.test.ts(x),
+    frontend/src/test/**.
+    """
+    return is_runnable_test(rel) or rel.startswith(("backend/tests/", "frontend/src/test/"))
+
+
+def is_runnable_test(rel: str) -> bool:
+    """A test a runner runs: test_*.py in backend/app or backend/tests, *.test.ts(x) in the SPA."""
+    if rel.startswith(("backend/app/", "backend/tests/")):
         return re.fullmatch(r"test_[^/]*\.py", rel.rsplit("/", 1)[-1]) is not None
-    if rel.startswith("backend/tests/"):
-        return True
     if rel.startswith("frontend/src/"):
         return re.search(r"\.test\.tsx?$", rel) is not None
     return False

@@ -50,6 +50,7 @@ def write_auditor_briefs(
     out_dir: Path,
     results: list[st.TestResult],
     test_files: list[str],
+    helpers: list[str] | None = None,
 ) -> list[Path]:
     """Write one brief per pack; returns their paths."""
     packs = pack_blocks(delta_blocks(project, change))
@@ -76,6 +77,9 @@ def write_auditor_briefs(
             names = [r.name for r in results if r.file == file and r.name]
             lines.append(f"- {file}")
             lines += [f"    - {n}" for n in names]
+        if helpers:
+            lines += ["", "## Helpers", "Read these too: the tests use them."]
+            lines += [f"- {h}" for h in helpers]
         path = out_dir / f"auditor-{index}.md"
         path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
         paths.append(path)

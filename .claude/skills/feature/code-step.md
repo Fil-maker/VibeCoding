@@ -32,7 +32,8 @@ One message, two Agent calls:
 1. `tdd_sandbox.py . red <change> --change <change> --briefs .claude/session/audit-<change>` — run it
    yourself; never trust the report. Every new or changed test must be RED for the right reason (a
    missing interface name or the THEN value). A GREEN test checks nothing (fine only for a scenario that
-   keeps existing behavior) and goes back to `test-writer`.
+   keeps existing behavior) and goes back to `test-writer`. Changed helpers (factories, harnesses)
+   show as `HELPER`, are not run and never block the check.
 2. All red → one `test-auditor` per auditor brief, in parallel, one message.
 3. Filter their findings against the test lines and the spec. Weak, vacuous, mislabeled, missing,
    overreaching tests go back to the same `test-writer` (SendMessage) as one numbered list quoting the
@@ -40,7 +41,7 @@ One message, two Agent calls:
 
 ## Collect and green
 
-`tdd_sandbox.py . close <change> --change <change> --groups <n>…` copies the tests in, runs them with the
+`tdd_sandbox.py . close <change> --change <change> --groups <n>…` copies the tests and their helpers in, runs the tests with the
 area's existing tests, and ticks the groups when green. Judge each failure against the spec: the code
 misses the scenario → `code-writer`; the test contradicts the requirement → `test-writer`; the
 requirement is wrong → stop, the user re-approves the delta, a new sandbox. Rerun `close` after each fix.
