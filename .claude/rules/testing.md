@@ -5,6 +5,7 @@ paths:
   - "backend/conftest.py"
   - "frontend/src/**/*.test.ts"
   - "frontend/src/**/*.test.tsx"
+  - "frontend/src/test/**"
   - "frontend/vitest.config.*"
 ---
 
