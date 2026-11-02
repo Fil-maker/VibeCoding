@@ -6,6 +6,21 @@ All notable changes for the product's users. The format follows
 
 ## Unreleased
 
+## [0.3.0] - 2026-11-02
+
+### Added
+
+- Moving a chain by hand on its page into a thread of any project, into «Неразобранное» or into a new
+  thread; the chain then shows «Вручную».
+- Chains placed by hand never move: not with new emails, a mailbox reading or «Заполнить».
+- «Убрать из проекта» takes a chain out of its project for good; the app never places it again by itself.
+
+### Changed
+
+- «Заполнить» on a filled project keeps the chains placed by hand and their threads and lays out only
+  the rest again.
+- Every chain in a project tree shows whether it was placed by hand or by the engine.
+
 ## [0.2.0] - 2026-11-02
 
 ### Added
