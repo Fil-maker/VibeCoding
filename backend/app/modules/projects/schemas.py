@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import AfterValidator, BaseModel, model_validator
+from pydantic import AfterValidator, BaseModel, ValidationInfo, model_validator
 from pydantic_core import PydanticCustomError
 
 from app.platform.errors import FIELD_MESSAGE_TYPE
@@ -16,6 +16,9 @@ NAME_EMPTY_MESSAGE = "Укажите название проекта"
 NAME_LONG_MESSAGE = "Название — не длиннее 100 символов"
 DESCRIPTION_EMPTY_MESSAGE = "Опишите проект"
 DESCRIPTION_LONG_MESSAGE = "Описание — не длиннее 2000 символов"
+THREAD_NAME_EMPTY_MESSAGE = "Укажите название ветки"
+THREAD_NAME_LONG_MESSAGE = "Название ветки — не длиннее 100 символов"
+THREAD_CHOICE_MESSAGE = "Выберите либо ветку, либо новую ветку"
 TEXT_FIELDS = ("name", "description")
 
 
@@ -71,11 +74,11 @@ class ProjectSummary(BaseModel):
 
 
 class Placement(BaseModel):
-    """How a chain got where it is."""
+    """How a chain got where it is; the version and similarity are null for a placement by hand."""
 
-    kind: Literal["engine"]
-    engine_version: str
-    similarity: float
+    kind: Literal["engine", "manual"]
+    engine_version: str | None
+    similarity: float | None
 
 
 class PlacedChain(BaseModel):
@@ -113,3 +116,47 @@ class ProjectTree(BaseModel):
     filled: bool
     counterparties: list[CounterpartyNode]
     unassigned: list[PlacedChain]
+
+
+class ThreadSummary(BaseModel):
+    """A thread of a project."""
+
+    id: UUID
+    name: str
+
+
+class ProjectRef(BaseModel):
+    """A project a chain is in."""
+
+    id: UUID
+    name: str
+
+
+class ChainLocation(BaseModel):
+    """Where a chain is: `project` and `placement` are set exactly when `state` is «placed»."""
+
+    state: Literal["placed", "none", "excluded"]
+    project: ProjectRef | None
+    thread: ThreadSummary | None
+    placement: Placement | None
+
+
+def _check_thread_name(value: str | None, info: ValidationInfo) -> str | None:
+    if value is None:
+        return None
+    if info.data.get("thread_id") is not None:
+        raise _fail(THREAD_CHOICE_MESSAGE)
+    name = value.strip()
+    if not name:
+        raise _fail(THREAD_NAME_EMPTY_MESSAGE)
+    if len(name) > NAME_MAX_LENGTH:
+        raise _fail(THREAD_NAME_LONG_MESSAGE)
+    return name
+
+
+class PlacementMove(RequestModel):
+    """Where to put a chain: a thread, a new thread, or «Неразобранное» when both are null."""
+
+    project_id: UUID
+    thread_id: UUID | None = None
+    new_thread_name: Annotated[str | None, AfterValidator(_check_thread_name)] = None

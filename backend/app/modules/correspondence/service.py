@@ -265,6 +265,11 @@ async def get_reply_chain(
     )
 
 
+async def has_chain(session: AsyncSession, user_id: UUID, chain_id: UUID) -> bool:
+    """Whether the chain is the user's; runs in the caller's transaction."""
+    return await repository.get_chain_for_owner(session, user_id, chain_id) is not None
+
+
 async def list_chain_documents(session: AsyncSession, user_id: UUID) -> list[ChainDocument]:
     """The text of every chain of the user, in reading order, for the placement engine.
 

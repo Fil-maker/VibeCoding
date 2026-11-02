@@ -8,6 +8,7 @@ import { ErrorAlert } from '../../components/ErrorAlert';
 import { NotFoundPage } from '../../components/NotFoundPage';
 import { Panel } from '../../components/Panel';
 import { LOADING_MESSAGE } from '../../messages';
+import { ChainPlacement } from '../projects/ChainPlacement';
 import styles from './ChainPage.module.css';
 import { formatAddress, formatAddresses, formatDateTime } from './format';
 
@@ -41,7 +42,7 @@ function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404;
 }
 
-// One reply chain: the subject, then its emails oldest first, each body as plain text.
+// One reply chain: the subject, its «Проект» block, then its emails oldest first, each body as plain text.
 export function ChainPage(): React.JSX.Element {
   const { id = '' } = useParams();
   const chain = useQuery({
@@ -69,6 +70,7 @@ export function ChainPage(): React.JSX.Element {
       <p>
         <Link to="/chains">К переписке</Link>
       </p>
+      <ChainPlacement chainId={id} />
       {chain.data.emails.map((email) => (
         <EmailBlock key={email.id} email={email} />
       ))}

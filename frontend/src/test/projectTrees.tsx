@@ -10,7 +10,9 @@ export interface PlacedChainJson {
   subject: string;
   email_count: number;
   latest_email_at: string;
-  placement: { kind: 'engine'; engine_version: string; similarity: number };
+  placement:
+    | { kind: 'engine'; engine_version: string; similarity: number }
+    | { kind: 'manual'; engine_version: null; similarity: null };
 }
 
 export interface ThreadJson {
@@ -39,7 +41,8 @@ export const FILL = `/projects/${PROJECT_ID}/fill`;
 export const DESCRIPTION = 'Ремонт офиса на Лесной: смета, график работ, акты, дизайн переговорной';
 export const EMPTY_PROJECT = 'Проект пуст: нажмите «Заполнить», чтобы найти его переписку';
 export const NOTHING_FOUND = 'Подходящей переписки не нашлось: уточните описание';
-export const REBUILD = 'Пересобрать проект? Движок разложит его переписку заново';
+export const REBUILD =
+  'Пересобрать проект? Движок разложит его переписку заново, а цепочки, размещённые вручную, останутся на месте';
 export const PETROV = 's.petrov@stroymaster.example';
 
 export function chain(n: number, overrides: Partial<PlacedChainJson> = {}): PlacedChainJson {

@@ -20,7 +20,8 @@ type ProjectTree = components['schemas']['ProjectTree'];
 
 const EMPTY_NEVER_FILLED_MESSAGE = 'Проект пуст: нажмите «Заполнить», чтобы найти его переписку';
 const EMPTY_FILLED_MESSAGE = 'Подходящей переписки не нашлось: уточните описание';
-const REFILL_QUESTION = 'Пересобрать проект? Движок разложит его переписку заново';
+const REFILL_QUESTION =
+  'Пересобрать проект? Движок разложит его переписку заново, а цепочки, размещённые вручную, останутся на месте';
 const NO_COUNTERPARTY_TITLE = 'Без контрагента';
 
 function ChainLine({ chain }: { chain: PlacedChain }): React.JSX.Element {
@@ -29,7 +30,7 @@ function ChainLine({ chain }: { chain: PlacedChain }): React.JSX.Element {
       <Link to={`/chains/${chain.id}`}>{chain.subject}</Link>{' '}
       <span>
         {emailCountLabel(chain.email_count)} · {formatDate(chain.latest_email_at)} ·{' '}
-        {placementLabel(chain.placement.engine_version, chain.placement.similarity)}
+        {placementLabel(chain.placement)}
       </span>
     </li>
   );

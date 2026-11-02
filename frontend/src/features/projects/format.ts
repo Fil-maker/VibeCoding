@@ -16,7 +16,16 @@ export function unassignedCountLabel(count: number): string {
   return pluralWord(count, 'неразобранная', 'неразобранные', 'неразобранных');
 }
 
-// «Движок text-1 · сходство 43%»: the similarity (0–1) in whole percent.
-export function placementLabel(engineVersion: string, similarity: number): string {
-  return `Движок ${engineVersion} · сходство ${String(Math.round(similarity * 100))}%`;
+// «Вручную» for a placement by hand, else «Движок text-1 · сходство 43%»: the similarity (0–1) in
+// whole percent.
+export function placementLabel(placement: {
+  kind: 'engine' | 'manual';
+  engine_version?: string | null;
+  similarity?: number | null;
+}): string {
+  if (placement.kind === 'manual') {
+    return 'Вручную';
+  }
+  const percent = Math.round((placement.similarity ?? 0) * 100);
+  return `Движок ${placement.engine_version ?? ''} · сходство ${String(percent)}%`;
 }

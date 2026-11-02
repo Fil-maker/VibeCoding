@@ -323,10 +323,58 @@ export interface paths {
         put?: never;
         /**
          * Fill Project
-         * @description Fill the project from its description; a filled project is rebuilt.
+         * @description Fill the project from its description; a filled project is rebuilt, hand placements stay.
          */
         post: operations["fill_project_api_v1_projects__project_id__fill_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Project Threads
+         * @description The threads of a project in order.
+         */
+        get: operations["list_project_threads_api_v1_projects__project_id__threads_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/placements/{chain_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Placement
+         * @description Where a chain is.
+         */
+        get: operations["read_placement_api_v1_placements__chain_id__get"];
+        /**
+         * Move Placement
+         * @description Place a chain by hand into a thread, a new thread or «Неразобранное» of a project.
+         */
+        put: operations["move_placement_api_v1_placements__chain_id__put"];
+        post?: never;
+        /**
+         * Take Chain Out
+         * @description Take a chain out of its project for good.
+         */
+        delete: operations["take_chain_out_api_v1_placements__chain_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -345,6 +393,20 @@ export interface components {
             address: string;
             /** Name */
             name?: string | null;
+        };
+        /**
+         * ChainLocation
+         * @description Where a chain is: `project` and `placement` are set exactly when `state` is «placed».
+         */
+        ChainLocation: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "placed" | "none" | "excluded";
+            project: components["schemas"]["ProjectRef"] | null;
+            thread: components["schemas"]["ThreadSummary"] | null;
+            placement: components["schemas"]["Placement"] | null;
         };
         /**
          * CounterpartyNode
@@ -543,18 +605,33 @@ export interface components {
         };
         /**
          * Placement
-         * @description How a chain got where it is.
+         * @description How a chain got where it is; the version and similarity are null for a placement by hand.
          */
         Placement: {
             /**
              * Kind
-             * @constant
+             * @enum {string}
              */
-            kind: "engine";
+            kind: "engine" | "manual";
             /** Engine Version */
-            engine_version: string;
+            engine_version: string | null;
             /** Similarity */
-            similarity: number;
+            similarity: number | null;
+        };
+        /**
+         * PlacementMove
+         * @description Where to put a chain: a thread, a new thread, or «Неразобранное» when both are null.
+         */
+        PlacementMove: {
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Thread Id */
+            thread_id?: string | null;
+            /** New Thread Name */
+            new_thread_name?: string | null;
         };
         /**
          * ProjectCreate
@@ -565,6 +642,19 @@ export interface components {
             name: string;
             /** Description */
             description: string;
+        };
+        /**
+         * ProjectRef
+         * @description A project a chain is in.
+         */
+        ProjectRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
         };
         /**
          * ProjectSummary
@@ -691,6 +781,19 @@ export interface components {
             name: string;
             /** Chains */
             chains: components["schemas"]["PlacedChain"][];
+        };
+        /**
+         * ThreadSummary
+         * @description A thread of a project.
+         */
+        ThreadSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -1592,6 +1695,241 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_project_threads_api_v1_projects__project_id__threads_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                vc_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadSummary"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_placement_api_v1_placements__chain_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chain_id: string;
+            };
+            cookie?: {
+                vc_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChainLocation"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    move_placement_api_v1_placements__chain_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chain_id: string;
+            };
+            cookie?: {
+                vc_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlacementMove"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChainLocation"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    take_chain_out_api_v1_placements__chain_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chain_id: string;
+            };
+            cookie?: {
+                vc_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChainLocation"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

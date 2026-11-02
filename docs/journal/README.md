@@ -20,3 +20,4 @@ mistakes and lessons, what remains. Written by `/journal` at `/finish`.
 | 29.10.2026 | [Fix of the backend image: uv from PyPI](2026-10-29-03-fix-uv-from-pypi.md) | - | fix-uv-from-pypi |
 | 30.10.2026 | [Fix of the TDD sandbox: worktree sessions and helpers](2026-10-30-01-fix-sandbox-worktree-helpers.md) | - | fix-sandbox-worktree-helpers |
 | 02.11.2026 | [Projects and the engine](2026-11-02-01-projects-and-engine.md) | 1.3 | 1-3-projects-and-engine |
+| 02.11.2026 | [Manual placement and re-sorting](2026-11-02-02-manual-placement.md) | 1.4 | 1-4-manual-placement |

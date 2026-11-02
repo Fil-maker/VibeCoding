@@ -1,6 +1,6 @@
 # Ideas
 
-Updated 29.10.2026
+Updated 02.11.2026
 
 Ideas not yet planned, by product area, then the technical backlog. `/idea` adds an entry; `/explore`
 discusses a raw one.
@@ -61,18 +61,17 @@ sees where a chain went without opening every project.
 
 **Touches:** nothing new.
 
-### Rules and manual placement
+### Edit threads by hand
 
-Added 28.10. The user places a chain by hand and writes rules (for example by address, domain or subject)
-that place new chains into a project and a thread; a project is re-sorted only by an explicit action that
-keeps the placements made by hand. Priority: by hand, then a rule, then the engine. Why: the engine makes
-mistakes and the user must be able to fix them for good.
+Added 02.11. The user renames, merges and deletes threads of a project, moves a chain from the project
+tree, and moves several chains at once. Why: since task 1.4 a chain is moved only one at a time from its
+own page, and a thread the engine named badly keeps its name. Re-sorting also adds engine chains to a
+thread kept by hand, even chains that had threads of their own before, and only splitting the thread
+undoes that.
 
-**Open:** what a rule can match on; what happens when two rules disagree. A
-re-sorting must not lose hand placements: since task 1.3 a fill deletes the project's threads, and
-placements in them go by cascade, and a merge of two placed chains keeps the earliest placement.
+**Open:** what happens to the chains of a deleted thread; which name a merged thread keeps.
 
-**Touches:** invariants «History is kept» and «Explainable placement». Needs task 1.3.
+**Touches:** invariants «History is kept» and «Explainable placement».
 
 ### Counterparty with several addresses
 

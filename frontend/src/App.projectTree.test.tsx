@@ -89,6 +89,51 @@ describe('project page: the tree', () => {
     );
   });
 
+  it('FR-37 «A chain placed by hand»: the chain shows «Вручную» and no similarity', async () => {
+    openProject({
+      tree: tree({
+        counterparties: [
+          {
+            address: PETROV,
+            name: 'Сергей Петров',
+            threads: [
+              thread('Акты', [
+                chain(4, {
+                  subject: 'Акт скрытых работ',
+                  placement: { kind: 'manual', engine_version: null, similarity: null },
+                }),
+              ]),
+            ],
+          },
+        ],
+        unassigned: [],
+      }),
+    });
+
+    const row = await chainRow('Акт скрытых работ');
+    expect(row).toHaveTextContent('Вручную');
+    expect(row).not.toHaveTextContent('Движок');
+    expect(row).not.toHaveTextContent('сходство');
+  });
+
+  it('FR-37 «A chain placed by hand»: a chain of «Неразобранное» placed by hand shows «Вручную»', async () => {
+    openProject({
+      tree: tree({
+        counterparties: [],
+        unassigned: [
+          chain(4, {
+            subject: 'Выбор дизайна переговорной',
+            placement: { kind: 'manual', engine_version: null, similarity: null },
+          }),
+        ],
+      }),
+    });
+
+    const row = await chainRow('Выбор дизайна переговорной');
+    expect(row).toHaveTextContent('Вручную');
+    expect(row).not.toHaveTextContent('сходство');
+  });
+
   it('FR-37 «An unsure chain»: a chain of «Неразобранное» shows «Движок text-1 · сходство 20%» after the tree', async () => {
     openProject({ tree: tree() });
 

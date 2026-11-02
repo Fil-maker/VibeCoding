@@ -17,6 +17,7 @@ from app.modules.mailboxes.router import register_mailbox_errors
 from app.modules.mailboxes.router import router as mailboxes_router
 from app.modules.mailboxes.service import run_reading_loop
 from app.modules.projects.router import ERROR_MAPPING as PROJECTS_ERRORS
+from app.modules.projects.router import placements_router
 from app.modules.projects.router import router as projects_router
 from app.platform.clock import get_clock
 from app.platform.db import Database
@@ -83,4 +84,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(mailboxes_router)
     app.include_router(correspondence_router)
     app.include_router(projects_router)
+    app.include_router(placements_router)
     return app

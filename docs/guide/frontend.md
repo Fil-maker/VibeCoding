@@ -4,6 +4,7 @@ Updated 02.11.2026
 
 **Code:** `frontend/src/`, `frontend/index.html`, `frontend/vite.config.ts`, `frontend/package.json`,
 `frontend/tsconfig.json`, `frontend/eslint.config.js`, `frontend/.prettierrc.json`, `frontend/.prettierignore`.
+The chain page's «Проект» block is `frontend/src/features/projects/ChainPlacement.tsx`.
 The tests are `frontend/src/App.*.test.tsx`, `frontend/src/features/health/HealthStatus.test.tsx` and `frontend/src/test/`.
 
 **Requirements:** the pages and guards carry out [FR-1 … FR-3](../../openspec/specs/organization-registration/spec.md) registration,
@@ -12,7 +13,7 @@ The tests are `frontend/src/App.*.test.tsx`, `frontend/src/features/health/Healt
 [FR-22, FR-23, FR-24, FR-26 and FR-27](../../openspec/specs/mailboxes/spec.md) the mailbox page,
 [FR-30 and FR-31](../../openspec/specs/reply-chains/spec.md) the correspondence pages,
 [FR-32 … FR-34](../../openspec/specs/projects/spec.md) the project pages and
-[FR-35 … FR-37](../../openspec/specs/chain-placement/spec.md) the fill button of a project. The health page has no requirement:
+[FR-35 … FR-42](../../openspec/specs/chain-placement/spec.md) the fill button of a project and the «Проект» block of a chain. The health page has no requirement:
 task 0.1 is a technical change without specs ([ADR 0004](../adr/0004-task-0-1-runs-as-a.md)).
 
 **Design:** [Components and processes](../architecture.md#components-and-processes),
@@ -89,7 +90,7 @@ Every page is a `Panel` whose `title` is its `h1`.
 | «VibeCoding» (start page) | `frontend/src/features/home/StartPage.tsx` | Shows the signed-in user's name, the links «Почтовые ящики» (to `/mailboxes`), «Переписка» (to `/chains`) and «Проекты» (to `/projects`), and the button «Выйти», which ends the session and calls `setSession(null)`. |
 | «Почтовые ящики» | `frontend/src/features/mailboxes/MailboxesPage.tsx` | The connected mailboxes, their reading status, «Обновить», «Отключить», and the connect form. See [Mailboxes feature](#mailboxes-feature). |
 | «Переписка» | `frontend/src/features/correspondence/ChainsPage.tsx` | The reply chains, the latest first, a page at a time. See [Correspondence feature](#correspondence-feature). |
-| The chain's subject (`/chains/:id`) | `frontend/src/features/correspondence/ChainPage.tsx` | One reply chain: its emails oldest first, each as plain text. See [Correspondence feature](#correspondence-feature). |
+| The chain's subject (`/chains/:id`) | `frontend/src/features/correspondence/ChainPage.tsx` | One reply chain: the block «Проект» (where the chain is, «Перенести», «Убрать из проекта»), then its emails oldest first, each as plain text. See [Correspondence feature](#correspondence-feature) and [Projects feature](#projects-feature). |
 | «Проекты» (`/projects`) | `frontend/src/features/projects/ProjectsPage.tsx` | The user's projects by name, with their chain counts, and the button «Создать проект». See [Projects feature](#projects-feature). |
 | «Новый проект» (`/projects/new`) | `frontend/src/features/projects/NewProjectPage.tsx` | Fields «Название» and «Описание»; «Создать» opens the new project. See [Projects feature](#projects-feature). |
 | The project's name (`/projects/:id`) | `frontend/src/features/projects/ProjectPage.tsx` | One project: its description, «Заполнить» with the rebuild question, and the tree of its chains. See [Projects feature](#projects-feature). |
@@ -145,7 +146,8 @@ The files are `frontend/src/features/correspondence/`: `ChainsPage.tsx` (the lis
 - **One chain (`/chains/:id`).** `ChainPage` reads `GET /api/v1/reply-chains/{chain_id}` under the key `['reply-chains', id]`.
   The page title is the chain's subject, and the link «К переписке» goes back to `/chains`. It retries once on an error, except a
   404, which shows `NotFoundPage` (`Страница не найдена`): another user's chain and an unknown id look the same. While loading, and
-  on any other error, the page is a «Переписка» panel with `Загрузка…` or the error alert.
+  on any other error, the page is a «Переписка» panel with `Загрузка…` or the error alert. Under the link «К переписке»
+  the page shows the block «Проект» (`ChainPlacement`, see [Projects feature](#projects-feature)), then the emails.
 - **Each email** is an `<article>` in the order of the answer, oldest first: `Тема:` with the email's subject, `От:` with the sender, `Кому:` with the recipients,
   `Копия:` only when there are copies, the sent date and time (`formatDateTime`), the text, and `Вложения: ` with the attachment
   names joined by `, ` only when there are attachments. The server keeps only the file names of attachments, so the page shows names only
@@ -162,15 +164,33 @@ The files are `frontend/src/features/correspondence/`: `ChainsPage.tsx` (the lis
 
 The files are `frontend/src/features/projects/`: `ProjectsPage.tsx` (the list, and `PROJECTS_KEY`, the query key `['projects']`
 that the other two files invalidate), `NewProjectPage.tsx` (the form), `ProjectPage.tsx` (one project, its fill and its tree),
-`ProjectPage.module.css` (the tree's indents, the description's line breaks and the muted counterparty address) and `format.ts`.
+`ProjectPage.module.css` (the tree's indents, the description's line breaks and the muted counterparty address), `ChainPlacement.tsx`
+  (the «Проект» block of a chain page, see below) and `format.ts`.
 The server side is in [Projects](projects.md). The pages, their routes and their texts are described in
 [The SPA](projects.md#the-spa) of that article; this section only says where things live.
 
 - **Texts.** Each page writes its Russian texts in its component. The two texts of the project page's empty tree
   are constants at the top of `ProjectPage.tsx`, next to `REFILL_QUESTION` and `NO_COUNTERPARTY_TITLE`.
 - **Formatters (`format.ts`).** `chainCountLabel` and `unassignedCountLabel` pick the Russian plural with `Intl.PluralRules('ru')`,
-  as `emailCountLabel` does. `placementLabel(engineVersion, similarity)` gives `Движок text-1 · сходство 43%`: the similarity
-  (0–1) is shown in whole percent. Each chain row of the tree shows its own placement.
+  as `emailCountLabel` does. `placementLabel(placement)` gives `Вручную` for a placement by hand and `Движок text-1 · сходство 43%`
+  for an engine one: the similarity (0–1) is shown in whole percent. Each chain row of the tree shows its own placement, and so do
+  the chains of «Неразобранное».
+- **The «Проект» block (`ChainPlacement.tsx`).** `ChainPage` renders `ChainPlacement({ chainId })`. It reads
+  `GET /api/v1/placements/{chain_id}` under the key `['placements', id]`. The text is `<project> → <thread or Неразобранное> · <placement>`,
+  with the project name as a link to `/projects/{id}`; `Вне проектов` when the chain is in no project, and `Вне проектов · убрана вручную`
+  when it was taken out by hand. The button «Убрать из проекта» shows only for a placed chain; it sends
+  `DELETE /api/v1/placements/{chain_id}`. The form «Перенести» (a heading of the same text) has:
+  - the select «Проект», with the projects of `GET /api/v1/projects`; it starts at the chain's project, or at the first project when the
+    chain is in none;
+  - the select «Ветка», with «Неразобранное» (empty value), the threads of the chosen project from
+    `GET /api/v1/projects/{project_id}/threads` (key `['projects', project, 'threads']`) and «Новая ветка…». It starts at the chain's own
+    thread while its own project is selected, and resets to «Неразобранное» when another project is picked;
+  - the field «Название ветки», shown only for «Новая ветка…».
+
+  The submit button «Перенести» sends `PUT /api/v1/placements/{chain_id}` with a `PlacementMove`. A failure with field messages
+  (`thread_id`, `new_thread_name`) shows them under their fields, and the alert stays empty; a failure with no field messages
+  shows in an alert (`ChainPlacement.tsx`: `errors.size > 0 ? null : move.error`). On success the location is set in the cache and the
+  projects query is invalidated, so the tree shows the move.
 - **The fill confirmation.** «Заполнить» on a project with any chain in its tree first shows the question `Пересобрать проект?
   Движок разложит его переписку заново` with the buttons «Пересобрать» and «Отмена»; «Отмена» sends nothing. A project with
   no chain fills at once. While the fill runs the button reads «Заполняется…» and is disabled. On success the page's query data
@@ -195,7 +215,8 @@ Server data reaches the SPA only through the generated client; components never 
   same for answers without a body (202, 204). A network failure throws from `fetch`.
 - Schema types come from `components['schemas'][...]`, for example `Me` in `AuthProvider.tsx` and `HealthStatus`
   in `frontend/src/features/health/useHealth.ts`, `Mailbox` and `MailboxConnect` in `MailboxesPage.tsx`, and `EmailView`
-  and `Address` in the correspondence files. The project files use `ProjectCreate`, `ProjectTree` and `PlacedChain`.
+  and `Address` in the correspondence files. The project files use `ProjectCreate`, `ProjectTree` and `PlacedChain`; the «Проект»
+  block uses `ChainLocation` and `PlacementMove`.
 
 ### How the client is regenerated
 
@@ -336,7 +357,8 @@ replaces the list; the last successful answer is not kept on screen.
 - The page tests render the whole app. They sit in `frontend/src/App.<area>.test.tsx`: `App.guards`, `App.start`,
   `App.signIn`, `App.registration`, `App.passwordReset`, `App.mailboxes` (the «Почтовые ящики» page) and `App.chains` (the start
   page links, «Переписка» and one chain), `App.projects` (the list and the new project, with the start page link «Проекты»),
-  `App.projectTree` (the tree of a project) and `App.projectFill` (the fill and its rebuild question). A scenario test names its FR, for example «FR-17 …»;
+  `App.projectTree` (the tree of a project), `App.projectFill` (the fill and its rebuild question) and `App.chainPlacement` (the «Проект»
+  block of a chain page: where the chain is, «Перенести» and «Убрать из проекта»). A scenario test names its FR, for example «FR-17 …»;
   a test of an SPA page without an FR, such as «Вход» or «Страница не найдена», names the page.
 - The dates of `format.ts` are in local time. `vite.config.ts` sets `TZ` to `UTC` for the test run (its `test` settings), and
   `App.chains.test.tsx` and `App.mailboxes.test.tsx` set `process.env.TZ = 'UTC'` again at their top, so «14:05» in a test means
@@ -350,6 +372,13 @@ replaces the list; the last successful answer is not kept on screen.
   its chains `ESTIMATE`, `ACT` and `FURNITURE`), the fixed ids and texts (`PROJECT_ID`, `FILL`, `EMPTY_PROJECT`, `REBUILD`), and the
   lookups `openProject({ tree }, fill?)`, `chainRow`, `blockOf`, `confirmationWith`, `exactForm` (a count matched whole) and `follows`
   (document order). `openProject` renders the page with a `GET` answer that reads `state.tree`, so a fill answer can replace it.
+  Its `placement` is an engine one or a manual one (`PlacedChainJson`), so the tests show both labels.
+- `frontend/src/test/chainPlacement.tsx` is the fixture set of the chain page's «Проект» block. It holds the JSON shapes of
+  `ChainLocation` and `PlacementMove` (`LocationJson`, `PlacementJson`, `PlacementMoveJson`), the projects «Ремонт офиса» (`OFFICE`) and
+  «Закупка техники» (`TECH`) with their threads, the placements (`ENGINE_PLACEMENT`, `MANUAL_PLACEMENT`) and the states (`NONE`,
+  `EXCLUDED`, `placed(...)`). `openChain(state, options?)` renders the chain page of `CHAIN_ID` with a stateful stub: a `GET` answers
+  `state.location`, and a `PUT` or `DELETE` changes it as the server would, unless `options.put` or `options.del` replaces the handler.
+  The lookups are `locationAround(projectName)`, `choose(label, option)` for a select of the form, and `rejectedName(message)` for a 422.
 - `frontend/src/test/appHarness.tsx` provides `renderApp({ path, me?, routes? })`. It moves the browser to `path`,
   stubs `fetch` with `vi.stubGlobal`, and renders `<App queryClient={…} />` with a new `QueryClient` that does not retry.
   `me` is the signed-in user, `{user_id, name, email}`; without it the visitor is signed out.

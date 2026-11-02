@@ -1,4 +1,4 @@
-"""Use cases of projects: create, list, show as a tree, fill, and place new chains."""
+"""Use cases of projects: create, list, show as a tree, fill, place new chains, place by hand."""
 
 from collections.abc import Sequence
 from datetime import datetime
@@ -16,7 +16,7 @@ from app.modules.correspondence.service import (
     list_chain_documents,
     list_chain_facts,
 )
-from app.modules.projects import repository
+from app.modules.projects import hand_placing, repository
 from app.modules.projects.domain import (
     PlacementEntry,
     ProjectHead,
@@ -27,7 +27,14 @@ from app.modules.projects.domain import (
 from app.modules.projects.errors import ProjectExists
 from app.modules.projects.models import Project
 from app.modules.projects.placing import Placer, ThreadState
-from app.modules.projects.schemas import ProjectCreate, ProjectSummary, ProjectTree
+from app.modules.projects.schemas import (
+    ChainLocation,
+    PlacementMove,
+    ProjectCreate,
+    ProjectSummary,
+    ProjectTree,
+    ThreadSummary,
+)
 from app.platform.auth_context import AuthContext
 from app.platform.clock import Clock
 from app.platform.db import get_database_session
@@ -62,7 +69,9 @@ async def _load_tree(session: AsyncSession, user_id: UUID, project: Project) -> 
                 chain_id=placement.chain_id,
                 thread_id=placement.thread_id,
                 kind=placement.kind,
-                similarity=float(placement.similarity),
+                similarity=(
+                    float(placement.similarity) if placement.similarity is not None else None
+                ),
                 engine_version=placement.engine_version,
             )
             for placement in placements
@@ -75,9 +84,10 @@ async def _load_tree(session: AsyncSession, user_id: UUID, project: Project) -> 
 async def carry_placement(
     session: AsyncSession, user_id: UUID, survivor_id: UUID, merged_ids: Sequence[UUID]
 ) -> None:
-    """Merge hook: keep the earliest placement among the chains on the survivor, drop the rest.
+    """Merge hook: keep the winning placement among the chains on the survivor, drop the rest.
 
-    Runs in the caller's transaction, before the merged chains are deleted.
+    A placement by hand (or a chain taken out by hand) wins over the engine's; among one kind the
+    earliest wins. Runs in the caller's transaction, before the merged chains are deleted.
     """
     await repository.carry_placement_for_owner(session, user_id, survivor_id, merged_ids)
 
@@ -115,13 +125,13 @@ async def place_new_chains(
     engine: PlacementEngine,
     now: datetime,
 ) -> None:
-    """Place the chains that are in no project into the user's filled projects.
+    """Place the new chains of the user into the filled projects.
 
-    Runs in the caller's transaction (the mailbox batch). Only the chains in `chain_ids` that are
-    in no project are scored. A chain goes to its most similar filled project (ties: created
-    first, then by name) by the same bands as a fill. Placed chains are read, for the corpus and
-    for the texts of the threads, but they are never re-scored or moved, so a reply never moves
-    its chain.
+    Runs in the caller's transaction (the mailbox batch). Only the chains in `chain_ids` that have
+    no placement row are scored; a chain taken out by hand has one, so it is never placed again.
+    A chain goes to its most similar filled project (ties: created first, then by name) by the
+    same bands as a fill. Placed chains are read, for the corpus and for the texts of the threads,
+    but they are never re-scored or moved, so a reply never moves its chain.
     """
     projects = await repository.lock_projects_for_owner(session, user_id)
     filled = sorted(
@@ -211,8 +221,9 @@ class ProjectsService:
     ) -> ProjectTree:
         """Fill the project from its description, rebuilding the engine's placements.
 
-        Only chains that are in no other project are taken. All the user's projects are locked,
-        so a fill and the mailbox reading never place the same chain twice.
+        Placements by hand and the threads holding them stay; a chain taken out by hand is not
+        taken back. Only chains with no placement row are candidates. All the user's projects are
+        locked, so a fill and the mailbox reading never place the same chain twice.
         """
         now = clock.now()
         user_id = context.user_id
@@ -221,7 +232,7 @@ class ProjectsService:
             project = next((item for item in projects if item.id == project_id), None)
             if project is None:
                 raise NotFound
-            await repository.delete_engine_placements_and_threads_for_owner(
+            await repository.delete_engine_placements_and_unpinned_threads_for_owner(
                 self._session, user_id, project.id
             )
             documents = await list_chain_documents(self._session, user_id)
@@ -231,10 +242,54 @@ class ProjectsService:
             scores = engine.score(
                 project.description, [item.document for item in candidates], corpus
             )
+            states = await _thread_states(
+                self._session,
+                user_id,
+                [project.id],
+                {item.chain_id: item for item in documents},
+            )
             placer = Placer(self._session, user_id, engine, corpus, now)
-            await placer.place(project.id, [], list(zip(candidates, scores, strict=True)))
+            await placer.place(
+                project.id, states[project.id], list(zip(candidates, scores, strict=True))
+            )
             project.filled_at = now
             return await _load_tree(self._session, user_id, project)
+
+    async def list_threads(self, context: AuthContext, project_id: UUID) -> list[ThreadSummary]:
+        """The threads of a project in order; `NotFound` for another user's or an unknown id."""
+        async with self._session.begin():
+            project = await repository.get_project_for_owner(
+                self._session, context.user_id, project_id
+            )
+            if project is None:
+                raise NotFound
+            threads = await repository.list_threads_of_projects_for_owner(
+                self._session, context.user_id, [project.id]
+            )
+        return [ThreadSummary(id=thread.id, name=thread.name) for thread in threads]
+
+    async def get_location(self, context: AuthContext, chain_id: UUID) -> ChainLocation:
+        """Where the user's chain is; `NotFound` for another user's or an unknown chain."""
+        async with self._session.begin():
+            return await hand_placing.read_location(self._session, context.user_id, chain_id)
+
+    async def move_chain(
+        self, context: AuthContext, clock: Clock, chain_id: UUID, body: PlacementMove
+    ) -> ChainLocation:
+        """Place the chain by hand; `NotFound` for anything that is not the user's."""
+        async with self._session.begin():
+            return await hand_placing.move_chain(
+                self._session, context.user_id, chain_id, body, clock.now()
+            )
+
+    async def take_chain_out(
+        self, context: AuthContext, clock: Clock, chain_id: UUID
+    ) -> ChainLocation:
+        """Take the chain out of projects; raises `ChainNotInProject` when it is in none."""
+        async with self._session.begin():
+            return await hand_placing.take_chain_out(
+                self._session, context.user_id, chain_id, clock.now()
+            )
 
 
 def get_projects_service(

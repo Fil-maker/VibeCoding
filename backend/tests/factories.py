@@ -206,3 +206,74 @@ async def open_chain(client: AsyncClient, chain_id: str) -> dict[str, Any]:
 async def count_emails(client: AsyncClient) -> int:
     """How many emails the user has: the sum over the first 100 chains."""
     return sum(chain["email_count"] for chain in await list_chains(client))
+
+
+async def chain_id_of(client: AsyncClient, subject: str) -> str:
+    """The id of the one chain of the user with this subject."""
+    [chain] = [item for item in await list_chains(client) if item["subject"] == subject]
+    return str(chain["id"])
+
+
+async def move_chain_response(
+    client: AsyncClient,
+    chain_id: str,
+    project_id: str,
+    *,
+    thread_id: str | None = None,
+    new_thread_name: str | None = None,
+) -> Response:
+    """PUT /placements/{chain_id}: the raw answer; both thread fields empty is «Неразобранное»."""
+    return await client.put(
+        f"{API}/placements/{chain_id}",
+        json={
+            "project_id": project_id,
+            "thread_id": thread_id,
+            "new_thread_name": new_thread_name,
+        },
+    )
+
+
+async def move_chain(
+    client: AsyncClient,
+    chain_id: str,
+    project_id: str,
+    *,
+    thread_id: str | None = None,
+    new_thread_name: str | None = None,
+) -> dict[str, Any]:
+    """Move a chain by hand through the API; returns its `ChainLocation`."""
+    response = await move_chain_response(
+        client, chain_id, project_id, thread_id=thread_id, new_thread_name=new_thread_name
+    )
+    assert response.status_code == HTTPStatus.OK, response.text
+    location: dict[str, Any] = response.json()
+    return location
+
+
+async def take_out_chain_response(client: AsyncClient, chain_id: str) -> Response:
+    """DELETE /placements/{chain_id}: the raw answer."""
+    return await client.delete(f"{API}/placements/{chain_id}")
+
+
+async def take_out_chain(client: AsyncClient, chain_id: str) -> dict[str, Any]:
+    """Take a chain out of projects through the API; returns its `ChainLocation`."""
+    response = await take_out_chain_response(client, chain_id)
+    assert response.status_code == HTTPStatus.OK, response.text
+    location: dict[str, Any] = response.json()
+    return location
+
+
+async def chain_location(client: AsyncClient, chain_id: str) -> dict[str, Any]:
+    """GET /placements/{chain_id}: the `ChainLocation`."""
+    response = await client.get(f"{API}/placements/{chain_id}")
+    assert response.status_code == HTTPStatus.OK, response.text
+    location: dict[str, Any] = response.json()
+    return location
+
+
+async def project_threads(client: AsyncClient, project_id: str) -> list[dict[str, Any]]:
+    """GET /projects/{id}/threads: the `ThreadSummary` list in thread order."""
+    response = await client.get(f"{API}/projects/{project_id}/threads")
+    assert response.status_code == HTTPStatus.OK, response.text
+    threads: list[dict[str, Any]] = response.json()
+    return threads

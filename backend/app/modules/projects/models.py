@@ -28,10 +28,22 @@ SIMILARITY_PRECISION = 5
 SIMILARITY_SCALE = 4
 
 
+SHAPE_CHECK = (
+    "(kind = 'engine' and project_id is not null and similarity is not null"
+    " and engine_version is not null)"
+    " or (kind = 'manual' and project_id is not null and similarity is null"
+    " and engine_version is null)"
+    " or (kind = 'excluded' and project_id is null and thread_id is null"
+    " and similarity is null and engine_version is null)"
+)
+
+
 class PlacementKind(StrEnum):
-    """Who placed a chain; task 1.4 adds «by hand» and «by a rule»."""
+    """Who placed a chain; task 1.5 adds «by a rule»."""
 
     ENGINE = "engine"
+    MANUAL = "manual"
+    EXCLUDED = "excluded"
 
 
 class Project(Base):
@@ -69,7 +81,8 @@ class ChainPlacement(Base):
 
     __tablename__ = "chain_placements"
     __table_args__ = (
-        CheckConstraint("kind in ('engine')", name="kind"),
+        CheckConstraint("kind in ('engine', 'manual', 'excluded')", name="kind"),
+        CheckConstraint(SHAPE_CHECK, name="shape"),
         Index("ix_chain_placements_user_id_project_id", "user_id", "project_id"),
     )
 
@@ -77,10 +90,14 @@ class ChainPlacement(Base):
         ForeignKey("reply_chains.id", ondelete="CASCADE"), primary_key=True
     )
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    # Null only for an `excluded` row: the chain was taken out of projects by hand.
+    project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     # Null means «Неразобранное»: the chain is in the project but in no thread.
     thread_id: Mapped[UUID | None] = mapped_column(ForeignKey("threads.id", ondelete="CASCADE"))
     kind: Mapped[str] = mapped_column(String(KIND_MAX_LENGTH))
-    similarity: Mapped[Decimal] = mapped_column(Numeric(SIMILARITY_PRECISION, SIMILARITY_SCALE))
-    engine_version: Mapped[str] = mapped_column(String(ENGINE_VERSION_MAX_LENGTH))
+    # Both null exactly for a placement by hand (`manual`, `excluded`).
+    similarity: Mapped[Decimal | None] = mapped_column(
+        Numeric(SIMILARITY_PRECISION, SIMILARITY_SCALE)
+    )
+    engine_version: Mapped[str | None] = mapped_column(String(ENGINE_VERSION_MAX_LENGTH))
     placed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

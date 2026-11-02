@@ -42,8 +42,8 @@ class PlacementEntry:
     chain_id: UUID
     thread_id: UUID | None
     kind: str
-    similarity: float
-    engine_version: str
+    similarity: float | None
+    engine_version: str | None
 
 
 @dataclass(frozen=True)
@@ -107,7 +107,11 @@ def _placed_chain(entry: PlacementEntry, facts: ChainFacts) -> PlacedChain:
             {
                 "kind": entry.kind,
                 "engine_version": entry.engine_version,
-                "similarity": round(entry.similarity, SIMILARITY_DECIMALS),
+                "similarity": (
+                    round(entry.similarity, SIMILARITY_DECIMALS)
+                    if entry.similarity is not None
+                    else None
+                ),
             }
         ),
     )
@@ -155,7 +159,11 @@ def build_tree(
     counterparties.sort(key=lambda c: (c.address is None, c.name.lower(), c.address or ""))
     loose = sorted(
         in_thread.get(None, []),
-        key=lambda e: (-e.similarity, _chain_order(facts[e.chain_id])),
+        key=lambda e: (
+            e.similarity is not None,
+            -(e.similarity or 0.0),
+            _chain_order(facts[e.chain_id]),
+        ),
     )
     return ProjectTree(
         id=head.id,

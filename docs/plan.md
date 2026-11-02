@@ -1,6 +1,10 @@
 # Plan
 
-Version 0.10 · 02.11.2026
+Version 0.12 · 02.11.2026
+
+Changes in 0.12: task 1.4 «Manual placement and re-sorting» done.
+
+Changes in 0.11: task 1.4 is split; rules go to the new task 1.5 «Rules».
 
 Changes in 0.10: task 1.3 «Projects and the engine» done.
 
@@ -34,7 +38,7 @@ Changes in 0.1: task 0.1 «Application skeleton».
 
 | # | Task | FR | Done when |
 |---|---|---|---|
-| 1.4 | **Manual placement and rules.** The user moves a chain by hand, writes rules by address, domain or subject, and re-sorts a project explicitly | — | A chain moved by hand stays where the user put it, and the engine never moves it. A rule places new chains into its project and thread before the engine. An explicit re-sorting keeps the placements made by hand. Every chain shows whether it was placed by hand, by a rule or by the engine. `just check` and `just test-all` pass. |
+| 1.5 | **Rules.** The user writes rules by address, domain or subject that place new chains into a project and a thread before the engine | — | The user creates a rule by sender address, domain or subject words with a target project and thread, and edits or deletes it. A new chain matching a rule goes into its project and thread before the engine compares it. A chain placed by a rule shows «Правило» and the rule. A rule never moves a chain placed by hand. `just check` and `just test-all` pass. |
 
 ## Done
 
@@ -45,3 +49,4 @@ Changes in 0.1: task 0.1 «Application skeleton».
 | 1.1 | **Personal accounts.** Organizations are removed: anyone registers as an individual user with email confirmation; invitations, members, roles, deactivation and the organization filter go away; every piece of data belongs to one user | FR-1…FR-4, FR-6…FR-8, FR-17, FR-20, FR-21; removes FR-9…FR-16, FR-18, FR-19 | A visitor registers on «Регистрация» with a name, email and password, follows the confirmation link from the email caught by Mailpit and lands on the start page with their name and «Выйти», without any organization. The pages «Участники» and invitation acceptance answer «Страница не найдена», and the invitation and members API no longer exists. Users who existed before the migration sign in with their old email and password, each as a separate account, formerly deactivated ones included. A user never gets another user's data: a session token of one user gives only their own profile. Sign-in, lock, sign-out and password reset work as before. `just check` and `just test-all` pass. |
 | 1.2 | **Mailboxes and reply chains.** The user connects several mailboxes over IMAP read-only, with the password stored encrypted; Inbox and Sent of the last 12 months are read in the background and on «Обновить»; a local demo mail server holds prepared correspondence; the emails of all mailboxes are collected into reply chains | FR-22…FR-31 | The user connects two mailboxes, and a wrong password is reported. After reading, the user sees the reply chains of all mailboxes and opens one to read its emails; an email present in both mailboxes is shown once; unread emails stay unread in the mailbox. A new email in the mailbox appears after «Обновить» or within 5 minutes. A disconnected mailbox is no longer read, and its emails stay. `just demo-mail` fills the demo mailboxes with prepared correspondence. `just check` and `just test-all` pass. |
 | 1.3 | **Projects and the engine.** The user creates a project with a description; a local deterministic engine fills it as a tree project → counterparty → thread and places new chains | FR-32…FR-39 | The user creates a project, presses «Заполнить» and sees the tree. Every placed chain shows why it is there, its similarity and the engine version. Chains the engine is not sure of go to «Неразобранное». New emails take their place in the tree without moving chains already placed. Filling the same project from the same emails again gives the same tree. `just check` and `just test-all` pass. |
+| 1.4 | **Manual placement and re-sorting.** The user moves a chain by hand into a project, a thread or «Неразобранное», takes it out of projects for good, and re-sorts a project explicitly | FR-35…FR-37, FR-39…FR-42 | On the page of a chain the user moves it into a thread of any of their projects, into «Неразобранное» or into a new thread they name, and the chain then shows «Вручную». A chain moved by hand stays where the user put it: a new email in it, a mailbox read and «Заполнить» never move it. «Убрать из проекта» takes a chain out of its project, and the engine never places it again by itself. «Заполнить» on a filled project keeps the chains placed by hand and the threads holding them, and lays out the rest again. Every chain in a project tree shows whether it was placed by hand or by the engine. `just check` and `just test-all` pass. |

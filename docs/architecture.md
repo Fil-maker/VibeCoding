@@ -2,13 +2,15 @@
 
 Updated 02.11.2026
 
-**Status: tasks 0.1, 0.2, 1.1, 1.2 and 1.3 are built.** Task 0.1 «Application skeleton» built the backend, the SPA and the database
+**Status: tasks 0.1, 0.2, 1.1, 1.2, 1.3 and 1.4 are built.** Task 0.1 «Application skeleton» built the backend, the SPA and the database
 container. Task 0.2 «Sign-in and organization» built registration, email confirmation, sign-in and sessions,
 password reset, and an organization with its members and invitations. Task 1.1 «Personal accounts» removed the
 organization layer: a registrant is an individual user and the root owner of their data ([ADR 0023](adr/0023-organizations-are-removed-anyone-can-register.md)).
 Task 1.2 «Mailboxes and reply chains» built the mailbox reader (read-only IMAP, in the background) and the reply chains,
 in the backend and the SPA. Task 1.3 «Projects and the engine» built projects, their filling and the placement of new
-reply chains with the local placement engine `text-1`, in the backend and the SPA. A third-party analysis model is not chosen yet.
+reply chains with the local placement engine `text-1`, in the backend and the SPA. Task 1.4 «Manual placement and re-sorting»
+built placing a chain by hand, taking it out of projects for good, and a fill that keeps the placements by hand, in the
+backend and the SPA. A third-party analysis model is not chosen yet.
 
 ## Contents
 
@@ -30,6 +32,7 @@ reply chains with the local placement engine `text-1`, in the backend and the SP
 | Personal accounts: a registrant is an individual user; organizations, invitations, members, roles and deactivation are removed | ✅ | 1.1 |
 | Mailboxes and reply chains: connecting mailboxes over read-only IMAP, reading them in the background, joining emails into reply chains, the reply-chain list and page | ✅ | 1.2 |
 | Projects and the engine: projects with a description, filling a project with the local engine `text-1` into threads and «Неразобранное», placing new reply chains after each read batch, the project list and page | ✅ | 1.3 |
+| Manual placement and re-sorting: placing a chain by hand into a thread, a new thread or «Неразобранное» of any project, taking a chain out of projects for good, and a fill that keeps the placements by hand | ✅ | 1.4 |
 
 ## Components and processes
 
@@ -59,22 +62,28 @@ reply chains with the local placement engine `text-1`, in the backend and the SP
   «Неразобранное», and below 0.05 the chain is left out; 0.15 is also the threshold for joining a thread. Any change of a threshold, a stop word or the stemmer's
   version is a new engine version ([ADR 0055](adr/0055-similarity-thresholds-are-constants-of-the.md)). The version is stored
   with each placement, so a result names its engine.
-- **Filling a project** — «Заполнить» places the user's chains that are in no project into the project, in one transaction
-  under a lock of all the user's project rows. Before that, the project's threads and engine placements are dropped, so a
-  filled project is rebuilt from the same emails ([ADR 0054](adr/0054-on-a-filled-project-is-an.md)). A chain scoring at least
+- **Filling a project** — «Заполнить» places the user's chains that have no placement row into the project, in one transaction
+  under a lock of all the user's project rows. Before that, the project's engine placements are dropped, and the threads that
+  no placement by hand points to; placements by hand and their threads stay. A filled project is rebuilt from the same emails
+  ([ADR 0054](adr/0054-on-a-filled-project-is-an.md)), and it keeps the placements by hand ([ADR 0060](adr/0060-the-explicit-re-sorting-is-on.md)). A chain scoring at least
   «sure» goes to a thread: in reading order (first email's send time, subject, first email key), it joins the most similar
   thread at or above the thread threshold, ties going to the earlier thread, or starts a new thread named by its first subject
   ([ADR 0052](adr/0052-threads-are-formed-by-grouping-a.md)). A chain between the two thresholds goes to «Неразобранное»
   without a thread; a chain below the lower threshold is not placed. The project is marked filled.
-- **Placing new chains** — after each batch a mailbox read stores, the chains that got an email and are in no project are
-  scored against every filled project. Each goes to its best project (ties: the project created first, then by name), by the
-  same bands and the same thread rule as a fill. A placed chain is never scored again. When two
-  chains merge, the merged chain keeps the placement with the earliest `placed_at`.
+- **Placing new chains** — after each batch a mailbox read stores, the chains that got an email and have no placement row
+  are scored against every filled project. Each goes to its best project (ties: the project created first, then by name), by
+  the same bands and the same thread rule as a fill. A chain with a placement row, placed or taken out by hand, is never scored
+  again. When two chains merge, the placement by hand wins over the engine's; among one kind the earliest `placed_at` wins
+  ([ADR 0061](adr/0061-on-a-merge-of-chains-a.md)).
+- **Placing by hand** — the user places a chain on its own page: into a thread, a new thread it names, or «Неразобранное» of any
+  of their projects. «Убрать из проекта» takes it out of projects for good, and the engine never places it again by itself
+  ([ADR 0057](adr/0057-a-chain-is-placed-by-hand.md), [ADR 0058](adr/0058-by-hand-a-chain-goes-into.md),
+  [ADR 0059](adr/0059-keeps-the-chain-out-of-every.md)). The guide is [Projects](guide/projects.md#placing-by-hand).
 - **Project tree** — built on each request from the placements: counterparties are the participant addresses of the chains,
   named by the latest display name sent from that address, or by the address itself; chains without a counterparty are under
   «Без контрагента», which comes last. Each counterparty lists its threads in creation order, and each thread its chains in
-  reading order. «Неразобранное» lists its chains by similarity, highest first
-  ([ADR 0053](adr/0053-a-counterparty-in-the-tree-is.md)).
+  reading order. «Неразобранное» lists the chains placed by hand first, in reading order, then the engine's chains by similarity,
+  highest first ([ADR 0053](adr/0053-a-counterparty-in-the-tree-is.md)).
 
 The third-party analysis engine is not chosen yet ([ideas.md](ideas.md#analysis-engine)).
 
@@ -125,17 +134,20 @@ backend/                 FastAPI application (own pyproject.toml, uv.lock)
       correspondence/    emails stored once per user with their copies in folders, reply chains: joining, the list and
                          the page of a chain; router.py, service.py, schemas.py, domain.py (parsing, the email key,
                          the merge choice, HTML to text), repository.py, models.py, errors.py
-      projects/          projects with a description, the fill, the tree of a project and the placement of reply chains
-                         into threads and «Неразобранное»; router.py, service.py (the use cases and the new-chain placement),
-                         schemas.py, domain.py (the bands, the thread choice, the tree), placing.py (writes the placements
+      projects/          projects with a description, the fill, the tree of a project, the placement of reply chains
+                         into threads and «Неразобранное», and placing a chain by hand; router.py, service.py (the use cases,
+                         the new-chain placement), hand_placing.py (placing a chain by hand, taking it out), schemas.py,
+                         domain.py (the bands, the thread choice, the tree), placing.py (writes the engine's placements
                          and threads of a project), repository.py, models.py, errors.py
     modules/health/test_*.py  unit tests of the health module (test_router.py, test_service.py)
   migrations/            Alembic: env.py, script.py.mako, versions/ (0001_baseline.py, 0002_accounts_auth_invitations.py,
-                         0003_personal_accounts.py, 0004_mailboxes_and_reply_chains.py, 0005_projects_and_placements.py)
+                         0003_personal_accounts.py, 0004_mailboxes_and_reply_chains.py, 0005_projects_and_placements.py,
+                         0006_manual_placements.py)
   tests/                 test support of the integration tests
     integration/         database tests through the HTTP API, one file per group of requirements
     factories.py         users built through the public API: unconfirmed and confirmed users, signed-in clients
     mail_factory.py      raw test emails built with the standard library, the way a mail server hands them over
+    hand_placement.py    helpers of the placement-by-hand tests: seeding chains, finding a chain in a tree
     project_trees.py     helpers of the project and placement tests: the engine seam, the project routes, the mail
     settable_clock.py    a clock that the tests move by hand
     alembic_runner.py    runs Alembic against the test database (migration round trip)
@@ -148,7 +160,7 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
     main.tsx             entry: mounts App into #root, loads the design tokens
     App.tsx              root component: QueryClientProvider, BrowserRouter, AuthProvider and the routes
     App.*.test.tsx       page tests, one file per area (sign-in, registration, password reset, guards, start page,
-                         mailboxes, chains, projects, project tree, project fill)
+                         mailboxes, chains, projects, project tree, project fill, chain placement)
     api/
       client.ts          apiClient: openapi-fetch typed by the generated schema
       queryClient.ts     createQueryClient(): TanStack Query client
@@ -168,9 +180,11 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
       correspondence/    ChainsPage (the list of reply chains, a page at a time), ChainPage (one chain, emails as plain
                          text), ChainPage.module.css, format.ts (dates, email counts, addresses)
       projects/          ProjectsPage (the list), NewProjectPage («Новый проект»), ProjectPage (the description, «Заполнить»,
-                         the tree and «Неразобранное»), ProjectPage.module.css, format.ts (plural labels, the engine line)
+                         the tree and «Неразобранное»), ProjectPage.module.css, format.ts (plural labels, the placement line),
+                         ChainPlacement.tsx (the block «Проект» of the chain page: where the chain is, «Перенести», «Убрать из проекта»)
     styles/tokens.css    design tokens: colors, spacing, sizes, fonts
     test/                appHarness.tsx (renders App with fetch stubbed), projectTrees.tsx (project fixtures and lookups),
+                         chainPlacement.tsx (fixtures and stubs of the chain page's placement block),
                          setup.ts (Vitest setup: Testing Library cleanup, unstubbed globals)
 docker/                  backend.Dockerfile (dev image); postgres/init/ runs once, on the first start of the database;
                          greenmail/demo/ holds the 40 prepared demo emails (.eml) and manifest.json, which say where each one goes
@@ -242,7 +256,8 @@ The mailboxes service calls `store_raw_messages` in `backend/app/modules/corresp
 reads, and the correspondence service uses `list_logins_for_owner` from the mailboxes repository and `find_by_id` from the
 accounts repository. The projects service reads chains, emails and participants only through the correspondence service's functions
 `list_chain_documents`, `list_chain_facts` and `get_latest_sender_names`. It imports the result types from
-`backend/app/modules/correspondence/schemas.py`: `ChainDocument` in `service.py` and `placing.py`, and `ChainFacts` in `domain.py`. No module imports another module's models or
+`backend/app/modules/correspondence/schemas.py`: `ChainDocument` in `service.py` and `placing.py`, and `ChainFacts` in `domain.py`.
+The placement by hand (`hand_placing.py`) reads one more function of the correspondence service, `has_chain`, which tells whether a chain is the user's. No module imports another module's models or
 private names.
 
 **Merge hook.** `store_raw_messages` takes an optional `on_merge` callable (`MergeHook` in
@@ -263,7 +278,10 @@ columns of `users`, `sessions` and `user_tokens`, and the `users.role` and `user
 ([ADR 0035](adr/0035-migration-keeps-every-existing-user-as.md), [ADR 0041](adr/0041-migration-0003-drops-users-role-users.md)).
 Four tables remain after `0003`. Migration `0004` (`backend/migrations/versions/0004_mailboxes_and_reply_chains.py`) adds
 five tables for the modules `mailboxes` and `correspondence`, listed below. Migration `0005` (`backend/migrations/versions/0005_projects_and_placements.py`)
-adds three tables for the module `projects`, listed below too. The baseline `0001` stays empty. The models are in
+adds three tables for the module `projects`, listed below too. Migration `0006` (`backend/migrations/versions/0006_manual_placements.py`)
+adds no table; it changes `chain_placements`: it makes `project_id`, `similarity` and `engine_version` nullable, widens the `kind` check to
+`engine`, `manual` and `excluded`, and adds the check `ck_chain_placements_shape`. Its downgrade deletes the `manual` and
+`excluded` rows. The baseline `0001` stays empty. The models are in
 each module's `models.py`; the declarative `Base` in `backend/app/platform/db.py` is the metadata Alembic works from.
 
 The downgrade to `0002` recreates one organization per user, named after the user's name, makes every user an active
@@ -288,13 +306,16 @@ Conventions of the tables:
 | `emails` | `id`, `user_id`, `chain_id`, `key` (up to 998: the normalized `Message-ID`, else `no-id:<mailbox>:<folder>:<uidvalidity>:<uid>`), `message_id`, `in_reply_to`, `references` (array), `subject`, `from_address` (up to 320), `from_name`, `to_addresses` and `cc_addresses` (JSON lists), `sent_at`, `text`, `attachment_names` (array), `created_at` | `user_id` → `users` and `chain_id` → `reply_chains` (both cascade); unique `(user_id, key)`; indexes on `(chain_id, sent_at, id)`, on `references` (GIN) and on `(user_id, in_reply_to)`. An email is stored once per user, whichever mailboxes hold it |
 | `email_copies` | `id`, `email_id`, `mailbox_id`, `folder_id`, `uid` (the IMAP UID) | `email_id` → `emails`, `mailbox_id` → `mailboxes` and `folder_id` → `mailbox_folders` (all cascade); unique `(folder_id, uid)`; indexes on `email_id` and `mailbox_id` |
 | `projects` | `id`, `user_id`, `name` (up to 100; unique per user ignoring letter case), `description` (text; the request allows up to 2000 characters), `filled_at` (empty until the first fill), `created_at` | `user_id` → `users` (cascade); unique index `(user_id, lower(name))` |
-| `threads` | `id`, `user_id`, `project_id`, `name` (text: the subject of the thread's first chain), `position` (the creation order in the project), `created_at` | `user_id` → `users` and `project_id` → `projects` (both cascade); unique `(project_id, position)` |
-| `chain_placements` | `chain_id` (primary key), `user_id`, `project_id`, `thread_id` (empty means «Неразобранное»), `kind` (only `engine`, checked), `similarity` (numeric 5,4), `engine_version` (up to 32), `placed_at` | `chain_id` → `reply_chains` (cascade, so a chain is in at most one project); `user_id` → `users`, `project_id` → `projects` and `thread_id` → `threads` (all cascade); index `(user_id, project_id)` |
+| `threads` | `id`, `user_id`, `project_id`, `name` (text: the subject of the thread's first chain when the engine forms it, or the name the user gave with `new_thread_name` when a chain is moved by hand), `position` (the creation order in the project), `created_at` | `user_id` → `users` and `project_id` → `projects` (both cascade); unique `(project_id, position)` |
+| `chain_placements` | `chain_id` (primary key), `user_id`, `project_id` (empty only for `excluded`), `thread_id` (empty means «Неразобранное»), `kind` (`engine`, `manual` or `excluded`, checked), `similarity` (numeric 5,4; empty unless `engine`), `engine_version` (up to 32; empty unless `engine`), `placed_at` | `chain_id` → `reply_chains` (cascade, so a chain is in at most one project); `user_id` → `users`, `project_id` → `projects` and `thread_id` → `threads` (all cascade); index `(user_id, project_id)` |
 
 Disconnecting a mailbox sets its `password_encrypted` to null and keeps its folders, copies, emails and reply chains
 ([ADR 0048](adr/0048-disconnecting-a-mailbox-deletes-its-password.md)). Deleting a user deletes all of these rows.
-A fill drops the project's threads and engine placements before it writes new ones, and deleting a project drops its
-threads and placements.
+A row of `chain_placements` has one of three shapes, held by the check `ck_chain_placements_shape`: an `engine` row has a
+project, a similarity and an engine version; a `manual` row has a project and neither similarity nor version; an `excluded` row
+(a chain taken out by hand) has no project, no thread, no similarity and no version. A fill drops the project's engine placements
+and the threads that no placement by hand points to, before it writes new ones; placements by hand and their threads stay.
+Deleting a project drops its threads and placements.
 
 ## Routes and API
 
@@ -323,7 +344,11 @@ caller of a signed-in route gets 401 `not_signed_in`. The routes below are all u
 | `GET /api/v1/projects` | signed in | 200, `list[ProjectSummary]` (the user's projects by name, at most 200, not paginated) | none |
 | `POST /api/v1/projects` | signed in | 201, `ProjectSummary`; body `name` (1 to 100 characters) and `description` (1 to 2000), both required, trimmed | `project_exists` 409 |
 | `GET /api/v1/projects/{project_id}` | signed in | 200, `ProjectTree`: the description, the counterparties with their threads and chains, and «Неразобранное» | `not_found` 404 |
-| `POST /api/v1/projects/{project_id}/fill` | signed in | 200, `ProjectTree`; fills the project from its description, and a filled project is rebuilt from the same emails | `not_found` 404 |
+| `POST /api/v1/projects/{project_id}/fill` | signed in | 200, `ProjectTree`; fills the project from its description, and a filled project is rebuilt from the same emails, keeping the placements by hand | `not_found` 404 |
+| `GET /api/v1/projects/{project_id}/threads` | signed in | 200, `list[ThreadSummary]` (the project's threads in order) | `not_found` 404 |
+| `GET /api/v1/placements/{chain_id}` | signed in | 200, `ChainLocation`: where the chain is (`state` `placed`, `none` or `excluded`) | `not_found` 404 |
+| `PUT /api/v1/placements/{chain_id}` | signed in | 200, `ChainLocation`; places the chain by hand in a thread (`thread_id`), a new thread (`new_thread_name`) or «Неразобранное» of the project (neither) | `not_found` 404, `validation_failed` 422 |
+| `DELETE /api/v1/placements/{chain_id}` | signed in | 200, `ChainLocation` (`state` `excluded`); takes the chain out of its project for good | `not_found` 404, `chain_not_in_project` 409 |
 
 Registration is `POST /api/v1/auth/registrations`, next to the other auth routes of the same prefix. Its body is `name`,
 `email` and `password` ([ADR 0037](adr/0037-registration-asks-for-name-email-and.md)); any other field, such as
@@ -336,7 +361,10 @@ a body with an unknown field, or an invalid one, answers 422 `validation_failed`
 Schemas of the responses: `Me` is `user_id`, `name`, `email`; `RegistrationResult` is `email`, `email_sent`. `ProjectSummary` is
 `id`, `name`, `filled`, `placed_count` and `unassigned_count`; `ProjectTree` is `id`, `name`, `description`, `filled`,
 `counterparties` (each with `address` — null for «Без контрагента» — `name` and `threads`) and `unassigned`. A chain in the tree
-carries its `placement`: `kind`, `engine_version` and `similarity`. The `project_exists` answer (409) is for a name equal to an existing one
+carries its `placement`: `kind` (`engine` or `manual`), `engine_version` and `similarity`, the last two null for `manual`. `ChainLocation`
+is `state`, `project` (`id`, `name`), `thread` (`id`, `name`, null for «Неразобранное») and `placement`; `project`, `thread` and `placement`
+are null for `none` and `excluded`. `PlacementMove` is `project_id`, and at most one of `thread_id` and `new_thread_name`. The
+`project_exists` answer (409) is for a name equal to an existing one
 ignoring letter case, the same name included.
 
 **Error shape.** A handled error answers `{"error": {"code": "…", "message": "…"}}`, where `message` is the Russian
@@ -356,10 +384,10 @@ A framework HTTP error other than 404 keeps FastAPI's `{"detail": …}` shape; a
 | `/` | «VibeCoding» (start page): the signed-in user's name and «Выйти» | a signed-in user |
 | `/mailboxes` | the form «Подключить ящик» and the list of the user's mailboxes, with their status and «Обновить» and «Отключить» | a signed-in user |
 | `/chains` | the list of the user's reply chains | a signed-in user |
-| `/chains/:id` | one reply chain with its emails | a signed-in user |
+| `/chains/:id` | one reply chain with its emails, and the block «Проект»: where the chain is, «Убрать из проекта» and the form «Перенести» | a signed-in user |
 | `/projects` | «Проекты»: the user's projects by name, with their counts, and «Создать проект» | a signed-in user |
 | `/projects/new` | «Новый проект», with the fields «Название» and «Описание» | a signed-in user |
-| `/projects/:id` | «Проект»: the description, «Заполнить» (when the project already has chains, first the question «Пересобрать проект? Движок разложит его переписку заново» with «Пересобрать» and «Отмена»), the tree and «Неразобранное» | a signed-in user |
+| `/projects/:id` | «Проект»: the description, «Заполнить» (when the project already has chains, first the question «Пересобрать проект? Движок разложит его переписку заново, а цепочки, размещённые вручную, останутся на месте» with «Пересобрать» and «Отмена»), the tree and «Неразобранное» | a signed-in user |
 | `*` | «Страница не найдена» | anyone; `/members` and `/invitation` fall here too |
 
 A signed-out visitor who opens a signed-in page goes to `/sign-in?next=…` and returns after signing in. A
@@ -454,7 +482,9 @@ What is built:
 - **Owner filter for projects.** Every query of `backend/app/modules/projects/repository.py` takes the `user_id` from the
   `AuthContext` and filters by it, or writes a row with it: `get_project_for_owner`, `has_project_named_for_owner`,
   `list_project_summaries_for_owner`, `list_threads_of_projects_for_owner`, `list_placements_of_projects_for_owner`,
-  `list_placed_chain_ids_for_owner`, `delete_engine_placements_and_threads_for_owner` and `carry_placement_for_owner`.
+  `list_placed_chain_ids_for_owner`, `delete_engine_placements_and_unpinned_threads_for_owner`, `carry_placement_for_owner`,
+  `get_placement_for_owner`, `get_thread_for_owner`, `set_manual_placement_for_owner` and `delete_thread_if_empty_for_owner`.
+  The placement by hand answers 404 `not_found` for another user's chain, project or thread, and a thread of another project.
   `lock_projects_for_owner` locks all of the user's projects, in id order, so a fill and a mailbox read never place the same
   chain twice; it is not a lookup of one project. Another user's project answers 404 `not_found`. The projects service
   reads chains, emails and participants only through the correspondence service, which filters by the same `user_id`.

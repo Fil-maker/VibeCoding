@@ -6,7 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import case, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.projects.models import ChainPlacement, PlacementKind, Project, Thread
@@ -87,10 +87,10 @@ async def list_project_summaries_for_owner(
     return [SummaryRow(project, placed, loose) for project, placed, loose in rows]
 
 
-async def delete_engine_placements_and_threads_for_owner(
+async def delete_engine_placements_and_unpinned_threads_for_owner(
     session: AsyncSession, user_id: UUID, project_id: UUID
 ) -> None:
-    """Drop the engine's placements of the project, then its threads."""
+    """Drop the engine's placements of the project, then its threads no `manual` row points to."""
     await session.execute(
         delete(ChainPlacement).where(
             ChainPlacement.user_id == user_id,
@@ -98,13 +98,25 @@ async def delete_engine_placements_and_threads_for_owner(
             ChainPlacement.kind == PlacementKind.ENGINE,
         )
     )
+    pinned = select(ChainPlacement.thread_id).where(
+        ChainPlacement.user_id == user_id,
+        ChainPlacement.kind == PlacementKind.MANUAL,
+        ChainPlacement.thread_id.is_not(None),
+    )
     await session.execute(
-        delete(Thread).where(Thread.user_id == user_id, Thread.project_id == project_id)
+        delete(Thread).where(
+            Thread.user_id == user_id,
+            Thread.project_id == project_id,
+            Thread.id.not_in(pinned),
+        )
     )
 
 
 async def list_placed_chain_ids_for_owner(session: AsyncSession, user_id: UUID) -> set[UUID]:
-    """The user's chains that are in some project."""
+    """The user's chains placed in a project or taken out by hand.
+
+    The engine must never place either kind, so both have a placement row.
+    """
     rows = await session.execute(
         select(ChainPlacement.chain_id).where(ChainPlacement.user_id == user_id)
     )
@@ -143,7 +155,7 @@ class NewPlacement:
 async def add_engine_placement_for_owner(
     session: AsyncSession, user_id: UUID, placement: NewPlacement, *, now: datetime
 ) -> None:
-    """Place a chain."""
+    """Store an engine placement of a chain; a null `thread_id` is «Неразобранное»."""
     session.add(
         ChainPlacement(
             chain_id=placement.chain_id,
@@ -186,18 +198,20 @@ async def list_placements_of_projects_for_owner(
 async def carry_placement_for_owner(
     session: AsyncSession, user_id: UUID, survivor_id: UUID, merged_ids: Sequence[UUID]
 ) -> None:
-    """Keep on the survivor the earliest placement among it and the merged chains, drop the rest.
+    """Keep on the survivor the best placement among it and the merged chains, drop the rest.
 
-    Ties go to the project created first, then by name, then to the thread created first.
+    A placement by hand (`manual`, `excluded`) beats the engine's; among one kind the earliest
+    wins, ties go to the project created first, then by name, then to the thread created first.
     """
     chain_ids = [survivor_id, *merged_ids]
     kept = (
         await session.execute(
             select(ChainPlacement.chain_id)
-            .join(Project, Project.id == ChainPlacement.project_id)
+            .outerjoin(Project, Project.id == ChainPlacement.project_id)
             .outerjoin(Thread, Thread.id == ChainPlacement.thread_id)
             .where(ChainPlacement.user_id == user_id, ChainPlacement.chain_id.in_(chain_ids))
             .order_by(
+                case((ChainPlacement.kind == PlacementKind.ENGINE, 1), else_=0),
                 ChainPlacement.placed_at,
                 Project.created_at,
                 func.lower(Project.name),
@@ -221,3 +235,77 @@ async def carry_placement_for_owner(
             .where(ChainPlacement.user_id == user_id, ChainPlacement.chain_id == kept)
             .values(chain_id=survivor_id)
         )
+
+
+async def get_placement_for_owner(
+    session: AsyncSession, user_id: UUID, chain_id: UUID
+) -> ChainPlacement | None:
+    """The placement row of the user's chain, or `None`."""
+    return (
+        await session.execute(
+            select(ChainPlacement).where(
+                ChainPlacement.user_id == user_id, ChainPlacement.chain_id == chain_id
+            )
+        )
+    ).scalar_one_or_none()
+
+
+async def get_thread_for_owner(
+    session: AsyncSession, user_id: UUID, thread_id: UUID
+) -> Thread | None:
+    """The user's thread, or `None` (also for another user's thread)."""
+    return (
+        await session.execute(
+            select(Thread).where(Thread.user_id == user_id, Thread.id == thread_id)
+        )
+    ).scalar_one_or_none()
+
+
+async def get_next_thread_position_for_owner(
+    session: AsyncSession, user_id: UUID, project_id: UUID
+) -> int:
+    """The position after the project's last thread (0 for a project without threads)."""
+    highest = (
+        await session.execute(
+            select(func.max(Thread.position)).where(
+                Thread.user_id == user_id, Thread.project_id == project_id
+            )
+        )
+    ).scalar_one_or_none()
+    return 0 if highest is None else highest + 1
+
+
+async def set_manual_placement_for_owner(
+    session: AsyncSession,
+    user_id: UUID,
+    *,
+    chain_id: UUID,
+    project_id: UUID | None,
+    thread_id: UUID | None,
+    now: datetime,
+) -> None:
+    """Replace the chain's row by a placement by hand; a null project means «taken out»."""
+    kind = PlacementKind.MANUAL if project_id is not None else PlacementKind.EXCLUDED
+    row = await get_placement_for_owner(session, user_id, chain_id)
+    if row is None:
+        row = ChainPlacement(chain_id=chain_id, user_id=user_id)
+        session.add(row)
+    row.project_id = project_id
+    row.thread_id = thread_id
+    row.kind = kind
+    row.similarity = None
+    row.engine_version = None
+    row.placed_at = now
+    await session.flush()
+
+
+async def delete_thread_if_empty_for_owner(
+    session: AsyncSession, user_id: UUID, thread_id: UUID
+) -> None:
+    """Delete the thread when no placement points to it any more."""
+    in_use = select(ChainPlacement.chain_id).where(
+        ChainPlacement.user_id == user_id, ChainPlacement.thread_id == thread_id
+    )
+    await session.execute(
+        delete(Thread).where(Thread.user_id == user_id, Thread.id == thread_id, ~in_use.exists())
+    )

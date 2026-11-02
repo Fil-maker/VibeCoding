@@ -10,7 +10,7 @@ Updated 02.11.2026
 FR-21; they are described in [Auth and accounts](auth.md). The health module has no requirement. The mailbox
 reading loop and the mailbox platform files serve the mailboxes requirements FR-22 … FR-27 (see
 [mailboxes spec](../../openspec/specs/mailboxes/spec.md)); the reply chains requirements FR-28 … FR-31 are in the
-[reply-chains spec](../../openspec/specs/reply-chains/spec.md); the projects and chain-placement requirements FR-32 … FR-39
+[reply-chains spec](../../openspec/specs/reply-chains/spec.md); the projects and chain-placement requirements FR-32 … FR-42
 are described in [Projects](projects.md); the map of capabilities is in [Requirements map](../domain.md#requirements-map).
 
 **Design:** [Components and processes](../architecture.md#components-and-processes),
@@ -34,7 +34,7 @@ are described in [Projects](projects.md); the map of capabilities is in [Require
 - titles the app `VibeCoding`, registers the shared error handlers (`register_error_handlers`) and the domain error
   mapping of each module (`register_domain_errors`; the mailboxes module registers its mapping through
   `register_mailbox_errors`), adds the `OriginGuardMiddleware` with `APP_BASE_URL`, and includes the routers: health,
-  accounts, auth, mailboxes, correspondence and projects;
+  accounts, auth, mailboxes, correspondence, projects and placements (the `placements_router` of the projects module);
 - its lifespan starts the mailbox reading loop when `MAILBOX_READING_ENABLED` is `true` (see
   [Background mailbox reading](#background-mailbox-reading)), and on shutdown cancels that loop, waits for it to end,
   and disposes the connection pool.
@@ -90,7 +90,7 @@ which writes the schema to `frontend/src/api/openapi.json` and generates the cli
 - The business modules are `accounts`, `auth`, `mailboxes`, `correspondence` and `projects`; `health` is the smallest one.
   `accounts` and `auth` are described in [Auth and accounts](auth.md#modules-and-their-files). `mailboxes` (connect, list,
   refresh, disconnect, and the reading loop) and `correspondence` (emails, email copies, reply chains) use the same layers.
-  `projects` (projects, the tree, filling, and placing new chains) is in [Projects](projects.md#modules-and-their-files); its
+  `projects` (projects, the tree, filling, placing new chains, placing a chain by hand and taking it out) is in [Projects](projects.md#modules-and-their-files); its
   `placing.py` sits beside `domain.py`.
 - The layers are `router.py` → `service.py` → `domain.py` and `repository.py` → platform, as in
   [Layers](../architecture.md#layers). `models.py` holds the tables, `errors.py` the domain errors, `schemas.py` the
@@ -305,6 +305,10 @@ its unit tests are `backend/app/platform/test_placement_engine.py`.
 - The revision `0005` (`backend/migrations/versions/0005_projects_and_placements.py`) creates the tables of the module
   `projects`: `projects`, `threads` and `chain_placements`. Its downgrade drops them in reverse order. The columns and
   constraints are in [Data model](../architecture.md#data-model), and the placement rules in [Projects](projects.md).
+- The revision `0006` (`backend/migrations/versions/0006_manual_placements.py`) lets `chain_placements` hold placements by hand
+  and chains taken out: `project_id`, `similarity` and `engine_version` become nullable, and the kind check takes `manual` and
+  `excluded`. Its downgrade deletes the manual and excluded rows. The columns and constraints are in
+  [Data model](../architecture.md#data-model), and the rules in [Projects](projects.md).
 - `backend/migrations/versions/` is excluded from ruff and pyright strict, because Alembic generates those files.
 
 Apply the migrations to the dev database: `uv run --directory backend alembic upgrade head`
@@ -332,7 +336,8 @@ Apply the migrations to the dev database: `uv run --directory backend alembic up
   `test_sign_in.py`, `test_password_reset.py`, `test_access_boundary.py`, `test_platform_http.py`,
   `test_migrations.py` and `test_health.py`; the mailbox and chain groups are `test_mailboxes_connect.py`,
   `test_mailboxes_disconnect.py`, `test_mailboxes_reading.py`, `test_reply_chains_join.py` and `test_reply_chains_read.py`; the project and placement groups are `test_projects_create_list.py`,
-  `test_projects_tree.py`, `test_projects_fill.py`, `test_placement_explained.py` and `test_placement_new_chains.py`
+  `test_projects_tree.py`, `test_projects_fill.py`, `test_placement_explained.py`, `test_placement_new_chains.py`,
+  `test_placement_by_hand.py`, `test_placement_taken_out.py` and `test_placement_kept.py`
   ([Test seams](projects.md#test-seams)).
 - `test_migrations.py` runs the migration round trip with no drift; it seeds data at revision `0002`, then checks
   the upgrade (every user keeps the email, password hash and confirmation; the organization, role and invitation
