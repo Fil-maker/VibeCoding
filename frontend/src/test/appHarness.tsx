@@ -40,7 +40,8 @@ export interface Call {
   body: unknown;
 }
 
-export type Handler = (body: unknown, session: Session) => Response;
+// A handler may answer later: a pending promise keeps the request in flight.
+export type Handler = (body: unknown, session: Session) => Response | Promise<Response>;
 
 export function json(status: number, body: unknown): Response {
   return Response.json(body, { status });
@@ -140,13 +141,17 @@ export function navigate(path: string): void {
   });
 }
 
-// The container of one form field: the widest ancestor of the labelled input that holds no other input
-// and stays inside the form. The field's own message must be inside it.
+// The container of one form field: the widest ancestor of the labelled control that holds no other
+// control (input, textarea, select) and stays inside the form. The field's own message must be inside it.
 export function fieldOf(label: string): HTMLElement {
   let container: HTMLElement = screen.getByLabelText(label);
   for (;;) {
     const parent = container.parentElement;
-    if (!parent || parent.tagName === 'FORM' || parent.querySelectorAll('input').length > 1) {
+    if (
+      !parent ||
+      parent.tagName === 'FORM' ||
+      parent.querySelectorAll('input, textarea, select').length > 1
+    ) {
       return container;
     }
     container = parent;

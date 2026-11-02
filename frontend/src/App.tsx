@@ -14,6 +14,9 @@ import { SignInPage } from './features/auth/SignInPage';
 import { ChainPage } from './features/correspondence/ChainPage';
 import { ChainsPage } from './features/correspondence/ChainsPage';
 import { MailboxesPage } from './features/mailboxes/MailboxesPage';
+import { NewProjectPage } from './features/projects/NewProjectPage';
+import { ProjectPage } from './features/projects/ProjectPage';
+import { ProjectsPage } from './features/projects/ProjectsPage';
 import { StartPage } from './features/home/StartPage';
 import { HealthStatus } from './features/health/HealthStatus';
 
@@ -42,6 +45,9 @@ export function App({
               <Route path="/mailboxes" element={<MailboxesPage />} />
               <Route path="/chains" element={<ChainsPage />} />
               <Route path="/chains/:id" element={<ChainPage />} />
+              <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/projects/new" element={<NewProjectPage />} />
+              <Route path="/projects/:id" element={<ProjectPage />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

@@ -40,6 +40,10 @@
   font: inherit;
 }
 
+.textarea {
+  resize: vertical;
+}
+
 .button {
   align-self: flex-start;
   padding: var(--space-2) var(--space-3);

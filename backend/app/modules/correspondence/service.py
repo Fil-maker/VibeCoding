@@ -1,6 +1,7 @@
 """Use cases of correspondence: storing read emails, listing and reading reply chains."""
 
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated
 from uuid import UUID
@@ -14,14 +15,23 @@ from app.modules.correspondence import repository
 from app.modules.correspondence.domain import (
     ChainRef,
     ParsedEmail,
+    build_chain_document,
     choose_surviving_chain,
     email_key,
     own_address_set,
     parse_raw_message,
+    reading_order_key,
 )
 from app.modules.correspondence.models import Email
-from app.modules.correspondence.repository import AddressRow
-from app.modules.correspondence.schemas import Address, EmailView, ReplyChain, ReplyChainSummary
+from app.modules.correspondence.repository import AddressRow, EmailTextRow
+from app.modules.correspondence.schemas import (
+    Address,
+    ChainDocument,
+    ChainFacts,
+    EmailView,
+    ReplyChain,
+    ReplyChainSummary,
+)
 from app.modules.mailboxes import repository as mailboxes_repository
 from app.platform.auth_context import AuthContext
 from app.platform.db import get_database_session
@@ -37,9 +47,27 @@ from app.platform.pagination import (
 CHAIN_EMAIL_LIMIT = 500
 ADDRESS_LIST = TypeAdapter(list[Address])
 
+# Called before chains are merged, as `hook(session, user_id, survivor_id, merged_ids)`, so the
+# caller can carry over what hangs on the chains about to be deleted.
+MergeHook = Callable[[AsyncSession, UUID, UUID, Sequence[UUID]], Awaitable[None]]
+
+
+@dataclass(frozen=True)
+class _Source:
+    """The folder an email was read from."""
+
+    mailbox_id: UUID
+    folder_id: UUID
+    uidvalidity: int
+
 
 async def _join_chain(
-    session: AsyncSession, user_id: UUID, key: str, parsed: ParsedEmail, now: datetime
+    session: AsyncSession,
+    user_id: UUID,
+    key: str,
+    parsed: ParsedEmail,
+    now: datetime,
+    on_merge: MergeHook | None,
 ) -> tuple[UUID, bool]:
     """The chain the new email belongs to and whether it was just created.
 
@@ -64,6 +92,8 @@ async def _join_chain(
     survivor = choose_surviving_chain(chains)
     others = [chain.id for chain in chains if chain.id != survivor.id]
     if others:
+        if on_merge is not None:
+            await on_merge(session, user_id, survivor.id, others)
         await repository.move_emails_to_chain_for_owner(session, user_id, others, survivor.id)
     return survivor.id, False
 
@@ -72,44 +102,50 @@ async def _store_one(
     session: AsyncSession,
     user_id: UUID,
     *,
-    mailbox_id: UUID,
-    folder_id: UUID,
-    uidvalidity: int,
+    source: _Source,
     message: RawMessage,
     now: datetime,
-) -> bool:
+    on_merge: MergeHook | None,
+) -> UUID | None:
+    """Store one message; return the chain that got a new email, `None` when it was known."""
     parsed = parse_raw_message(message.data, message.internal_date)
     key = email_key(
-        parsed, mailbox_id=mailbox_id, folder_id=folder_id, uidvalidity=uidvalidity, uid=message.uid
+        parsed,
+        mailbox_id=source.mailbox_id,
+        folder_id=source.folder_id,
+        uidvalidity=source.uidvalidity,
+        uid=message.uid,
     )
     stored = await repository.get_email_by_key_for_owner(session, user_id, key)
     if stored is None:
-        chain_id, is_new_chain = await _join_chain(session, user_id, key, parsed, now)
+        chain_id, is_new_chain = await _join_chain(session, user_id, key, parsed, now, on_merge)
         email_id = await repository.add_email_if_absent_for_owner(
             session, user_id, chain_id=chain_id, key=key, parsed=parsed, now=now
         )
         if email_id is not None:
             await repository.refresh_chain_latest_email_at_for_owner(session, user_id, chain_id)
-            await _add_copy(session, email_id, mailbox_id, folder_id, message.uid)
-            return True
+            await _add_copy(session, email_id, source, message.uid)
+            return chain_id
         # Another transaction stored the same email first: keep its chain, only add the copy.
         if is_new_chain:
             await repository.delete_chain_for_owner(session, user_id, chain_id)
         stored = await repository.get_email_by_key_for_owner(session, user_id, key)
     if stored is not None:
-        await _add_copy(session, stored.id, mailbox_id, folder_id, message.uid)
-    return False
+        await _add_copy(session, stored.id, source, message.uid)
+    return None
 
 
-async def _add_copy(
-    session: AsyncSession, email_id: UUID, mailbox_id: UUID, folder_id: UUID, uid: int
-) -> None:
+async def _add_copy(session: AsyncSession, email_id: UUID, source: _Source, uid: int) -> None:
     await repository.add_copy_if_absent(
-        session, email_id=email_id, mailbox_id=mailbox_id, folder_id=folder_id, uid=uid
+        session,
+        email_id=email_id,
+        mailbox_id=source.mailbox_id,
+        folder_id=source.folder_id,
+        uid=uid,
     )
 
 
-async def store_raw_messages(
+async def store_raw_messages(  # noqa: PLR0913 - the batch's fields are keyword-only and stay flat
     session: AsyncSession,
     *,
     user_id: UUID,
@@ -118,26 +154,25 @@ async def store_raw_messages(
     uidvalidity: int,
     messages: Sequence[RawMessage],
     now: datetime,
-) -> int:
-    """Store a batch read from one folder of one mailbox; return how many emails were new.
+    on_merge: MergeHook | None = None,
+) -> set[UUID]:
+    """Store a batch read from one folder of one mailbox; return the chains that got a new email.
 
     Called by the mailboxes service inside its own transaction (`async with session.begin()`),
     so the batch and the folder's `last_uid` commit together; nothing is committed here. An email
     already stored for the user only gains a copy. `user_id` must be the mailbox's owner.
+    `on_merge` runs before chains are merged. A chain merged away later in the batch is not in
+    the result; its survivor is.
     """
-    added = 0
+    source = _Source(mailbox_id, folder_id, uidvalidity)
+    touched: set[UUID] = set()
     for message in sorted(messages, key=lambda item: item.uid):
-        if await _store_one(
-            session,
-            user_id,
-            mailbox_id=mailbox_id,
-            folder_id=folder_id,
-            uidvalidity=uidvalidity,
-            message=message,
-            now=now,
-        ):
-            added += 1
-    return added
+        chain_id = await _store_one(
+            session, user_id, source=source, message=message, now=now, on_merge=on_merge
+        )
+        if chain_id is not None:
+            touched.add(chain_id)
+    return await repository.list_existing_chain_ids_for_owner(session, user_id, touched)
 
 
 async def _own_addresses(session: AsyncSession, user_id: UUID) -> frozenset[str]:
@@ -228,6 +263,57 @@ async def get_reply_chain(
         participants=participants.get(chain_id, []),
         emails=[_email_view(email) for email in emails],
     )
+
+
+async def list_chain_documents(session: AsyncSession, user_id: UUID) -> list[ChainDocument]:
+    """The text of every chain of the user, in reading order, for the placement engine.
+
+    Runs in the caller's transaction. It reads all the user's emails: the engine needs the whole
+    corpus to weigh words.
+    """
+    grouped: dict[UUID, list[EmailTextRow]] = {}
+    for row in await repository.list_email_texts_for_owner(session, user_id):
+        grouped.setdefault(row.chain_id, []).append(row)
+    documents = [
+        ChainDocument(
+            chain_id=chain_id,
+            subject=emails[0].subject,
+            first_sent_at=emails[0].sent_at,
+            first_key=emails[0].key,
+            document=build_chain_document(emails[0].subject, [email.text for email in emails]),
+        )
+        for chain_id, emails in grouped.items()
+    ]
+    return sorted(documents, key=reading_order_key)
+
+
+async def list_chain_facts(
+    session: AsyncSession, user_id: UUID, chain_ids: Sequence[UUID]
+) -> dict[UUID, ChainFacts]:
+    """What a tree shows of each of these chains of the user; runs in the caller's transaction."""
+    heads = await repository.list_first_emails_for_owner(session, user_id, chain_ids)
+    stats = await repository.get_email_stats_by_chain_for_owner(session, user_id, chain_ids)
+    address_rows = await repository.list_address_rows_for_owner(session, user_id, chain_ids)
+    participants = _participants(address_rows, await _own_addresses(session, user_id))
+    return {
+        head.chain_id: ChainFacts(
+            chain_id=head.chain_id,
+            subject=head.subject,
+            first_key=head.key,
+            first_sent_at=head.sent_at,
+            latest_email_at=stats[head.chain_id].latest_sent_at,
+            email_count=stats[head.chain_id].count,
+            participants=tuple(person.address for person in participants.get(head.chain_id, [])),
+        )
+        for head in heads
+    }
+
+
+async def get_latest_sender_names(
+    session: AsyncSession, user_id: UUID, chain_ids: Sequence[UUID]
+) -> dict[str, str]:
+    """Per sender address in these chains, the name of its latest email that had one."""
+    return await repository.get_latest_sender_names_for_owner(session, user_id, chain_ids)
 
 
 class CorrespondenceService:

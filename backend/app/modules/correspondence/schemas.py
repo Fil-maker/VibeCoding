@@ -1,9 +1,34 @@
 """Response models of reply chains; `Address` also shapes the JSON columns of emails."""
 
+from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
+
+
+@dataclass(frozen=True)
+class ChainDocument:
+    """A chain as the placement engine reads it, with what fixes its place in reading order."""
+
+    chain_id: UUID
+    subject: str  # of the first email
+    first_sent_at: datetime
+    first_key: str  # the key of the first email
+    document: str
+
+
+@dataclass(frozen=True)
+class ChainFacts:
+    """What a tree shows of a chain; `participants` are the addresses but the user's own."""
+
+    chain_id: UUID
+    subject: str  # of the first email
+    first_sent_at: datetime
+    first_key: str
+    latest_email_at: datetime
+    email_count: int
+    participants: tuple[str, ...]
 
 
 class Address(BaseModel):

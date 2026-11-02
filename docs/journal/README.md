@@ -19,3 +19,4 @@ mistakes and lessons, what remains. Written by `/journal` at `/finish`.
 | 29.10.2026 | [Mailboxes and reply chains](2026-10-29-02-1-2-mailboxes-and-reply-chains.md) | 1.2 | 1-2-mailboxes-and-reply-chains |
 | 29.10.2026 | [Fix of the backend image: uv from PyPI](2026-10-29-03-fix-uv-from-pypi.md) | - | fix-uv-from-pypi |
 | 30.10.2026 | [Fix of the TDD sandbox: worktree sessions and helpers](2026-10-30-01-fix-sandbox-worktree-helpers.md) | - | fix-sandbox-worktree-helpers |
+| 02.11.2026 | [Projects and the engine](2026-11-02-01-projects-and-engine.md) | 1.3 | 1-3-projects-and-engine |

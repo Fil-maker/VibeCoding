@@ -1,6 +1,6 @@
 # Mail reading
 
-Updated 29.10.2026
+Updated 02.11.2026
 
 **Code:** `backend/app/modules/mailboxes/`, `backend/app/modules/correspondence/`, the platform files
 `backend/app/platform/mail_reader.py`, `imap_folders.py`, `secret_box.py` and `pagination.py`, the migration
@@ -131,9 +131,10 @@ no session.
 **Folders.** For each folder the run reads batch by batch. `since` is today minus `MAILBOX_READ_DEPTH_DAYS` days. The
 reader returns up to 50 messages above the saved `last_uid`. When the server's UIDVALIDITY differs from the saved one, the
 read starts again from `since`. Each batch is stored with its folder progress (`uidvalidity`, `last_uid`) in one
-transaction, so a read that stops keeps what it stored. The folder ends when a batch is short or makes no progress. A
-folder the server does not have is skipped without an error. What the reader sends to the server is in
-[Mail reader](backend.md#mail-reader); it only reads (FR-25).
+transaction, so a read that stops keeps what it stored. Each stored batch also places its new chains into the filled
+projects, in the same transaction (`place_new_chains`; see [Placing new chains](projects.md#placing-new-chains)). The folder
+ends when a batch is short or makes no progress. A folder the server does not have is skipped without an error. What the
+reader sends to the server is in [Mail reader](backend.md#mail-reader); it only reads (FR-25).
 
 **Outcome.** When both folders are read, the mailbox becomes `read` with `last_read_at` set to now. When a read fails, the
 mailbox becomes `failed` with its `error_code`, and the emails already stored stay (FR-26):
@@ -177,7 +178,9 @@ two emails with the same subject and no reply headers stay in two chains.
 
 **Merging.** The chains found by the two searches above can differ: the email may name one chain and be named by stored
 emails in another. When more than one chain is found, they become one. The oldest chain survives (ties by the smaller id). The chains are locked in id order, so two merges cannot deadlock; the emails of the other
-chains move to the survivor, and the emptied chains are deleted. The result does not depend on the reading order.
+chains move to the survivor, and the emptied chains are deleted. The result does not depend on the reading order. Before the
+emails move, the `on_merge` callable `carry_placement` runs, so the survivor keeps the earliest placement among the merged
+chains (see [Merge hook](projects.md#merge-hook)).
 
 **Latest time.** After a new email joins, the chain's latest email time becomes the largest sent time of its emails.
 

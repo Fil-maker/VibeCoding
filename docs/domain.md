@@ -1,6 +1,10 @@
 # Domain
 
-Version 0.5 · 29.10.2026
+Version 0.6 · 29.10.2026
+
+Changes in 0.6: task 1.3: requirements map rows projects and chain-placement; glossary terms Placement and Engine version; Counterparty is one
+participant address for now; Thread is named by its earliest chain; projects and placements in «Data and
+privacy».
 
 Changes in 0.5: task 1.2: the mailbox data kept in «Data and privacy»; glossary term Participant.
 
@@ -17,7 +21,7 @@ emails and stored secrets in «Data and privacy».
 
 Changes in 0.1: skeleton; terms from the harness interview.
 
-Last FR number: FR-31
+Last FR number: FR-39
 
 ## Contents
 
@@ -39,6 +43,8 @@ Capability → its spec and FR numbers. A new FR number also goes into «Last FR
 | access-boundary | [spec](../openspec/specs/access-boundary/spec.md) | FR-17, FR-20, FR-21 |
 | mailboxes | [spec](../openspec/specs/mailboxes/spec.md) | FR-22…FR-27 |
 | reply-chains | [spec](../openspec/specs/reply-chains/spec.md) | FR-28…FR-31 |
+| projects | [spec](../openspec/specs/projects/spec.md) | FR-32…FR-34 |
+| chain-placement | [spec](../openspec/specs/chain-placement/spec.md) | FR-35…FR-39 |
 
 ## Glossary
 
@@ -46,19 +52,21 @@ Capability → its spec and FR numbers. A new FR number also goes into «Last FR
 |---|---|
 | User | A person who registered on their own with a name, an email and a password; owns their mailboxes, projects and correspondence and gives consent to a third-party model |
 | Mailbox | An email account connected to the app read-only |
-| Counterparty | A person or company the user corresponds with; a reply chain with several of them is shown under each |
+| Counterparty | A person or company the user corresponds with; for now one participant address, named by the latest name it wrote with, else by the address; a reply chain with several of them is shown under each, one with none under «Без контрагента» |
 | Correspondence | The emails between the user and a counterparty, from all of the user's mailboxes |
 | Project | A piece of the user's work, created by hand with a description; its correspondence is laid out as a tree: project → counterparty → thread |
 | Reply chain | An email and all replies to it, linked by the `References` and `In-Reply-To` headers across all mailboxes; never split, belongs to at most one project |
 | Participant | An address in From, To or Cc of a reply chain's emails other than the user's own addresses: the logins of their mailboxes and their account email |
-| Thread | A topic of a project formed by the engine; it groups whole reply chains |
+| Thread | A topic of a project formed by the engine from reply chains similar to each other; it groups whole reply chains and is named by the subject of its earliest chain |
+| Placement | Where a reply chain sits — a thread of a project or its «Неразобранное» — and why: who placed it (for now only the engine), the similarity and the engine version |
+| Engine version | The name of the engine's method with its thresholds, for example `text-1`; the same version, emails and description give the same placement, and another version is a new name |
 | Unassigned | The place of a project for reply chains the engine is not sure about; the user places them |
 | Assessment | The sentiment of a thread or a counterparty within a project, with its evidence; a later layer over the tree |
 | Evidence | The emails and phrases an assessment rests on |
 | Session | The signed-in state of a user in one browser; ends at sign-out, after its lifetime or on a password reset |
 | Analysis model | The engine and its version that computes an assessment; shown with the result |
 
-TBD: how a counterparty is identified (address, domain, company).
+Merging several addresses into one counterparty is an idea: [Ideas](ideas.md#counterparty-with-several-addresses).
 
 ## Lifecycle of an assessment
 
@@ -77,6 +85,9 @@ TBD.
 - The app reads the folders Inbox and Sent, emails of the last 12 months; each email is stored once per
   user with its text, addresses, date and the names of its attachments, never their content.
 - The emails and reply chains of a disconnected mailbox stay; deleting them is not possible yet.
+- Projects, threads and placements belong to one user; the engine compares only that user's chains.
+- The engine of version `text-1` runs inside the installation: no email text leaves it, so no consent is
+  asked.
 
 ## Non-functional notes
 

@@ -1,6 +1,6 @@
 # Guide
 
-Updated 29.10.2026
+Updated 02.11.2026
 
 How each part of the system works and how to change it, for humans and agents. One article per area;
 each opens with **Code** (paths), **Requirements** (FRs and their spec), **Design** (`architecture.md`
@@ -14,6 +14,7 @@ sections), **Related** (sibling articles). Articles explain and link; facts stay
 | [backend.md](backend.md) | The backend: app entry, OpenAPI export, modules layout, adding a module, platform layer, migrations, integration tests |
 | [auth.md](auth.md) | Auth and accounts: personal accounts, registration, sign-in and sessions, password reset, the access boundary, errors over HTTP, tests with fake mail and clock |
 | [mail-reading.md](mail-reading.md) | Mail reading: connecting, listing, refreshing and disconnecting a mailbox, the reading run, storing emails once, joining them into reply chains, HTML to text, reading a chain, the demo mailboxes |
+| [projects.md](projects.md) | Projects and the placement engine: creating and listing projects, the tree, filling a project, placing new chains and the merge hook, the engine text-1 and its versions, the test seams |
 | [frontend.md](frontend.md) | The SPA: entry and providers, the API client and its regeneration, query client, health page, styles and tokens, tests |
 
 ## You change → read
@@ -23,6 +24,7 @@ sections), **Related** (sibling articles). Articles explain and link; facts stay
 | `backend/**` | [backend.md](backend.md) |
 | `backend/app/modules/accounts/`, `backend/app/modules/auth/`, or the platform files they use | [auth.md](auth.md) |
 | `backend/app/modules/mailboxes/`, `backend/app/modules/correspondence/`, `backend/app/platform/mail_reader.py`, `imap_folders.py`, `secret_box.py`, `pagination.py`, `scripts/demo_mail.py`, `docker/greenmail/` | [mail-reading.md](mail-reading.md) |
+| `backend/app/modules/projects/`, `backend/app/platform/placement_engine.py`, `backend/app/platform/test_placement_engine.py`, `backend/tests/project_trees.py` | [projects.md](projects.md) |
 | `frontend/**` | [frontend.md](frontend.md) |
 
 ## Where a newcomer starts

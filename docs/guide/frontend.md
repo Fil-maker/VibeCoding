@@ -1,6 +1,6 @@
 # Frontend
 
-Updated 29.10.2026
+Updated 02.11.2026
 
 **Code:** `frontend/src/`, `frontend/index.html`, `frontend/vite.config.ts`, `frontend/package.json`,
 `frontend/tsconfig.json`, `frontend/eslint.config.js`, `frontend/.prettierrc.json`, `frontend/.prettierignore`.
@@ -9,8 +9,10 @@ The tests are `frontend/src/App.*.test.tsx`, `frontend/src/features/health/Healt
 **Requirements:** the pages and guards carry out [FR-1 … FR-3](../../openspec/specs/organization-registration/spec.md) registration,
 [FR-4 … FR-8](../../openspec/specs/sign-in/spec.md) sign-in and password reset,
 [FR-17, FR-20 and FR-21](../../openspec/specs/access-boundary/spec.md) the access boundary,
-[FR-22, FR-23, FR-24, FR-26 and FR-27](../../openspec/specs/mailboxes/spec.md) the mailbox page and
-[FR-30 and FR-31](../../openspec/specs/reply-chains/spec.md) the correspondence pages. The health page has no requirement:
+[FR-22, FR-23, FR-24, FR-26 and FR-27](../../openspec/specs/mailboxes/spec.md) the mailbox page,
+[FR-30 and FR-31](../../openspec/specs/reply-chains/spec.md) the correspondence pages,
+[FR-32 … FR-34](../../openspec/specs/projects/spec.md) the project pages and
+[FR-35 … FR-37](../../openspec/specs/chain-placement/spec.md) the fill button of a project. The health page has no requirement:
 task 0.1 is a technical change without specs ([ADR 0004](../adr/0004-task-0-1-runs-as-a.md)).
 
 **Design:** [Components and processes](../architecture.md#components-and-processes),
@@ -18,7 +20,8 @@ task 0.1 is a technical change without specs ([ADR 0004](../adr/0004-task-0-1-ru
 (the SPA route table), [Stack](../tech.md#stack), [Environment variables](../tech.md#environment-variables).
 
 **Related:** [Auth and accounts](auth.md) for the backend side of sign-in, sessions and registration;
-[Backend](backend.md); [Mail reading](mail-reading.md) for the backend side of mailboxes and reply chains.
+[Backend](backend.md); [Mail reading](mail-reading.md) for the backend side of mailboxes and reply chains;
+[Projects](projects.md#the-spa) for the project pages in full and [Projects](projects.md) for the backend side.
 
 ## Entry and providers
 
@@ -38,7 +41,7 @@ task 0.1 is a technical change without specs ([ADR 0004](../adr/0004-task-0-1-ru
 - The paths and who sees each page are in [Routes and API](../architecture.md#routes-and-api), under «SPA routes».
   This article covers how `App.tsx` nests them:
   - `RequireGuest` wraps the pages for a signed-out visitor: registration, sign-in and the password reset request.
-  - `RequireUser` wraps the start page, `/mailboxes`, `/chains` and `/chains/:id`.
+  - `RequireUser` wraps the start page, `/mailboxes`, `/chains`, `/chains/:id`, `/projects`, `/projects/new` and `/projects/:id`.
   - The pages that take their token from the link (email confirmation, new password), the health page
     and the catch-all route stay outside the guards.
 - The catch-all route shows `NotFoundPage`. The addresses `/members` and `/invitation` have no route, so they show
@@ -83,10 +86,13 @@ Every page is a `Panel` whose `title` is its `h1`.
 | «Вход» | `frontend/src/features/auth/SignInPage.tsx` | Posts email and password, then `setSession`; `RequireGuest` takes the user on. Links «Забыли пароль?» and «Регистрация». |
 | «Восстановление пароля» | `frontend/src/features/auth/ForgotPasswordPage.tsx` | Posts the email. The answer is the same text for every email. |
 | «Новый пароль» | `frontend/src/features/auth/ResetPasswordPage.tsx` | Takes the token from the link, posts it with the new password and shows `Пароль изменён. Теперь можно войти` with a link to «Вход». Without a token it shows the invalid-link text. |
-| «VibeCoding» (start page) | `frontend/src/features/home/StartPage.tsx` | Shows the signed-in user's name, the links «Почтовые ящики» (to `/mailboxes`) and «Переписка» (to `/chains`), and the button «Выйти», which ends the session and calls `setSession(null)`. |
+| «VibeCoding» (start page) | `frontend/src/features/home/StartPage.tsx` | Shows the signed-in user's name, the links «Почтовые ящики» (to `/mailboxes`), «Переписка» (to `/chains`) and «Проекты» (to `/projects`), and the button «Выйти», which ends the session and calls `setSession(null)`. |
 | «Почтовые ящики» | `frontend/src/features/mailboxes/MailboxesPage.tsx` | The connected mailboxes, their reading status, «Обновить», «Отключить», and the connect form. See [Mailboxes feature](#mailboxes-feature). |
 | «Переписка» | `frontend/src/features/correspondence/ChainsPage.tsx` | The reply chains, the latest first, a page at a time. See [Correspondence feature](#correspondence-feature). |
 | The chain's subject (`/chains/:id`) | `frontend/src/features/correspondence/ChainPage.tsx` | One reply chain: its emails oldest first, each as plain text. See [Correspondence feature](#correspondence-feature). |
+| «Проекты» (`/projects`) | `frontend/src/features/projects/ProjectsPage.tsx` | The user's projects by name, with their chain counts, and the button «Создать проект». See [Projects feature](#projects-feature). |
+| «Новый проект» (`/projects/new`) | `frontend/src/features/projects/NewProjectPage.tsx` | Fields «Название» and «Описание»; «Создать» opens the new project. See [Projects feature](#projects-feature). |
+| The project's name (`/projects/:id`) | `frontend/src/features/projects/ProjectPage.tsx` | One project: its description, «Заполнить» with the rebuild question, and the tree of its chains. See [Projects feature](#projects-feature). |
 | «Состояние сервиса» | `frontend/src/features/health/HealthStatus.tsx` | The health page; see [Health feature](#health-feature). |
 | «Страница не найдена» | `frontend/src/components/NotFoundPage.tsx` | See [Components](#components). |
 
@@ -152,6 +158,29 @@ The files are `frontend/src/features/correspondence/`: `ChainsPage.tsx` (the lis
   `formatAddress` gives `Имя <адрес>` when the name is known and the bare address otherwise. The `Address` type is taken from the
   generated schema.
 
+## Projects feature
+
+The files are `frontend/src/features/projects/`: `ProjectsPage.tsx` (the list, and `PROJECTS_KEY`, the query key `['projects']`
+that the other two files invalidate), `NewProjectPage.tsx` (the form), `ProjectPage.tsx` (one project, its fill and its tree),
+`ProjectPage.module.css` (the tree's indents, the description's line breaks and the muted counterparty address) and `format.ts`.
+The server side is in [Projects](projects.md). The pages, their routes and their texts are described in
+[The SPA](projects.md#the-spa) of that article; this section only says where things live.
+
+- **Texts.** Each page writes its Russian texts in its component. The two texts of the project page's empty tree
+  are constants at the top of `ProjectPage.tsx`, next to `REFILL_QUESTION` and `NO_COUNTERPARTY_TITLE`.
+- **Formatters (`format.ts`).** `chainCountLabel` and `unassignedCountLabel` pick the Russian plural with `Intl.PluralRules('ru')`,
+  as `emailCountLabel` does. `placementLabel(engineVersion, similarity)` gives `Движок text-1 · сходство 43%`: the similarity
+  (0–1) is shown in whole percent. Each chain row of the tree shows its own placement.
+- **The fill confirmation.** «Заполнить» on a project with any chain in its tree first shows the question `Пересобрать проект?
+  Движок разложит его переписку заново` with the buttons «Пересобрать» and «Отмена»; «Отмена» sends nothing. A project with
+  no chain fills at once. While the fill runs the button reads «Заполняется…» and is disabled. On success the page's query data
+  is replaced with the answer, and the projects list is invalidated.
+- **The start page** links to `/projects` as «Проекты», beside «Почтовые ящики» and «Переписка» (`StartPage.tsx`).
+- **The form (`NewProjectPage.tsx`).** It is a `FormField` pair: «Название» (a text field) and «Описание» (`multiline`, see
+  [Components](#components)). Its server field messages show under the fields, and the form has `noValidate`.
+- **Query keys.** The project page reads under `['projects', id]`, a child of `['projects']`, so invalidating the list also
+  refetches an open project.
+
 ## API client
 
 Server data reaches the SPA only through the generated client; components never call `fetch` directly.
@@ -166,7 +195,7 @@ Server data reaches the SPA only through the generated client; components never 
   same for answers without a body (202, 204). A network failure throws from `fetch`.
 - Schema types come from `components['schemas'][...]`, for example `Me` in `AuthProvider.tsx` and `HealthStatus`
   in `frontend/src/features/health/useHealth.ts`, `Mailbox` and `MailboxConnect` in `MailboxesPage.tsx`, and `EmailView`
-  and `Address` in the correspondence files.
+  and `Address` in the correspondence files. The project files use `ProjectCreate`, `ProjectTree` and `PlacedChain`.
 
 ### How the client is regenerated
 
@@ -227,12 +256,14 @@ new paths through `apiClient`. `frontend/.prettierignore` skips `frontend/src/ap
 - `FormField` is a labelled input (`type` `text`, `email` or `password`). It takes an optional `defaultValue`, which the
   input shows at first (the mailbox form uses it for the port `993`). It is uncontrolled: the form reads the values
   from `FormData`. Its label and its message are linked through `useId`.
+- `multiline` renders a `<textarea>` with five rows instead of the input (the project description uses it). The `type` prop
+  does not apply then. The textarea takes the same `input` look, with `textarea` (vertical resize only).
 - `ErrorAlert` is the `role="alert"` paragraph that shows a request's error.
 - `NotFoundPage` is a `Panel` titled `Страница не найдена` with the link «На главную» to `/`.
 - `formData.ts` exports `formValue(data, name)`, which reads a text field of a submitted form; a missing field counts
   as empty.
 - `ui.module.css` holds the shared classes: `panel`, `wide`, `heading`, `subheading`, `form`, `field`, `input`,
-  `button`, `links`, `error`, `notice`, `table` and `actions`. They use only tokens.
+  `textarea`, `button`, `links`, `error`, `notice`, `table` and `actions`. They use only tokens.
 
 ## Link tokens
 
@@ -304,7 +335,8 @@ replaces the list; the last successful answer is not kept on screen.
   (`cleanup()`, `vi.unstubAllGlobals()`). Vitest globals are off, so Testing Library does not clean up by itself.
 - The page tests render the whole app. They sit in `frontend/src/App.<area>.test.tsx`: `App.guards`, `App.start`,
   `App.signIn`, `App.registration`, `App.passwordReset`, `App.mailboxes` (the «Почтовые ящики» page) and `App.chains` (the start
-  page links, «Переписка» and one chain). A scenario test names its FR, for example «FR-17 …»;
+  page links, «Переписка» and one chain), `App.projects` (the list and the new project, with the start page link «Проекты»),
+  `App.projectTree` (the tree of a project) and `App.projectFill` (the fill and its rebuild question). A scenario test names its FR, for example «FR-17 …»;
   a test of an SPA page without an FR, such as «Вход» or «Страница не найдена», names the page.
 - The dates of `format.ts` are in local time. `vite.config.ts` sets `TZ` to `UTC` for the test run (its `test` settings), and
   `App.chains.test.tsx` and `App.mailboxes.test.tsx` set `process.env.TZ = 'UTC'` again at their top, so «14:05» in a test means
@@ -313,6 +345,11 @@ replaces the list; the last successful answer is not kept on screen.
   and the connect form with its refusals. `App.chains.test.tsx` covers the start page links, the guard for `/chains`, the
   list with «Показать ещё», the empty list, reading a chain (order, attachments, plain text, line breaks) and the
   «Страница не найдена» answer for another user's chain.
+- `frontend/src/test/projectTrees.tsx` is the fixture set of the project tests. It holds the JSON shapes of `ProjectTree` and
+  its nodes (`TreeJson`, `CounterpartyJson`, `ThreadJson`, `PlacedChainJson`), the sample tree «Ремонт офиса» (`tree()`, with
+  its chains `ESTIMATE`, `ACT` and `FURNITURE`), the fixed ids and texts (`PROJECT_ID`, `FILL`, `EMPTY_PROJECT`, `REBUILD`), and the
+  lookups `openProject({ tree }, fill?)`, `chainRow`, `blockOf`, `confirmationWith`, `exactForm` (a count matched whole) and `follows`
+  (document order). `openProject` renders the page with a `GET` answer that reads `state.tree`, so a fill answer can replace it.
 - `frontend/src/test/appHarness.tsx` provides `renderApp({ path, me?, routes? })`. It moves the browser to `path`,
   stubs `fetch` with `vi.stubGlobal`, and renders `<App queryClient={…} />` with a new `QueryClient` that does not retry.
   `me` is the signed-in user, `{user_id, name, email}`; without it the visitor is signed out.
@@ -322,6 +359,8 @@ replaces the list; the last successful answer is not kept on screen.
   handler answers 500 with `{"unrouted": …}`, so a missing route shows up in the test.
 - `apiError(status, code, fields?)` builds an error body. Its messages come from `MESSAGES` in the harness, a copy of the
   server's Russian messages for the fake API.
+- A handler may answer later: it returns a pending promise, which keeps the request in flight (the fill tests use it to
+  check «Заполняется…»). `fieldOf` finds the field of a `<textarea>` too.
 - Other helpers in the harness: `heading`, `alertWith`, `rowOf`, `type`, `press`, `fieldOf`, `navigate` (moves the app
   as back and forward do) and `callsTo` (the recorded calls of one route).
 - `HealthStatus.test.tsx` renders the component with its own `QueryClient` (`retry: false`) and stubs `fetch`

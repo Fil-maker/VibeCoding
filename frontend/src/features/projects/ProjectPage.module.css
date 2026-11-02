@@ -1,0 +1,17 @@
+.node {
+  margin: var(--space-2) 0 0 var(--space-3);
+}
+
+.chain {
+  margin: var(--space-1) 0 0 var(--space-3);
+}
+
+.description {
+  white-space: pre-wrap;
+}
+
+.address {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+  font-weight: normal;
+}

@@ -1,13 +1,14 @@
 # Architecture
 
-Updated 29.10.2026
+Updated 02.11.2026
 
-**Status: tasks 0.1, 0.2, 1.1 and 1.2 are built.** Task 0.1 «Application skeleton» built the backend, the SPA and the database
+**Status: tasks 0.1, 0.2, 1.1, 1.2 and 1.3 are built.** Task 0.1 «Application skeleton» built the backend, the SPA and the database
 container. Task 0.2 «Sign-in and organization» built registration, email confirmation, sign-in and sessions,
 password reset, and an organization with its members and invitations. Task 1.1 «Personal accounts» removed the
 organization layer: a registrant is an individual user and the root owner of their data ([ADR 0023](adr/0023-organizations-are-removed-anyone-can-register.md)).
 Task 1.2 «Mailboxes and reply chains» built the mailbox reader (read-only IMAP, in the background) and the reply chains,
-in the backend and the SPA. The analysis engine is not built yet.
+in the backend and the SPA. Task 1.3 «Projects and the engine» built projects, their filling and the placement of new
+reply chains with the local placement engine `text-1`, in the backend and the SPA. A third-party analysis model is not chosen yet.
 
 ## Contents
 
@@ -28,17 +29,19 @@ in the backend and the SPA. The analysis engine is not built yet.
 | Sign-in: registration, email confirmation, sign-in and sessions, password reset | ✅ | 0.2 |
 | Personal accounts: a registrant is an individual user; organizations, invitations, members, roles and deactivation are removed | ✅ | 1.1 |
 | Mailboxes and reply chains: connecting mailboxes over read-only IMAP, reading them in the background, joining emails into reply chains, the reply-chain list and page | ✅ | 1.2 |
+| Projects and the engine: projects with a description, filling a project with the local engine `text-1` into threads and «Неразобранное», placing new reply chains after each read batch, the project list and page | ✅ | 1.3 |
 
 ## Components and processes
 
-- **Backend** — a FastAPI application (Python): the HTTP API, the modules `accounts`, `auth`, `health`, `mailboxes`
-  and `correspondence`, the database access, the service emails and the mailbox reading loop.
+- **Backend** — a FastAPI application (Python): the HTTP API, the modules `accounts`, `auth`, `health`, `mailboxes`,
+  `correspondence` and `projects`, the database access, the service emails and the mailbox reading loop.
 - **Mailbox reader** — a background task of the backend, started in the FastAPI lifespan when `MAILBOX_READING_ENABLED`
   is `true`. Every `MAILBOX_READ_TICK_SECONDS` it looks for due mailboxes and reads each one once: a mailbox is due
   right after connecting, on «Обновить», and `MAILBOX_READ_INTERVAL_MINUTES` after its last read attempt. A read
   opens the Inbox and Sent folders over IMAP, read-only, and stores the emails of the last `MAILBOX_READ_DEPTH_DAYS`
   days. The mailboxes are claimed from the database one at a time, and the network calls run outside any transaction.
   A request never reads a mailbox: connecting only checks the sign-in, and «Обновить» only asks for a read at the next tick.
+  Each stored batch is committed together with the placement of its new chains (see [Placement engine](#components-and-processes)).
 - **SPA** — a React + TypeScript single-page app built with Vite; talks to the backend only through an
   API client generated from the backend's OpenAPI schema.
 - **Database** — PostgreSQL, in Docker for development.
@@ -46,7 +49,34 @@ in the backend and the SPA. The analysis engine is not built yet.
   reset. The mailbox reader is separate from it and only reads. In development the emails go to the Mailpit container
   ([Deploy](#deploy)).
 
-TBD: the analysis engine (see [ideas.md](ideas.md#analysis-engine)).
+- **Placement engine** — the first engine is local and deterministic, with no third-party model
+  ([ADR 0045](adr/0045-first-engine-is-local-and-deterministic.md)). `LocalTextEngine` in `backend/app/platform/placement_engine.py`,
+  version `text-1`, scores how alike a project description and a reply chain are: TF-IDF cosine over Snowball stems. Cyrillic
+  words get Russian stems, ASCII words that are not all digits get English stems, and other words are kept as they are.
+  Words shorter than 2 characters, stop words and quoted lines (`>`) are dropped, `ё` is
+  read as `е`, and each score is rounded to 4 decimals. The IDF is taken over all the user's reply chains. The thresholds are
+  constants of the version: a similarity of at least 0.15 is «sure», from 0.05 (inclusive) to below 0.15 goes to
+  «Неразобранное», and below 0.05 the chain is left out; 0.15 is also the threshold for joining a thread. Any change of a threshold, a stop word or the stemmer's
+  version is a new engine version ([ADR 0055](adr/0055-similarity-thresholds-are-constants-of-the.md)). The version is stored
+  with each placement, so a result names its engine.
+- **Filling a project** — «Заполнить» places the user's chains that are in no project into the project, in one transaction
+  under a lock of all the user's project rows. Before that, the project's threads and engine placements are dropped, so a
+  filled project is rebuilt from the same emails ([ADR 0054](adr/0054-on-a-filled-project-is-an.md)). A chain scoring at least
+  «sure» goes to a thread: in reading order (first email's send time, subject, first email key), it joins the most similar
+  thread at or above the thread threshold, ties going to the earlier thread, or starts a new thread named by its first subject
+  ([ADR 0052](adr/0052-threads-are-formed-by-grouping-a.md)). A chain between the two thresholds goes to «Неразобранное»
+  without a thread; a chain below the lower threshold is not placed. The project is marked filled.
+- **Placing new chains** — after each batch a mailbox read stores, the chains that got an email and are in no project are
+  scored against every filled project. Each goes to its best project (ties: the project created first, then by name), by the
+  same bands and the same thread rule as a fill. A placed chain is never scored again. When two
+  chains merge, the merged chain keeps the placement with the earliest `placed_at`.
+- **Project tree** — built on each request from the placements: counterparties are the participant addresses of the chains,
+  named by the latest display name sent from that address, or by the address itself; chains without a counterparty are under
+  «Без контрагента», which comes last. Each counterparty lists its threads in creation order, and each thread its chains in
+  reading order. «Неразобранное» lists its chains by similarity, highest first
+  ([ADR 0053](adr/0053-a-counterparty-in-the-tree-is.md)).
+
+The third-party analysis engine is not chosen yet ([ideas.md](ideas.md#analysis-engine)).
 
 ## Repository structure
 
@@ -56,7 +86,7 @@ The tree below is the repository as it is now. The module folder is the pattern 
 backend/                 FastAPI application (own pyproject.toml, uv.lock)
   alembic.ini            Alembic config; the URL comes from the settings
   app/
-    main.py              create_app(): app factory, error handlers, Origin guard, routers, lifespan (starts the mailbox reading loop)
+    main.py              create_app(): app factory, error handlers, Origin guard, routers, lifespan (starts the mailbox reading loop with the placement engine)
     openapi.py           prints the OpenAPI schema as JSON
     test_openapi.py      unit test of the schema export
     platform/            shared code of all modules
@@ -74,13 +104,15 @@ backend/                 FastAPI application (own pyproject.toml, uv.lock)
       mail_reader.py     MailReader protocol, ImapMailReader (read-only IMAP), FakeMailReader, get_mail_reader
       imap_folders.py    IMAP LIST parsing, folder names in modified UTF-7, the choice of the Sent folder
       secret_box.py      SecretBox: Fernet encryption of the mailbox app passwords, get_secret_box
+      placement_engine.py PlacementEngine protocol, LocalTextEngine (version text-1), FakePlacementEngine, get_placement_engine
       pagination.py      Page[T] and the keyset cursor: encode_cursor, decode_cursor
       test_mail.py       unit tests of mail
       test_mail_reader.py unit tests of the mail reader and the fake
       test_passwords.py  unit tests of passwords
+      test_placement_engine.py unit tests of the placement engine
       test_secret_box.py unit tests of the secret box
       test_settings.py   unit tests of settings
-    modules/<module>/    one folder per module: health, accounts, auth, mailboxes, correspondence
+    modules/<module>/    one folder per module: health, accounts, auth, mailboxes, correspondence, projects
       accounts/          registration of a user and the users table; router.py (the registration route),
                          service.py, schemas.py, repository.py, models.py, errors.py, emails.py
       auth/              sign-in, the sign-in lock, sessions, email confirmation, password reset;
@@ -93,13 +125,18 @@ backend/                 FastAPI application (own pyproject.toml, uv.lock)
       correspondence/    emails stored once per user with their copies in folders, reply chains: joining, the list and
                          the page of a chain; router.py, service.py, schemas.py, domain.py (parsing, the email key,
                          the merge choice, HTML to text), repository.py, models.py, errors.py
+      projects/          projects with a description, the fill, the tree of a project and the placement of reply chains
+                         into threads and «Неразобранное»; router.py, service.py (the use cases and the new-chain placement),
+                         schemas.py, domain.py (the bands, the thread choice, the tree), placing.py (writes the placements
+                         and threads of a project), repository.py, models.py, errors.py
     modules/health/test_*.py  unit tests of the health module (test_router.py, test_service.py)
   migrations/            Alembic: env.py, script.py.mako, versions/ (0001_baseline.py, 0002_accounts_auth_invitations.py,
-                         0003_personal_accounts.py, 0004_mailboxes_and_reply_chains.py)
+                         0003_personal_accounts.py, 0004_mailboxes_and_reply_chains.py, 0005_projects_and_placements.py)
   tests/                 test support of the integration tests
     integration/         database tests through the HTTP API, one file per group of requirements
     factories.py         users built through the public API: unconfirmed and confirmed users, signed-in clients
     mail_factory.py      raw test emails built with the standard library, the way a mail server hands them over
+    project_trees.py     helpers of the project and placement tests: the engine seam, the project routes, the mail
     settable_clock.py    a clock that the tests move by hand
     alembic_runner.py    runs Alembic against the test database (migration round trip)
     database_settings.py TEST_DATABASE_URL of the tests
@@ -111,7 +148,7 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
     main.tsx             entry: mounts App into #root, loads the design tokens
     App.tsx              root component: QueryClientProvider, BrowserRouter, AuthProvider and the routes
     App.*.test.tsx       page tests, one file per area (sign-in, registration, password reset, guards, start page,
-                         mailboxes, chains)
+                         mailboxes, chains, projects, project tree, project fill)
     api/
       client.ts          apiClient: openapi-fetch typed by the generated schema
       queryClient.ts     createQueryClient(): TanStack Query client
@@ -120,18 +157,20 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
       generated/         schema.ts, types generated from openapi.json; never edited by hand
     messages.ts          Russian UI texts that the server does not send
     urlToken.ts          readFragmentToken(): the one-time token from the URL fragment #token=
-    components/          Panel, FormField, ErrorAlert, NotFoundPage, formData.ts, ui.module.css
+    components/          Panel, FormField (its `multiline` prop renders a textarea), ErrorAlert, NotFoundPage, formData.ts, ui.module.css
     features/
       auth/              AuthProvider (who is signed in), guards (RequireUser, RequireGuest),
                          sign-in, registration, email confirmation, forgot and reset password pages
-      home/              StartPage: the signed-in user's name, links to the mailboxes and the chains, and sign-out
+      home/              StartPage: the signed-in user's name, links to the mailboxes, the chains and the projects, and sign-out
       health/            HealthStatus (page), useHealth (query), styles and tests
       mailboxes/         MailboxesPage: the connected mailboxes with their reading status, refresh and disconnect,
                          and the connect form
       correspondence/    ChainsPage (the list of reply chains, a page at a time), ChainPage (one chain, emails as plain
                          text), ChainPage.module.css, format.ts (dates, email counts, addresses)
+      projects/          ProjectsPage (the list), NewProjectPage («Новый проект»), ProjectPage (the description, «Заполнить»,
+                         the tree and «Неразобранное»), ProjectPage.module.css, format.ts (plural labels, the engine line)
     styles/tokens.css    design tokens: colors, spacing, sizes, fonts
-    test/                appHarness.tsx (renders App with fetch stubbed),
+    test/                appHarness.tsx (renders App with fetch stubbed), projectTrees.tsx (project fixtures and lookups),
                          setup.ts (Vitest setup: Testing Library cleanup, unstubbed globals)
 docker/                  backend.Dockerfile (dev image); postgres/init/ runs once, on the first start of the database;
                          greenmail/demo/ holds the 40 prepared demo emails (.eml) and manifest.json, which say where each one goes
@@ -146,7 +185,7 @@ scripts/                 doc checkers, the check runner (run_checks.py), the API
 
 ## Layers
 
-Built so far: the platform and the modules health, accounts, auth, mailboxes and correspondence. The layer rules are in
+Built so far: the platform and the modules health, accounts, auth, mailboxes, correspondence and projects. The layer rules are in
 `.claude/rules/server-architecture.md`.
 
 Dependencies point down: router → service → domain and repository → platform.
@@ -155,10 +194,10 @@ Dependencies point down: router → service → domain and repository → platfo
 |---|---|---|
 | Router | `router.py` | Parses the request into `schemas.py` models, takes the caller from `AuthContext` where a route needs one, calls one method of the module's service, which FastAPI injects; maps the module's domain errors to HTTP. A router never receives the database session |
 | Service | `service.py` | The use cases as module-level functions that open the transaction (`session.begin()`), call domain logic and repositories, and enforce the access rules; a session-bound class (`AccountsService`, `AuthService`) delegates to them; the factory `get_<module>_service` builds the class from `get_database_session` |
-| Domain | `domain.py` | Pure functions: the sign-in lock rule (`backend/app/modules/auth/domain.py`), the reason of a failed read (`backend/app/modules/mailboxes/domain.py`), parsing a raw email, the email key and the merge choice (`backend/app/modules/correspondence/domain.py`) |
+| Domain | `domain.py` | Pure functions: the sign-in lock rule (`backend/app/modules/auth/domain.py`), the reason of a failed read (`backend/app/modules/mailboxes/domain.py`), parsing a raw email, the email key and the merge choice (`backend/app/modules/correspondence/domain.py`), the bands of similarity, the thread choice and the tree of a project (`backend/app/modules/projects/domain.py`). `backend/app/modules/projects/placing.py` writes the engine's placements and threads through the repository |
 | Repository | `repository.py` | Named queries; no commits, no business decisions |
 | Models | `models.py` | SQLAlchemy tables of the module ([Data model](#data-model)) |
-| Platform | `backend/app/platform/` | settings, db, errors, clock, mail, passwords, tokens, validation, the Origin guard, the auth context, the mail reader, the secret box, pagination |
+| Platform | `backend/app/platform/` | settings, db, errors, clock, mail, passwords, tokens, validation, the Origin guard, the auth context, the mail reader, the secret box, pagination, the placement engine (`placement_engine.py`) |
 
 The health module keeps its first shape: `router.py` takes a `HealthRepository` from `get_health_repository`,
 the repository is built from the session, and tests replace the factory through `dependency_overrides`. The
@@ -201,7 +240,18 @@ confirmation link, and `backend/app/modules/auth/service.py` uses the accounts r
 `mark_confirmed`, `set_password_hash`) and its `UserRecord`. The auth dependencies use the auth service of their own module.
 The mailboxes service calls `store_raw_messages` in `backend/app/modules/correspondence/service.py` for each batch it
 reads, and the correspondence service uses `list_logins_for_owner` from the mailboxes repository and `find_by_id` from the
-accounts repository. No module imports another module's models or private names.
+accounts repository. The projects service reads chains, emails and participants only through the correspondence service's functions
+`list_chain_documents`, `list_chain_facts` and `get_latest_sender_names`. It imports the result types from
+`backend/app/modules/correspondence/schemas.py`: `ChainDocument` in `service.py` and `placing.py`, and `ChainFacts` in `domain.py`. No module imports another module's models or
+private names.
+
+**Merge hook.** `store_raw_messages` takes an optional `on_merge` callable (`MergeHook` in
+`backend/app/modules/correspondence/service.py`). It runs before chains that one email joins are merged into a survivor, so
+the caller can carry over what hangs on the merged chains. The mailboxes service passes `carry_placement` from
+`backend/app/modules/projects/service.py`; correspondence does not import projects. `store_raw_messages` returns the ids of
+the chains that got a new email; the mailboxes service passes them to `place_new_chains` (projects) in the same transaction.
+The placement engine is a platform component (`backend/app/platform/placement_engine.py`). The app's lifespan passes one
+engine to the reading loop, and the projects router takes it from the `get_placement_engine` dependency.
 
 Details of the platform code and the health flow are in [Backend](guide/backend.md).
 
@@ -212,7 +262,8 @@ Migration `0002` (`backend/migrations/versions/0002_accounts_auth_invitations.py
 columns of `users`, `sessions` and `user_tokens`, and the `users.role` and `users.is_active` columns
 ([ADR 0035](adr/0035-migration-keeps-every-existing-user-as.md), [ADR 0041](adr/0041-migration-0003-drops-users-role-users.md)).
 Four tables remain after `0003`. Migration `0004` (`backend/migrations/versions/0004_mailboxes_and_reply_chains.py`) adds
-five tables for the modules `mailboxes` and `correspondence`, listed below. The baseline `0001` stays empty. The models are in
+five tables for the modules `mailboxes` and `correspondence`, listed below. Migration `0005` (`backend/migrations/versions/0005_projects_and_placements.py`)
+adds three tables for the module `projects`, listed below too. The baseline `0001` stays empty. The models are in
 each module's `models.py`; the declarative `Base` in `backend/app/platform/db.py` is the metadata Alembic works from.
 
 The downgrade to `0002` recreates one organization per user, named after the user's name, makes every user an active
@@ -236,9 +287,14 @@ Conventions of the tables:
 | `reply_chains` | `id`, `user_id`, `latest_email_at`, `created_at` | `user_id` → `users` (cascade); index `(user_id, latest_email_at DESC, id)` for the list |
 | `emails` | `id`, `user_id`, `chain_id`, `key` (up to 998: the normalized `Message-ID`, else `no-id:<mailbox>:<folder>:<uidvalidity>:<uid>`), `message_id`, `in_reply_to`, `references` (array), `subject`, `from_address` (up to 320), `from_name`, `to_addresses` and `cc_addresses` (JSON lists), `sent_at`, `text`, `attachment_names` (array), `created_at` | `user_id` → `users` and `chain_id` → `reply_chains` (both cascade); unique `(user_id, key)`; indexes on `(chain_id, sent_at, id)`, on `references` (GIN) and on `(user_id, in_reply_to)`. An email is stored once per user, whichever mailboxes hold it |
 | `email_copies` | `id`, `email_id`, `mailbox_id`, `folder_id`, `uid` (the IMAP UID) | `email_id` → `emails`, `mailbox_id` → `mailboxes` and `folder_id` → `mailbox_folders` (all cascade); unique `(folder_id, uid)`; indexes on `email_id` and `mailbox_id` |
+| `projects` | `id`, `user_id`, `name` (up to 100; unique per user ignoring letter case), `description` (text; the request allows up to 2000 characters), `filled_at` (empty until the first fill), `created_at` | `user_id` → `users` (cascade); unique index `(user_id, lower(name))` |
+| `threads` | `id`, `user_id`, `project_id`, `name` (text: the subject of the thread's first chain), `position` (the creation order in the project), `created_at` | `user_id` → `users` and `project_id` → `projects` (both cascade); unique `(project_id, position)` |
+| `chain_placements` | `chain_id` (primary key), `user_id`, `project_id`, `thread_id` (empty means «Неразобранное»), `kind` (only `engine`, checked), `similarity` (numeric 5,4), `engine_version` (up to 32), `placed_at` | `chain_id` → `reply_chains` (cascade, so a chain is in at most one project); `user_id` → `users`, `project_id` → `projects` and `thread_id` → `threads` (all cascade); index `(user_id, project_id)` |
 
 Disconnecting a mailbox sets its `password_encrypted` to null and keeps its folders, copies, emails and reply chains
 ([ADR 0048](adr/0048-disconnecting-a-mailbox-deletes-its-password.md)). Deleting a user deletes all of these rows.
+A fill drops the project's threads and engine placements before it writes new ones, and deleting a project drops its
+threads and placements.
 
 ## Routes and API
 
@@ -264,6 +320,10 @@ caller of a signed-in route gets 401 `not_signed_in`. The routes below are all u
 | `DELETE /api/v1/mailboxes/{mailbox_id}` | signed in | 204; deletes the password, the emails stay | `not_found` 404 |
 | `GET /api/v1/reply-chains` | signed in | 200, `Page[ReplyChainSummary]`; `limit` 1 to 100 (default 50), `cursor`; the latest chain first | `invalid_cursor` 400 |
 | `GET /api/v1/reply-chains/{chain_id}` | signed in | 200, `ReplyChain`; its emails oldest first, at most 500 | `not_found` 404 |
+| `GET /api/v1/projects` | signed in | 200, `list[ProjectSummary]` (the user's projects by name, at most 200, not paginated) | none |
+| `POST /api/v1/projects` | signed in | 201, `ProjectSummary`; body `name` (1 to 100 characters) and `description` (1 to 2000), both required, trimmed | `project_exists` 409 |
+| `GET /api/v1/projects/{project_id}` | signed in | 200, `ProjectTree`: the description, the counterparties with their threads and chains, and «Неразобранное» | `not_found` 404 |
+| `POST /api/v1/projects/{project_id}/fill` | signed in | 200, `ProjectTree`; fills the project from its description, and a filled project is rebuilt from the same emails | `not_found` 404 |
 
 Registration is `POST /api/v1/auth/registrations`, next to the other auth routes of the same prefix. Its body is `name`,
 `email` and `password` ([ADR 0037](adr/0037-registration-asks-for-name-email-and.md)); any other field, such as
@@ -273,7 +333,11 @@ Registration is `POST /api/v1/auth/registrations`, next to the other auth routes
 Every state-changing request also answers 403 `forbidden_origin` when its `Origin` is missing or foreign, and
 a body with an unknown field, or an invalid one, answers 422 `validation_failed`.
 
-Schemas of the responses: `Me` is `user_id`, `name`, `email`; `RegistrationResult` is `email`, `email_sent`.
+Schemas of the responses: `Me` is `user_id`, `name`, `email`; `RegistrationResult` is `email`, `email_sent`. `ProjectSummary` is
+`id`, `name`, `filled`, `placed_count` and `unassigned_count`; `ProjectTree` is `id`, `name`, `description`, `filled`,
+`counterparties` (each with `address` — null for «Без контрагента» — `name` and `threads`) and `unassigned`. A chain in the tree
+carries its `placement`: `kind`, `engine_version` and `similarity`. The `project_exists` answer (409) is for a name equal to an existing one
+ignoring letter case, the same name included.
 
 **Error shape.** A handled error answers `{"error": {"code": "…", "message": "…"}}`, where `message` is the Russian
 text of the error. A validation error adds `fields`: `{"error": {"code": "validation_failed", "message": "Проверьте поля формы", "fields": {"<field>": "<Russian message>"}}}`.
@@ -293,6 +357,9 @@ A framework HTTP error other than 404 keeps FastAPI's `{"detail": …}` shape; a
 | `/mailboxes` | the form «Подключить ящик» and the list of the user's mailboxes, with their status and «Обновить» and «Отключить» | a signed-in user |
 | `/chains` | the list of the user's reply chains | a signed-in user |
 | `/chains/:id` | one reply chain with its emails | a signed-in user |
+| `/projects` | «Проекты»: the user's projects by name, with their counts, and «Создать проект» | a signed-in user |
+| `/projects/new` | «Новый проект», with the fields «Название» and «Описание» | a signed-in user |
+| `/projects/:id` | «Проект»: the description, «Заполнить» (when the project already has chains, first the question «Пересобрать проект? Движок разложит его переписку заново» with «Пересобрать» and «Отмена»), the tree and «Неразобранное» | a signed-in user |
 | `*` | «Страница не найдена» | anyone; `/members` and `/invitation` fall here too |
 
 A signed-out visitor who opens a signed-in page goes to `/sign-in?next=…` and returns after signing in. A
@@ -384,9 +451,16 @@ What is built:
   email their caller already holds, as their docstrings say: `ensure_folders` and `update_folder_progress` for the mailbox
   the run has just claimed, and `add_copy_if_absent` for the email just stored (`add_copy_if_absent` is in
   `backend/app/modules/correspondence/repository.py`).
+- **Owner filter for projects.** Every query of `backend/app/modules/projects/repository.py` takes the `user_id` from the
+  `AuthContext` and filters by it, or writes a row with it: `get_project_for_owner`, `has_project_named_for_owner`,
+  `list_project_summaries_for_owner`, `list_threads_of_projects_for_owner`, `list_placements_of_projects_for_owner`,
+  `list_placed_chain_ids_for_owner`, `delete_engine_placements_and_threads_for_owner` and `carry_placement_for_owner`.
+  `lock_projects_for_owner` locks all of the user's projects, in id order, so a fill and a mailbox read never place the same
+  chain twice; it is not a lookup of one project. Another user's project answers 404 `not_found`. The projects service
+  reads chains, emails and participants only through the correspondence service, which filters by the same `user_id`.
 - **HTML as text.** The server keeps an email as text. An HTML part is converted only when the email has no `text/plain` part
   (`_body_text` in `backend/app/modules/correspondence/domain.py`), and the conversion drops `script`, `style` and `head`.
   The SPA shows the text with `white-space: pre-wrap` and never sets HTML.
 
-Not built yet: the consent gate that must pass before email text goes to a third-party service. The analysis engine is not
-chosen ([Components and processes](#components-and-processes)).
+Not built yet: the consent gate that must pass before email text goes to a third-party service. The local placement engine
+`text-1` is built ([Components and processes](#components-and-processes)); a third-party analysis model is not chosen.

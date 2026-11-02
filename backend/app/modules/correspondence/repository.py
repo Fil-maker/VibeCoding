@@ -276,3 +276,99 @@ async def list_emails_of_chain_for_owner(
         .limit(limit)
     )
     return list(rows.scalars())
+
+
+@dataclass(frozen=True)
+class EmailTextRow:
+    """The text of one email with what orders it."""
+
+    chain_id: UUID
+    key: str
+    subject: str
+    sent_at: datetime
+    text: str
+
+
+@dataclass(frozen=True)
+class FirstEmailRow:
+    """The first (oldest) email of a chain."""
+
+    chain_id: UUID
+    key: str
+    subject: str
+    sent_at: datetime
+
+
+@dataclass(frozen=True)
+class EmailStatsRow:
+    """How many emails a chain holds and when the latest was sent."""
+
+    count: int
+    latest_sent_at: datetime
+
+
+async def list_email_texts_for_owner(session: AsyncSession, user_id: UUID) -> list[EmailTextRow]:
+    """Every email of the user, grouped by chain, each chain's emails oldest first (ties by key).
+
+    Unbounded on purpose: the placement engine weighs words over all of the user's chains.
+    """
+    rows = await session.execute(
+        select(Email.chain_id, Email.key, Email.subject, Email.sent_at, Email.text)
+        .where(Email.user_id == user_id)
+        .order_by(Email.chain_id, Email.sent_at, Email.key)
+    )
+    return [EmailTextRow(*row) for row in rows]
+
+
+async def list_first_emails_for_owner(
+    session: AsyncSession, user_id: UUID, chain_ids: Sequence[UUID]
+) -> list[FirstEmailRow]:
+    """The oldest email of each of these chains (ties by key)."""
+    rows = await session.execute(
+        select(Email.chain_id, Email.key, Email.subject, Email.sent_at)
+        .where(Email.user_id == user_id, Email.chain_id.in_(chain_ids))
+        .ext(distinct_on(Email.chain_id))
+        .order_by(Email.chain_id, Email.sent_at, Email.key)
+    )
+    return [FirstEmailRow(*row) for row in rows]
+
+
+async def get_email_stats_by_chain_for_owner(
+    session: AsyncSession, user_id: UUID, chain_ids: Sequence[UUID]
+) -> dict[UUID, EmailStatsRow]:
+    """The number of emails and the latest send time per chain."""
+    rows = await session.execute(
+        select(Email.chain_id, func.count(), func.max(Email.sent_at))
+        .where(Email.user_id == user_id, Email.chain_id.in_(chain_ids))
+        .group_by(Email.chain_id)
+    )
+    return {chain_id: EmailStatsRow(count, latest) for chain_id, count, latest in rows}
+
+
+async def get_latest_sender_names_for_owner(
+    session: AsyncSession, user_id: UUID, chain_ids: Sequence[UUID]
+) -> dict[str, str]:
+    """Per sender address, the name written in its latest email that had one (ties by key)."""
+    rows = await session.execute(
+        select(Email.from_address, Email.from_name)
+        .where(
+            Email.user_id == user_id,
+            Email.chain_id.in_(chain_ids),
+            Email.from_name.is_not(None),
+        )
+        .ext(distinct_on(Email.from_address))
+        .order_by(Email.from_address, Email.sent_at.desc(), Email.key.desc())
+    )
+    return {address: name for address, name in rows if name is not None}
+
+
+async def list_existing_chain_ids_for_owner(
+    session: AsyncSession, user_id: UUID, chain_ids: Sequence[UUID] | set[UUID]
+) -> set[UUID]:
+    """Which of these chain ids still exist for the user."""
+    if not chain_ids:
+        return set()
+    rows = await session.execute(
+        select(ReplyChain.id).where(ReplyChain.user_id == user_id, ReplyChain.id.in_(chain_ids))
+    )
+    return set(rows.scalars())

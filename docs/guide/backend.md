@@ -1,6 +1,6 @@
 # Backend
 
-Updated 29.10.2026
+Updated 02.11.2026
 
 **Code:** `backend/app/main.py`, `backend/app/openapi.py`, `backend/app/platform/`, `backend/app/modules/`,
 `backend/migrations/`, `backend/alembic.ini`, `backend/tests/`, `backend/pyproject.toml`,
@@ -10,14 +10,14 @@ Updated 29.10.2026
 FR-21; they are described in [Auth and accounts](auth.md). The health module has no requirement. The mailbox
 reading loop and the mailbox platform files serve the mailboxes requirements FR-22 … FR-27 (see
 [mailboxes spec](../../openspec/specs/mailboxes/spec.md)); the reply chains requirements FR-28 … FR-31 are in the
-[reply-chains spec](../../openspec/specs/reply-chains/spec.md); the map of capabilities is in
-[Requirements map](../domain.md#requirements-map).
+[reply-chains spec](../../openspec/specs/reply-chains/spec.md); the projects and chain-placement requirements FR-32 … FR-39
+are described in [Projects](projects.md); the map of capabilities is in [Requirements map](../domain.md#requirements-map).
 
 **Design:** [Components and processes](../architecture.md#components-and-processes),
 [Repository structure](../architecture.md#repository-structure), [Layers](../architecture.md#layers),
 [Data model](../architecture.md#data-model), [Stack](../tech.md#stack).
 
-**Related:** [Auth and accounts](auth.md), [Frontend](frontend.md).
+**Related:** [Auth and accounts](auth.md), [Mail reading](mail-reading.md), [Projects](projects.md), [Frontend](frontend.md).
 
 ## App entry
 
@@ -27,13 +27,14 @@ reading loop and the mailbox platform files serve the mailboxes requirements FR-
 - takes the settings the caller passes, or reads them from the environment through `load_settings()`;
   a missing required value fails at startup. The settings are listed in [Environment variables](../tech.md#environment-variables);
 - creates one `Database` for this app from `database_url`; the engine is created on first use, not at import;
-- stores the `Database` and the settings in `app.state`. `app.state.mail_sender`, `app.state.mail_reader` and
-  `app.state.secret_box` start as `None`; the `get_mail_sender`, `get_mail_reader` and `get_secret_box` dependencies
-  create the SMTP sender, the IMAP reader and the secret box on first use;
+- stores the `Database` and the settings in `app.state`. `app.state.mail_sender`, `app.state.mail_reader`,
+  `app.state.secret_box` and `app.state.placement_engine` start as `None`; the `get_mail_sender`, `get_mail_reader`,
+  `get_secret_box` and `get_placement_engine` dependencies create the SMTP sender, the IMAP reader, the secret box and
+  the placement engine on first use;
 - titles the app `VibeCoding`, registers the shared error handlers (`register_error_handlers`) and the domain error
   mapping of each module (`register_domain_errors`; the mailboxes module registers its mapping through
   `register_mailbox_errors`), adds the `OriginGuardMiddleware` with `APP_BASE_URL`, and includes the routers: health,
-  accounts, auth, mailboxes and correspondence;
+  accounts, auth, mailboxes, correspondence and projects;
 - its lifespan starts the mailbox reading loop when `MAILBOX_READING_ENABLED` is `true` (see
   [Background mailbox reading](#background-mailbox-reading)), and on shutdown cancels that loop, waits for it to end,
   and disposes the connection pool.
@@ -45,9 +46,10 @@ itself, so the settings come from the environment. The order and its reason are 
 
 ## Background mailbox reading
 
-The lifespan of `create_app()` (`backend/app/main.py`) starts `run_reading_loop(database, reader, clock, settings)` as an
+The lifespan of `create_app()` (`backend/app/main.py`) starts `run_reading_loop(database, reader, clock, settings, engine)` as an
 asyncio task when `MAILBOX_READING_ENABLED` is `true`. It uses `app.state.mail_reader` when that is set, else it creates an
-`ImapMailReader` and stores it there. The loop is in `backend/app/modules/mailboxes/service.py`:
+`ImapMailReader` and stores it there; it takes the placement engine the same way from `app.state.placement_engine`, else
+creates a `LocalTextEngine`. The loop is in `backend/app/modules/mailboxes/service.py`:
 
 - every `MAILBOX_READ_TICK_SECONDS` it runs `read_due_mailboxes`, which reads each due mailbox once and returns how many
   it read; a run that raises is logged with `LOG.exception`, and the loop goes on at the next tick;
@@ -58,6 +60,8 @@ asyncio task when `MAILBOX_READING_ENABLED` is `true`. It uses `app.state.mail_r
   IMAP calls run outside any transaction;
 - a folder is read batch by batch, each batch of up to 50 messages stored with its folder progress in its own
   transaction, so a read that stops keeps what it stored; `since` is today minus `MAILBOX_READ_DEPTH_DAYS` days.
+  The new chains of a batch are placed into the filled projects in the same transaction
+  ([Placing new chains](projects.md#placing-new-chains)).
 
 With `MAILBOX_READING_ENABLED=false` the loop does not start and the app reads no mailbox. The integration tests
 build their settings with reading off (`settings_for()` in `backend/tests/factories.py`); they call `read_due_mailboxes`
@@ -83,9 +87,11 @@ which writes the schema to `frontend/src/api/openapi.json` and generates the cli
 
 - Each business module is a package `backend/app/modules/<module>/`; the package `__init__.py` files are empty, and
   `backend/app/modules/__init__.py` is empty too.
-- The business modules are `accounts`, `auth`, `mailboxes` and `correspondence`; `health` is the smallest one. `accounts`
-  and `auth` are described in [Auth and accounts](auth.md#modules-and-their-files). `mailboxes` (connect, list, refresh,
-  disconnect, and the reading loop) and `correspondence` (emails, email copies, reply chains) use the same layers.
+- The business modules are `accounts`, `auth`, `mailboxes`, `correspondence` and `projects`; `health` is the smallest one.
+  `accounts` and `auth` are described in [Auth and accounts](auth.md#modules-and-their-files). `mailboxes` (connect, list,
+  refresh, disconnect, and the reading loop) and `correspondence` (emails, email copies, reply chains) use the same layers.
+  `projects` (projects, the tree, filling, and placing new chains) is in [Projects](projects.md#modules-and-their-files); its
+  `placing.py` sits beside `domain.py`.
 - The layers are `router.py` → `service.py` → `domain.py` and `repository.py` → platform, as in
   [Layers](../architecture.md#layers). `models.py` holds the tables, `errors.py` the domain errors, `schemas.py` the
   request and response models, and `emails.py` the texts of service emails. A module without pure rules has no
@@ -219,6 +225,14 @@ which writes the schema to `frontend/src/api/openapi.json` and generates the cli
 - The constants are `PAGE_DEFAULT_LIMIT` (50), `PAGE_MAX_LIMIT` (100) and `CURSOR_MAX_LENGTH` (200, the longest cursor
   text a query accepts).
 
+### Placement engine
+
+`backend/app/platform/placement_engine.py` holds the `PlacementEngine` protocol, the local engine `LocalTextEngine` (version
+`text-1`), the test double `FakePlacementEngine`, and `get_placement_engine(request)`. The dependency creates the engine on
+first use and keeps it in `app.state.placement_engine`; a test replaces it through `app.dependency_overrides`. The engine is
+pure computation with no I/O. Its version, thresholds and how it reads a chain are in [The engine text-1](projects.md#the-engine-text-1);
+its unit tests are `backend/app/platform/test_placement_engine.py`.
+
 ### Logging
 
 - `configure_logging(level=logging.INFO)` in `backend/app/platform/logging.py` sets the root logger's format to
@@ -288,6 +302,9 @@ which writes the schema to `frontend/src/api/openapi.json` and generates the cli
   `mailboxes` and `correspondence`: `mailboxes`, `mailbox_folders`, `reply_chains`, `emails` and `email_copies`. Its downgrade
   drops them in reverse order. Disconnecting a mailbox does not touch them; the columns and constraints are in
   [Data model](../architecture.md#data-model), and the reading and joining rules in [Mail reading](mail-reading.md).
+- The revision `0005` (`backend/migrations/versions/0005_projects_and_placements.py`) creates the tables of the module
+  `projects`: `projects`, `threads` and `chain_placements`. Its downgrade drops them in reverse order. The columns and
+  constraints are in [Data model](../architecture.md#data-model), and the placement rules in [Projects](projects.md).
 - `backend/migrations/versions/` is excluded from ruff and pyright strict, because Alembic generates those files.
 
 Apply the migrations to the dev database: `uv run --directory backend alembic upgrade head`
@@ -314,7 +331,9 @@ Apply the migrations to the dev database: `uv run --directory backend alembic up
 - The integration tests sit in `backend/tests/integration/` by requirement group: `test_registration.py`,
   `test_sign_in.py`, `test_password_reset.py`, `test_access_boundary.py`, `test_platform_http.py`,
   `test_migrations.py` and `test_health.py`; the mailbox and chain groups are `test_mailboxes_connect.py`,
-  `test_mailboxes_disconnect.py`, `test_mailboxes_reading.py`, `test_reply_chains_join.py` and `test_reply_chains_read.py`.
+  `test_mailboxes_disconnect.py`, `test_mailboxes_reading.py`, `test_reply_chains_join.py` and `test_reply_chains_read.py`; the project and placement groups are `test_projects_create_list.py`,
+  `test_projects_tree.py`, `test_projects_fill.py`, `test_placement_explained.py` and `test_placement_new_chains.py`
+  ([Test seams](projects.md#test-seams)).
 - `test_migrations.py` runs the migration round trip with no drift; it seeds data at revision `0002`, then checks
   the upgrade (every user keeps the email, password hash and confirmation; the organization, role and invitation
   columns and tables are gone), that a user whose `is_active` was `false` signs in after it, and the downgrade.

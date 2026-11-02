@@ -1,6 +1,6 @@
 # Tech
 
-Updated 29.10.2026
+Updated 02.11.2026
 
 ## Contents
 
@@ -31,6 +31,7 @@ Versions are pinned in the manifests and lock files: `backend/pyproject.toml` an
 | argon2-cffi `>=25,<26` (locked `25.1.0`) | — | Password hashing with Argon2id (`backend/app/platform/passwords.py`) — [ADR 0013](adr/0013-new-dependencies-argon2-cffi-for-password.md) |
 | aiosmtplib `>=5,<6` (locked `5.1.3`) | — | Async SMTP client of service emails, with a timeout (`backend/app/platform/mail.py`) — [ADR 0013](adr/0013-new-dependencies-argon2-cffi-for-password.md) |
 | cryptography `>=46,<48` (locked `47.0.0`) | — | Fernet encryption of the mailbox app passwords (`backend/app/platform/secret_box.py`) |
+| snowballstemmer `==3.0.1` (exact pin in `backend/pyproject.toml`) | — | Word stems of the placement engine `text-1` (`backend/app/platform/placement_engine.py`). Its version is part of the engine version, so the pin is exact: a different stemmer version is a different engine version — [ADR 0045](adr/0045-first-engine-is-local-and-deterministic.md), [ADR 0055](adr/0055-similarity-thresholds-are-constants-of-the.md) |
 | Python standard library `imaplib` | — | IMAP reading of the mailboxes, read-only (`backend/app/platform/mail_reader.py`); no third-party IMAP package |
 | React `19.3.1` (`react`, `react-dom`), `@types/react` `19.3.0`, `@types/react-dom` `19.3.0` | — | SPA UI — [ADR 0002](adr/0002-react-spa.md) |
 | react-router `7.18.4` (declarative mode) | — | SPA routes, `BrowserRouter` in `frontend/src/App.tsx` — [ADR 0015](adr/0015-spa-routing-with-react-router-7.md) |

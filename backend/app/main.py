@@ -16,12 +16,15 @@ from app.modules.health.router import router as health_router
 from app.modules.mailboxes.router import register_mailbox_errors
 from app.modules.mailboxes.router import router as mailboxes_router
 from app.modules.mailboxes.service import run_reading_loop
+from app.modules.projects.router import ERROR_MAPPING as PROJECTS_ERRORS
+from app.modules.projects.router import router as projects_router
 from app.platform.clock import get_clock
 from app.platform.db import Database
 from app.platform.errors import register_domain_errors, register_error_handlers
 from app.platform.logging import configure_logging
 from app.platform.mail_reader import ImapMailReader, MailReader
 from app.platform.origin import OriginGuardMiddleware
+from app.platform.placement_engine import LocalTextEngine, PlacementEngine
 from app.platform.settings import Settings
 
 
@@ -44,8 +47,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if reader is None:
                 reader = ImapMailReader(timeout=resolved.imap_timeout_seconds)
                 app_.state.mail_reader = reader
+            engine: PlacementEngine | None = app_.state.placement_engine
+            if engine is None:
+                engine = LocalTextEngine()
+                app_.state.placement_engine = engine
             loop_task = asyncio.create_task(
-                run_reading_loop(database, reader, get_clock(), resolved)
+                run_reading_loop(database, reader, get_clock(), resolved, engine)
             )
         try:
             yield
@@ -62,10 +69,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.mail_sender = None  # created lazily by `get_mail_sender`
     app.state.mail_reader = None  # created lazily by `get_mail_reader`
     app.state.secret_box = None  # created lazily by `get_secret_box`
+    app.state.placement_engine = None  # created lazily by `get_placement_engine`
     register_error_handlers(app)
     register_domain_errors(app, ACCOUNTS_ERRORS)
     register_domain_errors(app, AUTH_ERRORS)
     register_domain_errors(app, CORRESPONDENCE_ERRORS)
+    register_domain_errors(app, PROJECTS_ERRORS)
     register_mailbox_errors(app)
     app.add_middleware(OriginGuardMiddleware, app_base_url=resolved.app_base_url)
     app.include_router(health_router)
@@ -73,4 +82,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(mailboxes_router)
     app.include_router(correspondence_router)
+    app.include_router(projects_router)
     return app

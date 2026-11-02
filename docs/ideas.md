@@ -9,17 +9,15 @@ discusses a raw one.
 
 ### Analysis engine
 
-Added 23.10, changed 28.10. The engine is our own service, external to the user. In stage 1 it finds the
-emails that match a project's description, forms threads from whole reply chains and places new chains;
-in stage 2 it computes sentiment. Why: it decides how good the trees are, how reproducible a placement
-is and whether email text leaves our servers.
+Added 23.10, changed 29.10. Task 1.3 built a local deterministic engine (`text-1`, ADR 0045) that fills
+projects and places new chains. Left open: a third-party model for better placement and for the
+sentiment of stage 2. Why: text similarity misses meaning that a language model would catch.
 
-**Open:** does the engine run a model we host or call a third-party model; quality of search and placement
-on Russian business email; cost; how the engine version is recorded with each placement; the similarity
-threshold below which a chain goes to «Unassigned».
+**Open:** a model we host or a third-party one; quality on Russian business email; cost; how the user
+gives consent before email text goes to a third party.
 
-**Touches:** invariants «Explainable placement», «Reproducible placement» and «Access boundary» (the
-user's consent when a third-party model is used).
+**Touches:** invariants «Reproducible placement» (a model change is a new engine version) and «Access
+boundary» (the user's consent when a third-party model is used).
 
 ### Sentiment layer
 
@@ -34,20 +32,34 @@ placement» first.
 
 ## Projects
 
-### Projects and placement
+### Edit and delete a project
 
-Added 28.10. The user creates a project by hand with a description; the engine fills the empty project:
-finds the matching emails, forms threads and sorts the reply chains under their counterparties
-(project → counterparty → thread). New emails: a reply goes to its chain; then the user's rules; then the
-engine when it is sure; otherwise «Unassigned». The engine never moves a chain already placed. A reply
-chain belongs to at most one project; an email that touches a second project is shown there as a
-reference to its chain. A chain with several counterparties is shown under each of them. Why: the core
-of the product after the concept change of 28.10.
+Added 29.10. The user renames a project, changes its description or deletes it. Why: task 1.3 creates
+projects but cannot change them.
 
-**Open:** how «Unassigned» is reviewed; what happens to placements when the description changes.
+**Open:** what happens to the placements when the description changes; whether deleting a project
+releases its chains for other projects.
 
-**Touches:** invariants «Explainable placement», «Reproducible placement», «History is kept». Needs «Reply
-chains» and «Analysis engine».
+**Touches:** invariant «History is kept».
+
+### A reference in a second project
+
+Added 29.10. An email that touches a second project is shown there as a reference to its chain, which
+stays in its own project (ADR 0034). Why: a chain belongs to at most one project, but its topic may
+concern two.
+
+**Open:** how the engine finds the second project; how the reference looks in the tree.
+
+**Touches:** invariant «Explainable placement».
+
+### A chain's project in «Переписка»
+
+Added 29.10. The list «Переписка» shows the project and thread of each placed reply chain. Why: the user
+sees where a chain went without opening every project.
+
+**Open:** a link to the project page or only its name.
+
+**Touches:** nothing new.
 
 ### Rules and manual placement
 
@@ -56,9 +68,11 @@ that place new chains into a project and a thread; a project is re-sorted only b
 keeps the placements made by hand. Priority: by hand, then a rule, then the engine. Why: the engine makes
 mistakes and the user must be able to fix them for good.
 
-**Open:** what a rule can match on; what happens when two rules disagree.
+**Open:** what a rule can match on; what happens when two rules disagree. A
+re-sorting must not lose hand placements: since task 1.3 a fill deletes the project's threads, and
+placements in them go by cascade, and a merge of two placed chains keeps the earliest placement.
 
-**Touches:** invariants «History is kept» and «Explainable placement». Needs «Projects and placement».
+**Touches:** invariants «History is kept» and «Explainable placement». Needs task 1.3.
 
 ### Counterparty with several addresses
 

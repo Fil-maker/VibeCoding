@@ -10,7 +10,7 @@ from email.utils import getaddresses, parsedate_to_datetime
 from html.parser import HTMLParser
 from uuid import UUID
 
-from app.modules.correspondence.schemas import Address
+from app.modules.correspondence.schemas import Address, ChainDocument
 
 TEXT_MAX_LENGTH = 200_000
 KEY_MAX_LENGTH = 998
@@ -90,6 +90,16 @@ def email_key(
 def choose_surviving_chain(chains: Sequence[ChainRef]) -> ChainRef:
     """The chain that absorbs the others: the oldest, ties by the smallest id."""
     return min(chains, key=lambda chain: (chain.created_at, chain.id))
+
+
+def build_chain_document(first_subject: str, texts: Sequence[str]) -> str:
+    """The text the engine reads: the first subject, then the email texts oldest first."""
+    return "\n".join([first_subject, *texts])
+
+
+def reading_order_key(chain: ChainDocument) -> tuple[datetime, str, str]:
+    """Reading order of chains: the first email's time, its subject, its key (never an id)."""
+    return (chain.first_sent_at, chain.subject, chain.first_key)
 
 
 class _TextExtractor(HTMLParser):

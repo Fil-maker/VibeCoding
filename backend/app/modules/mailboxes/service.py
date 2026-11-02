@@ -22,6 +22,7 @@ from app.modules.mailboxes.errors import (
 from app.modules.mailboxes.models import Mailbox as MailboxRow
 from app.modules.mailboxes.models import MailboxErrorCode, MailboxStatus
 from app.modules.mailboxes.schemas import Mailbox, MailboxConnect
+from app.modules.projects.service import carry_placement, place_new_chains
 from app.platform.auth_context import AuthContext
 from app.platform.clock import Clock
 from app.platform.db import Database, get_database_session
@@ -35,6 +36,7 @@ from app.platform.mail_reader import (
     MailboxUnreachable,
     MailReader,
 )
+from app.platform.placement_engine import LocalTextEngine, PlacementEngine
 from app.platform.secret_box import SecretBox, SecretBoxError
 from app.platform.settings import Settings
 
@@ -229,16 +231,22 @@ async def _claim(
         )
 
 
+@dataclass(frozen=True)
+class _ReadTools:
+    """What a read run works with."""
+
+    database: Database
+    reader: MailReader
+    clock: Clock
+    settings: Settings
+    engine: PlacementEngine
+
+
 async def _read_folder(
-    database: Database,
-    reader: MailReader,
-    clock: Clock,
-    settings: Settings,
-    job: _ReadJob,
-    credentials: ImapCredentials,
-    folder: _FolderProgress,
+    tools: _ReadTools, job: _ReadJob, credentials: ImapCredentials, folder: _FolderProgress
 ) -> None:
-    """Read a folder batch by batch, each batch stored in its own transaction."""
+    """Read a folder batch by batch, each batch stored and placed in its own transaction."""
+    database, reader, clock, settings = tools.database, tools.reader, tools.clock, tools.settings
     since = clock.now().date() - timedelta(days=settings.mailbox_read_depth_days)
     uidvalidity, last_uid = folder.uidvalidity, folder.last_uid
     while True:
@@ -255,15 +263,18 @@ async def _read_folder(
             new_last = newest if previous is None else max(previous, newest)
         async with database.session() as session, session.begin():
             if batch.messages:
-                await store_raw_messages(
+                now = clock.now()
+                touched = await store_raw_messages(
                     session,
                     user_id=job.user_id,
                     mailbox_id=job.mailbox_id,
                     folder_id=folder.id,
                     uidvalidity=batch.uidvalidity,
                     messages=batch.messages,
-                    now=clock.now(),
+                    now=now,
+                    on_merge=carry_placement,
                 )
+                await place_new_chains(session, job.user_id, touched, tools.engine, now)
             await repository.update_folder_progress(
                 session,
                 job.mailbox_id,
@@ -285,10 +296,9 @@ def _error_code_of(error: Exception) -> MailboxErrorCode:
     return MailboxErrorCode.READ_FAILED
 
 
-async def _read_mailbox(
-    database: Database, reader: MailReader, clock: Clock, settings: Settings, job: _ReadJob
-) -> bool:
+async def _read_mailbox(tools: _ReadTools, job: _ReadJob) -> bool:
     """Read both folders of a claimed mailbox and record the outcome; True when it succeeded."""
+    database, clock, settings = tools.database, tools.clock, tools.settings
     try:
         password = SecretBox(settings.mailbox_encryption_key).decrypt(job.password_encrypted)
         credentials = ImapCredentials(
@@ -299,7 +309,7 @@ async def _read_mailbox(
             use_tls=_use_tls(settings, job.server),
         )
         for folder in job.folders:
-            await _read_folder(database, reader, clock, settings, job, credentials, folder)
+            await _read_folder(tools, job, credentials, folder)
     except Exception as e:  # any failure of one mailbox is recorded and the run goes on
         code = _error_code_of(e)
         # The class name only: messages of mail libraries may carry addresses.
@@ -315,9 +325,17 @@ async def _read_mailbox(
 
 
 async def read_due_mailboxes(
-    database: Database, reader: MailReader, clock: Clock, settings: Settings
+    database: Database,
+    reader: MailReader,
+    clock: Clock,
+    settings: Settings,
+    engine: PlacementEngine | None = None,
 ) -> int:
-    """Read every due mailbox once, one by one; return how many were read successfully."""
+    """Read every due mailbox once, one by one; return how many were read successfully.
+
+    Each stored batch also places its new chains into the user's filled projects.
+    """
+    tools = _ReadTools(database, reader, clock, settings, engine or LocalTextEngine())
     done: set[UUID] = set()
     succeeded = 0
     while True:
@@ -325,17 +343,21 @@ async def read_due_mailboxes(
         if job is None:
             return succeeded
         done.add(job.mailbox_id)
-        if await _read_mailbox(database, reader, clock, settings, job):
+        if await _read_mailbox(tools, job):
             succeeded += 1
 
 
 async def run_reading_loop(
-    database: Database, reader: MailReader, clock: Clock, settings: Settings
+    database: Database,
+    reader: MailReader,
+    clock: Clock,
+    settings: Settings,
+    engine: PlacementEngine,
 ) -> None:
     """Look for due mailboxes every tick until cancelled; an error is logged, never fatal."""
     while True:
         try:
-            await read_due_mailboxes(database, reader, clock, settings)
+            await read_due_mailboxes(database, reader, clock, settings, engine)
         except Exception:  # the loop must survive any failed run; the next tick retries
             LOG.exception("the mailbox reading run failed")
         await asyncio.sleep(settings.mailbox_read_tick_seconds)

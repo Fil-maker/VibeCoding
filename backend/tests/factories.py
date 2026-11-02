@@ -12,6 +12,7 @@ from httpx import ASGITransport, AsyncClient, Response
 from app.modules.mailboxes.service import read_due_mailboxes
 from app.platform.mail import FakeMailSender, OutgoingEmail
 from app.platform.mail_reader import FakeMailReader
+from app.platform.placement_engine import PlacementEngine
 from app.platform.settings import Settings
 from tests.settable_clock import SettableClock
 
@@ -155,11 +156,27 @@ class Factories:
         mailbox: dict[str, Any] = response.json()
         return mailbox
 
-    async def read_due(self) -> int:
-        """Run one reading pass over the mailboxes that are due; returns how many were read."""
-        return await read_due_mailboxes(
-            self.app.state.database, self.reader, self.clock, self.app.state.settings
+    async def read_due(self, engine: PlacementEngine | None = None) -> int:
+        """Run one reading pass over the mailboxes that are due; returns how many were read.
+
+        `engine` places the new chains; without it the pass uses its default engine.
+        """
+        database = self.app.state.database
+        settings = self.app.state.settings
+        if engine is None:
+            return await read_due_mailboxes(database, self.reader, self.clock, settings)
+        return await read_due_mailboxes(database, self.reader, self.clock, settings, engine=engine)
+
+    async def create_project(
+        self, client: AsyncClient, name: str, description: str
+    ) -> dict[str, Any]:
+        """Create a project through the API; returns its `ProjectSummary`."""
+        response = await client.post(
+            f"{API}/projects", json={"name": name, "description": description}
         )
+        assert response.status_code == HTTPStatus.CREATED, response.text
+        project: dict[str, Any] = response.json()
+        return project
 
 
 async def list_mailboxes(client: AsyncClient) -> list[dict[str, Any]]:
