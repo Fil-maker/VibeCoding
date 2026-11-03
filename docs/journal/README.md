@@ -23,3 +23,4 @@ mistakes and lessons, what remains. Written by `/journal` at `/finish`.
 | 02.11.2026 | [Manual placement and re-sorting](2026-11-02-02-manual-placement.md) | 1.4 | 1-4-manual-placement |
 | 03.11.2026 | [Rules](2026-11-03-01-rules.md) | 1.5 | 1-5-rules |
 | 03.11.2026 | [Apply a rule now](2026-11-03-02-apply-rule-now.md) | 1.6 | 1-6-apply-rule-now |
+| 04.11.2026 | [App shell and user path](2026-11-04-01-app-shell.md) | 1.7 | 1-7-app-shell |

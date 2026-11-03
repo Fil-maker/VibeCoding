@@ -18,8 +18,11 @@ import { NewProjectPage } from './features/projects/NewProjectPage';
 import { ProjectPage } from './features/projects/ProjectPage';
 import { ProjectsPage } from './features/projects/ProjectsPage';
 import { RulesPage } from './features/projects/RulesPage';
-import { StartPage } from './features/home/StartPage';
+import { HomeRoute } from './features/home/HomeRoute';
 import { HealthStatus } from './features/health/HealthStatus';
+import { AppLayout } from './features/shell/AppLayout';
+import { AuthFrame } from './features/shell/AuthFrame';
+import { GuestLayout } from './features/shell/GuestLayout';
 
 const pageQueryClient = createQueryClient();
 
@@ -30,28 +33,37 @@ export function App({
 }): React.JSX.Element {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      {/* Plain updates, not transitions: sign-out must commit the move to «/» synchronously (AppHeader). */}
+      <BrowserRouter useTransitions={false}>
         <AuthProvider>
           <Routes>
             <Route element={<RequireGuest />}>
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/sign-in" element={<SignInPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route element={<GuestLayout />}>
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/sign-in" element={<SignInPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              </Route>
             </Route>
-            <Route path="/confirm-email" element={<ConfirmEmailPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route element={<GuestLayout />}>
+              <Route path="/confirm-email" element={<ConfirmEmailPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+            </Route>
             <Route path="/health" element={<HealthStatus />} />
             <Route element={<RequireUser />}>
-              <Route path="/" element={<StartPage />} />
-              <Route path="/mailboxes" element={<MailboxesPage />} />
-              <Route path="/chains" element={<ChainsPage />} />
-              <Route path="/chains/:id" element={<ChainPage />} />
-              <Route path="/projects" element={<ProjectsPage />} />
-              <Route path="/projects/new" element={<NewProjectPage />} />
-              <Route path="/projects/:id" element={<ProjectPage />} />
-              <Route path="/rules" element={<RulesPage />} />
+              <Route element={<AppLayout />}>
+                <Route path="/mailboxes" element={<MailboxesPage />} />
+                <Route path="/chains" element={<ChainsPage />} />
+                <Route path="/chains/:id" element={<ChainPage />} />
+                <Route path="/projects" element={<ProjectsPage />} />
+                <Route path="/projects/new" element={<NewProjectPage />} />
+                <Route path="/projects/:id" element={<ProjectPage />} />
+                <Route path="/rules" element={<RulesPage />} />
+              </Route>
             </Route>
-            <Route path="*" element={<NotFoundPage />} />
+            <Route element={<AuthFrame />}>
+              <Route path="/" element={<HomeRoute />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Route>
           </Routes>
         </AuthProvider>
       </BrowserRouter>

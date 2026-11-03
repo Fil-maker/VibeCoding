@@ -91,3 +91,8 @@ them.
 | 03.11.2026 | [0073](adr/0073-deltas-of-1-6-apply-rule.md) | Deltas of 1-6-apply-rule-now approved: FR-47 added, FR-45 and FR-46 modified; a chain already in place keeps its placement; apply moves only the listed ids that still qualify | [human] | Accepted |
 | 03.11.2026 | [0074](adr/0074-fr-47-gets-the-scenario-a.md) | FR-47 gets the scenario «A weaker rule's chain»: a new address rule takes a chain a domain rule placed | [human] | Accepted |
 | 03.11.2026 | [0075](adr/0075-fr-46-keeps-its-text-from.md) | FR-46 keeps its text from before task 1.6; the sentence on when a rule places chains is dropped | [human] | Accepted |
+| 03.11.2026 | [0076](adr/0076-release-frontend-split-into-two-tasks.md) | Release frontend split into two tasks: first the app shell and user path (new capability, spec deltas), then the visual system (technical, no specs) | [human] | Accepted |
+| 03.11.2026 | [0077](adr/0077-a-guest-sees-a-short-landing.md) | A guest sees a short landing page at / with Register and Sign in | [human] | Accepted |
+| 03.11.2026 | [0078](adr/0078-the-spa-works-on-desktop-and.md) | The SPA works on desktop and phone with responsive layout | [human] | Accepted |
+| 03.11.2026 | [0079](adr/0079-own-components-on-css-modules-and.md) | Own components on CSS modules and tokens, no UI library; light and dark theme follow the system setting | [human] | Accepted |
+| 03.11.2026 | [0080](adr/0080-browserrouter-runs-with-usetransitions-false-and.md) | BrowserRouter runs with useTransitions={false}, and sign-out navigates to / inside flushSync before the session is cleared | [AI → accepted] | Accepted |

@@ -4,10 +4,10 @@ import { Link, useParams } from 'react-router';
 import { apiClient } from '../../api/client';
 import type { components } from '../../api/generated/schema';
 import { ApiError, unwrap } from '../../api/request';
-import { ErrorAlert } from '../../components/ErrorAlert';
+import { Loading } from '../../components/Loading';
+import { LoadError } from '../../components/LoadError';
 import { NotFoundPage } from '../../components/NotFoundPage';
 import { Panel } from '../../components/Panel';
-import { LOADING_MESSAGE } from '../../messages';
 import { ChainPlacement } from '../projects/ChainPlacement';
 import styles from './ChainPage.module.css';
 import { formatAddress, formatAddresses, formatDateTime } from './format';
@@ -60,8 +60,8 @@ export function ChainPage(): React.JSX.Element {
   if (chain.data === undefined) {
     return (
       <Panel title="Переписка" wide>
-        <ErrorAlert error={chain.error} />
-        {chain.error === null && <p>{LOADING_MESSAGE}</p>}
+        <LoadError error={chain.error} onRetry={() => void chain.refetch()} />
+        {chain.error === null && <Loading />}
       </Panel>
     );
   }

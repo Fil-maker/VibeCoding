@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -12,6 +12,7 @@ import {
   renderApp,
   rowOf,
   type,
+  START_DATA,
 } from './test/appHarness';
 import { exactForm } from './test/projectTrees';
 
@@ -59,14 +60,15 @@ function errorAnswer(
   return json(status, { error: { code, message, ...(fields ? { fields } : {}) } });
 }
 
-describe('start page link', () => {
-  it('SPA pages «Start page»: «Проекты» links to /projects beside «Почтовые ящики» and «Переписка»', async () => {
-    renderApp({ path: '/', me: ANNA });
+describe('header link', () => {
+  it('SPA pages «Header»: «Проекты» links to /projects beside «Почтовые ящики» and «Переписка»', async () => {
+    renderApp({ path: '/', me: ANNA, routes: START_DATA });
 
     await screen.findByText('Анна Петрова');
-    expect(screen.getByRole('link', { name: 'Проекты' })).toHaveAttribute('href', '/projects');
-    expect(screen.getByRole('link', { name: 'Почтовые ящики' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Переписка' })).toBeInTheDocument();
+    const header = within(screen.getByRole('banner'));
+    expect(header.getByRole('link', { name: 'Проекты' })).toHaveAttribute('href', '/projects');
+    expect(header.getByRole('link', { name: 'Почтовые ящики' })).toBeInTheDocument();
+    expect(header.getByRole('link', { name: 'Переписка' })).toBeInTheDocument();
   });
 });
 

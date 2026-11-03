@@ -5,12 +5,14 @@ import { Link } from 'react-router';
 import { apiClient } from '../../api/client';
 import type { components } from '../../api/generated/schema';
 import { fieldErrors, unwrap, unwrapEmpty } from '../../api/request';
+import { EmptyState } from '../../components/EmptyState';
 import { ErrorAlert } from '../../components/ErrorAlert';
+import { Loading } from '../../components/Loading';
+import { LoadError } from '../../components/LoadError';
 import { formValue } from '../../components/formData';
 import { FormField } from '../../components/FormField';
 import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
-import { LOADING_MESSAGE } from '../../messages';
 import { PROJECTS_KEY } from './ProjectsPage';
 import { RuleApplyPanel } from './RuleApplyPanel';
 
@@ -275,13 +277,14 @@ export function RulesPage(): React.JSX.Element {
       <p>
         <Link to="/">На главную</Link>
       </p>
-      <ErrorAlert error={rules.error} />
-      <ErrorAlert error={projects.error} />
-      {projects.isPending && <p>{LOADING_MESSAGE}</p>}
+      <LoadError error={rules.error} onRetry={() => void rules.refetch()} />
+      <LoadError error={projects.error} onRetry={() => void projects.refetch()} />
+      {projects.isPending && <Loading />}
       {projects.data?.length === 0 && (
-        <p>
-          <Link to="/projects/new">{NO_PROJECTS_MESSAGE}</Link>
-        </p>
+        <EmptyState
+          message={NO_PROJECTS_MESSAGE}
+          action={{ to: '/projects/new', label: 'Создать проект' }}
+        />
       )}
       {projects.data !== undefined && projects.data.length > 0 && (
         <RuleForm
@@ -305,7 +308,7 @@ export function RulesPage(): React.JSX.Element {
           }}
         />
       )}
-      {rules.isPending && <p>{LOADING_MESSAGE}</p>}
+      {rules.isPending && <Loading />}
       {rules.data?.length === 0 && <p>{EMPTY_RULES_MESSAGE}</p>}
       {rules.data !== undefined && rules.data.length > 0 && (
         <ul>

@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router';
 
 import { apiClient } from '../../api/client';
 import { unwrap } from '../../api/request';
-import { ErrorAlert } from '../../components/ErrorAlert';
+import { EmptyState } from '../../components/EmptyState';
+import { Loading } from '../../components/Loading';
+import { LoadError } from '../../components/LoadError';
 import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
-import { LOADING_MESSAGE } from '../../messages';
 import { chainCountLabel, unassignedCountLabel } from './format';
 
 export const PROJECTS_KEY = ['projects'];
@@ -26,9 +27,14 @@ export function ProjectsPage(): React.JSX.Element {
       <p>
         <Link to="/">На главную</Link>
       </p>
-      <ErrorAlert error={projects.error} />
-      {projects.isPending && <p>{LOADING_MESSAGE}</p>}
-      {projects.data?.length === 0 && <p>{EMPTY_PROJECTS_MESSAGE}</p>}
+      <LoadError error={projects.error} onRetry={() => void projects.refetch()} />
+      {projects.isPending && <Loading />}
+      {projects.data?.length === 0 && (
+        <EmptyState
+          message={EMPTY_PROJECTS_MESSAGE}
+          action={{ to: '/projects/new', label: 'Создать проект' }}
+        />
+      )}
       {projects.data !== undefined && projects.data.length > 0 && (
         <table className={styles.table}>
           <tbody>

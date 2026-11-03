@@ -6,18 +6,19 @@ import { apiClient } from '../../api/client';
 import type { components } from '../../api/generated/schema';
 import { fieldErrors, unwrap, unwrapEmpty } from '../../api/request';
 import { ErrorAlert } from '../../components/ErrorAlert';
+import { Loading } from '../../components/Loading';
+import { LoadError } from '../../components/LoadError';
 import { formValue } from '../../components/formData';
 import { FormField } from '../../components/FormField';
 import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
-import { LOADING_MESSAGE } from '../../messages';
 import { formatDateTime } from '../correspondence/format';
 
 type Mailbox = components['schemas']['Mailbox'];
 
 const POLL_INTERVAL_MS = 5000;
 const DEFAULT_PORT = '993';
-const MAILBOXES_KEY = ['mailboxes'];
+export const MAILBOXES_KEY = ['mailboxes'];
 
 function statusText(mailbox: Mailbox): string {
   switch (mailbox.status) {
@@ -189,8 +190,8 @@ export function MailboxesPage(): React.JSX.Element {
       <p>
         <Link to="/">На главную</Link>
       </p>
-      <ErrorAlert error={mailboxes.error} />
-      {mailboxes.isPending && <p>{LOADING_MESSAGE}</p>}
+      <LoadError error={mailboxes.error} onRetry={() => void mailboxes.refetch()} />
+      {mailboxes.isPending && <Loading />}
       {mailboxes.data?.length === 0 && <p>Ящики ещё не подключены</p>}
       {mailboxes.data !== undefined && mailboxes.data.length > 0 && (
         <table className={styles.table}>

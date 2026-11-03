@@ -182,6 +182,21 @@ lost or changed key now makes every mailbox fail to sign in until it is reconnec
 
 **Touches:** nothing new.
 
+## Navigation
+
+### Search and notifications
+
+Added 03.11. Left out of task 1.7 «App shell and user path»: search across the correspondence (subject,
+sender, text) from the header, a notice of new emails since the last visit, and a guided tour with
+overlays for a new user. Why: task 1.7 gives the frame and the first steps; these need their own design
+and, for search, a query over the stored emails.
+
+**Open:** where search lives (the header or «Переписка»); whether a notice counts emails or reply chains;
+whether a tour adds anything to «Первые шаги».
+
+**Touches:** FR-28…FR-31 (reading reply chains) for search, FR-49 (header) and FR-50 (first steps);
+invariant «Access boundary» — search and notices cover only the user's own correspondence.
+
 ## Technical backlog
 
 None yet.

@@ -1,20 +1,11 @@
 import { Navigate, Outlet, useLocation, useSearchParams } from 'react-router';
 
-import { Panel } from '../../components/Panel';
-import { LOADING_MESSAGE, SERVER_UNAVAILABLE_MESSAGE } from '../../messages';
+import { Waiting } from '../../components/Waiting';
 import { useAuth } from './AuthProvider';
 
 // Only a path of this site may be a return address; "//host" would leave the site.
 function safeNext(next: string | null): string {
   return next !== null && next.startsWith('/') && !next.startsWith('//') ? next : '/';
-}
-
-function Waiting({ failed }: { failed: boolean }): React.JSX.Element {
-  return (
-    <Panel title="VibeCoding">
-      {failed ? <p role="alert">{SERVER_UNAVAILABLE_MESSAGE}</p> : <p>{LOADING_MESSAGE}</p>}
-    </Panel>
-  );
 }
 
 // Pages for signed-in users: a signed-out visitor goes to «Вход» and comes back after signing in.

@@ -1,13 +1,16 @@
 import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { ANNA, heading, press, renderApp, signedIn, type } from './test/appHarness';
+import { ANNA, heading, json, press, renderApp, signedIn, type } from './test/appHarness';
 
 describe('route guards', () => {
-  it('FR-17 «A signed-out visitor opens a protected page»: the start page shows «Вход» and returns there after sign-in', async () => {
+  it('FR-17 «A signed-out visitor opens a protected page»: «Проекты» shows «Вход» and returns there after sign-in', async () => {
     renderApp({
-      path: '/',
-      routes: { 'POST /auth/sessions': (_body, session) => signedIn(session, ANNA) },
+      path: '/projects',
+      routes: {
+        'GET /projects': () => json(200, []),
+        'POST /auth/sessions': (_body, session) => signedIn(session, ANNA),
+      },
     });
 
     await heading('Вход');
@@ -17,7 +20,8 @@ describe('route guards', () => {
     press('Войти');
 
     expect(await screen.findByText('Анна Петрова')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/');
+    await heading('Проекты');
+    expect(window.location.pathname).toBe('/projects');
   });
 
   it('FR-12 «Migration»: a signed-in user opening /members sees «Страница не найдена»', async () => {

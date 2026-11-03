@@ -1,8 +1,8 @@
 # Architecture
 
-Updated 03.11.2026
+Updated 04.11.2026
 
-**Status: tasks 0.1, 0.2, 1.1, 1.2, 1.3, 1.4, 1.5 and 1.6 are built.** Task 0.1 «Application skeleton» built the backend, the SPA and the database
+**Status: tasks 0.1, 0.2, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6 and 1.7 are built.** Task 0.1 «Application skeleton» built the backend, the SPA and the database
 container. Task 0.2 «Sign-in and organization» built registration, email confirmation, sign-in and sessions,
 password reset, and an organization with its members and invitations. Task 1.1 «Personal accounts» removed the
 organization layer: a registrant is an individual user and the root owner of their data ([ADR 0023](adr/0023-organizations-are-removed-anyone-can-register.md)).
@@ -13,7 +13,10 @@ built placing a chain by hand, taking it out of projects for good, and a fill th
 backend and the SPA. Task 1.5 «Rules» built the placement rules: a user's rule by sender address, domain or subject words places a
 chain into a project and a thread before the engine, on a mailbox read and on a fill, in the backend and the SPA. Task 1.6 «Apply a rule now» built
 applying a rule to the chains it would move: after a rule is saved, the page «Правила» lists those chains and moves them only when the user
-presses «Применить» in the panel «Применить правило сейчас?», in the backend and the SPA. A third-party
+presses «Применить» in the panel «Применить правило сейчас?», in the backend and the SPA. Task 1.7 «App shell and user path» built
+the SPA's frame: one header with the sections «Проекты», «Переписка», «Почтовые ящики» and «Правила» and the user's «Выйти» for
+every signed-in page, a menu button below 40rem, a short landing page for a guest, the first steps on the start page, one look
+for the loading, empty and failed states, and the browser tab titles. SPA only, with no API change. A third-party
 analysis model is not chosen yet.
 
 ## Contents
@@ -39,6 +42,7 @@ analysis model is not chosen yet.
 | Manual placement and re-sorting: placing a chain by hand into a thread, a new thread or «Неразобранное» of any project, taking a chain out of projects for good, and a fill that keeps the placements by hand | ✅ | 1.4 |
 | Rules: the rules by sender address, domain or subject words with a target project and thread name, create, list, edit and delete, the page «Правила», a chain placed by a rule before the engine on a read and on a fill | ✅ | 1.5 |
 | Apply a rule now: after a rule is saved, the chains it would move are listed, and «Применить» places them by the rule (a chain moves only when the rule is its winning rule); «Не сейчас» moves nothing | ✅ | 1.6 |
+| App shell and user path: one frame for the signed-in pages with the header, its sections and «Выйти» (a menu below 40rem), the landing page for a guest, the first steps on the start page, one look for loading, empty and failed states, the skip link and the tab titles; SPA only | ✅ | 1.7 |
 
 ## Components and processes
 
@@ -184,7 +188,8 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
     main.tsx             entry: mounts App into #root, loads the design tokens
     App.tsx              root component: QueryClientProvider, BrowserRouter, AuthProvider and the routes
     App.*.test.tsx       page tests, one file per area (sign-in, registration, password reset, guards, start page,
-                         mailboxes, chains, projects, project tree, project fill, chain placement, rules, rule explanations and rule moves)
+                         first steps, app shell, page states, mailboxes, chains, projects, project tree, project fill,
+                         chain placement, rules, rule explanations and rule moves)
     api/
       client.ts          apiClient: openapi-fetch typed by the generated schema
       queryClient.ts     createQueryClient(): TanStack Query client
@@ -193,11 +198,17 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
       generated/         schema.ts, types generated from openapi.json; never edited by hand
     messages.ts          Russian UI texts that the server does not send
     urlToken.ts          readFragmentToken(): the one-time token from the URL fragment #token=
-    components/          Panel, FormField (its `multiline` prop renders a textarea), ErrorAlert, NotFoundPage, formData.ts, ui.module.css
+    components/          Panel (the page card, a section with the one h1), FormField (its `multiline` prop renders a textarea), ErrorAlert,
+                         NotFoundPage, the shared page states Loading, EmptyState and LoadError, Waiting (the page while the session
+                         loads or the server does not answer), usePageTitle.ts (the tab title), formData.ts, ui.module.css
     features/
       auth/              AuthProvider (who is signed in), guards (RequireUser, RequireGuest),
                          sign-in, registration, email confirmation, forgot and reset password pages
-      home/              StartPage: the signed-in user's name, links to the mailboxes, the chains, the projects and the rules, and sign-out
+      home/              HomeRoute (at «/»: the landing page for a guest, the start page for a signed-in user), LandingPage,
+                         StartPage («Первые шаги»: the three steps with their state, and the redirect to «Проекты» once all are done)
+      shell/             PageFrame (the skip link and the one main), AppLayout and AppHeader (the frame and the sections of a signed-in
+                         user, with the menu below 40rem; AppShell.module.css), GuestLayout (the frame of a signed-out visitor),
+                         AuthFrame (picks the frame for «/» and the catch-all route by the session)
       health/            HealthStatus (page), useHealth (query), styles and tests
       mailboxes/         MailboxesPage: the connected mailboxes with their reading status, refresh and disconnect,
                          and the connect form
@@ -430,7 +441,7 @@ A framework HTTP error other than 404 keeps FastAPI's `{"detail": …}` shape; a
 | `/confirm-email` | «Подтверждение email» | anyone, with the link |
 | `/reset-password` | «Новый пароль» | anyone, with the link |
 | `/health` | «Состояние сервиса» (page heading) | anyone |
-| `/` | «VibeCoding» (start page): the signed-in user's name and «Выйти» | a signed-in user |
+| `/` | a guest: the landing page with «Зарегистрироваться» and «Войти»; a signed-in user: «Первые шаги» (the start page with three steps, and «Проекты» once all three are done). Both under `AuthFrame` | anyone: the guest frame or the signed-in frame |
 | `/mailboxes` | the form «Подключить ящик» and the list of the user's mailboxes, with their status and «Обновить» and «Отключить» | a signed-in user |
 | `/chains` | the list of the user's reply chains | a signed-in user |
 | `/chains/:id` | one reply chain with its emails, and the block «Проект»: where the chain is, «Убрать из проекта» and the form «Перенести» | a signed-in user |
@@ -438,7 +449,7 @@ A framework HTTP error other than 404 keeps FastAPI's `{"detail": …}` shape; a
 | `/projects/new` | «Новый проект», with the fields «Название» and «Описание» | a signed-in user |
 | `/projects/:id` | «Проект»: the description, «Заполнить» (when the project already has chains, first the question «Пересобрать проект? Движок разложит его переписку заново, а цепочки, размещённые вручную, останутся на месте» with «Пересобрать» and «Отмена»), the tree and «Неразобранное» | a signed-in user |
 | `/rules` | «Правила»: the form of a rule and the user's rules in the order they win, with «Изменить» and «Удалить»; after a rule is saved, the panel «Применить правило сейчас?» lists the chains it would move, with «Применить» and «Не сейчас» | a signed-in user |
-| `*` | «Страница не найдена» | anyone; `/members` and `/invitation` fall here too |
+| `*` | «Страница не найдена», under `AuthFrame`: the signed-in frame for a signed-in user, the guest frame otherwise | anyone; `/members` and `/invitation` fall here too |
 
 A signed-out visitor who opens a signed-in page goes to `/sign-in?next=…` and returns after signing in. A
 signed-in user who opens a guest page goes to `next` (a path of this site) or to `/`. The link tokens are read

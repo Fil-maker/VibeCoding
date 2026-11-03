@@ -10,6 +10,7 @@ import {
   json,
   press,
   renderApp,
+  START_DATA,
 } from './test/appHarness';
 import { confirmationWith } from './test/projectTrees';
 import {
@@ -37,11 +38,12 @@ import {
 
 describe('header', () => {
   it('SPA «Header»: the link «Правила» leads to /rules beside «Проекты»', async () => {
-    renderApp({ path: '/', me: ANNA });
+    renderApp({ path: '/', me: ANNA, routes: START_DATA });
 
     await screen.findByText('Анна Петрова');
-    expect(screen.getByRole('link', { name: 'Правила' })).toHaveAttribute('href', '/rules');
-    expect(screen.getByRole('link', { name: 'Проекты' })).toBeInTheDocument();
+    const header = within(screen.getByRole('banner'));
+    expect(header.getByRole('link', { name: 'Правила' })).toHaveAttribute('href', '/rules');
+    expect(header.getByRole('link', { name: 'Проекты' })).toBeInTheDocument();
   });
 });
 
@@ -239,10 +241,11 @@ describe('rules page: list', () => {
     expect(within(select).getByRole('option', { name: 'Ремонт офиса' })).toBeInTheDocument();
   });
 
-  it('SPA pages «Правила»: with no projects the form is replaced by «Сначала создайте проект» linking to /projects/new', async () => {
+  it('SPA pages «Правила»: with no projects the form is replaced by «Сначала создайте проект» and the link «Создать проект» to /projects/new', async () => {
     openRules({ rules: [] }, { projects: [] });
 
-    const link = await screen.findByRole('link', { name: 'Сначала создайте проект' });
+    expect(await screen.findByText('Сначала создайте проект')).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'Создать проект' });
     expect(link).toHaveAttribute('href', '/projects/new');
     expect(screen.queryByRole('button', { name: 'Создать правило' })).not.toBeInTheDocument();
     for (const label of ['Условие', 'Значение', 'Проект', 'Ветка']) {

@@ -1,6 +1,8 @@
 # Domain
 
-Version 0.9 · 03.11.2026
+Version 0.10 · 03.11.2026
+
+Changes in 0.10: task 1.7: glossary terms Landing page and Start page; requirements map row app-shell takes FR-48…FR-52.
 
 Changes in 0.9: task 1.6: glossary term Rule — editing or deleting moves nothing until the user applies the rule or fills the project; requirements map row placement-rules takes FR-47.
 
@@ -27,7 +29,7 @@ emails and stored secrets in «Data and privacy».
 
 Changes in 0.1: skeleton; terms from the harness interview.
 
-Last FR number: FR-47
+Last FR number: FR-52
 
 ## Contents
 
@@ -52,6 +54,7 @@ Capability → its spec and FR numbers. A new FR number also goes into «Last FR
 | projects | [spec](../openspec/specs/projects/spec.md) | FR-32…FR-34 |
 | chain-placement | [spec](../openspec/specs/chain-placement/spec.md) | FR-35…FR-42, FR-46 |
 | placement-rules | [spec](../openspec/specs/placement-rules/spec.md) | FR-43…FR-45, FR-47 |
+| app-shell | [spec](../openspec/specs/app-shell/spec.md) | FR-48…FR-52 |
 
 ## Glossary
 
@@ -71,6 +74,8 @@ Capability → its spec and FR numbers. A new FR number also goes into «Last FR
 | Unassigned | The place of a project for reply chains the engine is not sure about; the user places them |
 | Assessment | The sentiment of a thread or a counterparty within a project, with its evidence; a later layer over the tree |
 | Evidence | The emails and phrases an assessment rests on |
+| Landing page | What a visitor who is not signed in sees at «/»: what the app does in three steps, with «Зарегистрироваться» and «Войти»; shows no user data |
+| Start page | What a signed-in user sees at «/»: «Первые шаги» — connect a mailbox, create a project, fill it — counted from the user's own mailboxes and projects; once all three are done it opens «Проекты» |
 | Session | The signed-in state of a user in one browser; ends at sign-out, after its lifetime or on a password reset |
 | Analysis model | The engine and its version that computes an assessment; shown with the result |
 

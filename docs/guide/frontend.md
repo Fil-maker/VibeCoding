@@ -15,7 +15,9 @@ The tests are `frontend/src/App.*.test.tsx`, `frontend/src/features/health/Healt
 [FR-32 … FR-34](../../openspec/specs/projects/spec.md) the project pages and
 [FR-35 … FR-42](../../openspec/specs/chain-placement/spec.md) the fill button of a project and the «Проект» block of a chain,
 [FR-43 … FR-45 and FR-47](../../openspec/specs/placement-rules/spec.md) the rules page and the panel after a saved rule, and [FR-37](../../openspec/specs/chain-placement/spec.md)
-the rule explanations of a placement. The health page has no requirement:
+the rule explanations of a placement, and [FR-48 … FR-52](../../openspec/specs/app-shell/spec.md) the landing page (FR-48),
+the header and sections (FR-49), the start page's first steps (FR-50), the shared page states (FR-51) and the keyboard and
+page titles (FR-52). The health page has no requirement:
 task 0.1 is a technical change without specs ([ADR 0004](../adr/0004-task-0-1-runs-as-a.md)).
 
 **Design:** [Components and processes](../architecture.md#components-and-processes),
@@ -34,6 +36,9 @@ task 0.1 is a technical change without specs ([ADR 0004](../adr/0004-task-0-1-ru
   It imports the design tokens (`frontend/src/styles/tokens.css`) once, so every component gets them.
 - `frontend/src/App.tsx` is the root component. From outside in it renders `QueryClientProvider`, `BrowserRouter`,
   `AuthProvider` and then `Routes`. See [Routing](#routing).
+- `BrowserRouter` runs with `useTransitions={false}`, so navigation commits at once. The reason is in
+  [ADR 0080](../adr/0080-browserrouter-runs-with-usetransitions-false-and.md): sign-out must reach «/» before the
+  session clears (see [Frames](#frames)).
 - `App` takes an optional `queryClient` prop. It defaults to the page's query client, which is created once, at
   module load of `App.tsx`, with `createQueryClient()` (see [Query client](#query-client)). Tests pass their own.
 
@@ -43,12 +48,45 @@ task 0.1 is a technical change without specs ([ADR 0004](../adr/0004-task-0-1-ru
   ([ADR 0015](../adr/0015-spa-routing-with-react-router-7.md)).
 - The paths and who sees each page are in [Routes and API](../architecture.md#routes-and-api), under «SPA routes».
   This article covers how `App.tsx` nests them:
-  - `RequireGuest` wraps the pages for a signed-out visitor: registration, sign-in and the password reset request.
-  - `RequireUser` wraps the start page, `/mailboxes`, `/chains`, `/chains/:id`, `/projects`, `/projects/new`, `/projects/:id` and `/rules`.
-  - The pages that take their token from the link (email confirmation, new password), the health page
-    and the catch-all route stay outside the guards.
+  - `RequireGuest` wraps the pages for a signed-out visitor: `/register`, `/sign-in` and `/forgot-password`, all in `GuestLayout`.
+  - `RequireUser` wraps `/mailboxes`, `/chains`, `/chains/:id`, `/projects`, `/projects/new`, `/projects/:id` and `/rules`,
+    all in `AppLayout`.
+  - The pages that take their token from the link (`/confirm-email` and `/reset-password`, in `GuestLayout`), the health page
+    (`/health`, with no frame) stay outside the guards.
+  - `/` (the landing page or the start page) and the catch-all route stay outside the guards: they sit under `AuthFrame`,
+    which picks the frame by the session (see [Frames](#frames)).
 - The catch-all route shows `NotFoundPage`. The addresses `/members` and `/invitation` have no route, so they show
   `NotFoundPage` like any unknown path.
+
+## Frames
+
+Each route renders inside one frame, a layout route in `App.tsx`. The frame is the same for every page of its kind;
+the page renders its own content inside it (see [Components](#components)).
+
+- `PageFrame` (`frontend/src/features/shell/PageFrame.tsx`) is the frame every page shares. It renders the skip link
+  «К содержимому» first, then the header, then the one `<main id="content">` with the page. The skip link moves focus
+  to that `<main>` (it has `tabIndex={-1}`) and leaves the URL alone.
+- `AppLayout` (`frontend/src/features/shell/AppLayout.tsx`) is the frame of a signed-in user: `PageFrame` with `AppHeader` as its header.
+  The routes under `RequireUser` all use it.
+- `AppHeader` (`frontend/src/features/shell/AppHeader.tsx`) holds:
+  - the brand «VibeCoding», a link to `/`;
+  - the section links «Проекты» (`/projects`), «Переписка» (`/chains`), «Почтовые ящики» (`/mailboxes`) and «Правила»
+    (`/rules`), in that order, as `NavLink`s in the nav «Разделы»; the open page's section is the current one (`aria-current`);
+  - the user's name and «Выйти».
+
+  Below 40rem (`frontend/src/features/shell/AppShell.module.css`, the one media query, since a media query cannot read a token)
+  the sections, the name and «Выйти» fold behind the button «Меню», which sets `aria-expanded` and `aria-controls`.
+  The menu closes on Escape, when a section is pressed, and when the route changes.
+- «Выйти» in the header sends `DELETE /api/v1/auth/sessions/current`. On success it navigates to `/` inside `flushSync`, and only
+  then clears the session with `setSession(null)`, so the landing page shows. The reason is in
+  [ADR 0080](../adr/0080-browserrouter-runs-with-usetransitions-false-and.md).
+- `GuestLayout` (`frontend/src/features/shell/GuestLayout.tsx`) is the frame of a signed-out visitor: `PageFrame` whose header is
+  only the brand «VibeCoding», linking to `/`. It wraps `/register`, `/sign-in`, `/forgot-password`, `/confirm-email` and
+  `/reset-password`.
+- `AuthFrame` (`frontend/src/features/shell/AuthFrame.tsx`) wraps `/` and the catch-all route. While the session is `loading`, or the
+  session check failed, it shows `Waiting` (`frontend/src/components/Waiting.tsx`, the tab title plain «VibeCoding»). A
+  signed-in user gets `AppLayout`; anyone else gets `GuestLayout`.
+- `HealthStatus` at `/health` renders outside every frame.
 
 ## Auth state
 
@@ -80,7 +118,8 @@ the same panel with `Сервер не отвечает` as an alert.
 ## Pages
 
 Each page is a function component in its feature folder; `NotFoundPage` is the exception and lives in `frontend/src/components/`. Its texts are Russian and written in the component.
-Every page is a `Panel` whose `title` is its `h1`.
+Every page is a `Panel` whose `title` is its `h1`, except the landing page (its own `<section>` with its heading) and the
+health page (its own `<section>`, see [Health feature](#health-feature)).
 
 | Page (title) | File | What it does |
 |---|---|---|
@@ -89,7 +128,8 @@ Every page is a `Panel` whose `title` is its `h1`.
 | «Вход» | `frontend/src/features/auth/SignInPage.tsx` | Posts email and password, then `setSession`; `RequireGuest` takes the user on. Links «Забыли пароль?» and «Регистрация». |
 | «Восстановление пароля» | `frontend/src/features/auth/ForgotPasswordPage.tsx` | Posts the email. The answer is the same text for every email. |
 | «Новый пароль» | `frontend/src/features/auth/ResetPasswordPage.tsx` | Takes the token from the link, posts it with the new password and shows `Пароль изменён. Теперь можно войти` with a link to «Вход». Without a token it shows the invalid-link text. |
-| «VibeCoding» (start page) | `frontend/src/features/home/StartPage.tsx` | Shows the signed-in user's name, the links «Почтовые ящики» (to `/mailboxes`), «Переписка» (to `/chains`), «Проекты» (to `/projects`) and «Правила» (to `/rules`), and the button «Выйти», which ends the session and calls `setSession(null)`. |
+| «Первые шаги» (`/`, signed in) | `frontend/src/features/home/StartPage.tsx` | The three steps «Подключите почтовый ящик», «Создайте проект» and «Заполните проект»: a done step shows its label and «Готово», a step not done links to its page (the third step to the first project not yet filled, or to `/projects` when none is left). It reads the mailboxes and projects under the keys `MAILBOXES_KEY` and `PROJECTS_KEY`, and it opens «Проекты» once all three are done. The tab title is plain «VibeCoding». See [Frames](#frames) for the header. |
+| The landing page (`/`, guest) | `frontend/src/features/home/LandingPage.tsx` | The heading «Переписка по проектам — в одном дереве», three steps, and the links «Зарегистрироваться» (`/register`) and «Войти» (`/sign-in`). It reads no user data. `HomeRoute.tsx` picks the landing page or the start page by the session. |
 | «Почтовые ящики» | `frontend/src/features/mailboxes/MailboxesPage.tsx` | The connected mailboxes, their reading status, «Обновить», «Отключить», and the connect form. See [Mailboxes feature](#mailboxes-feature). |
 | «Переписка» | `frontend/src/features/correspondence/ChainsPage.tsx` | The reply chains, the latest first, a page at a time. See [Correspondence feature](#correspondence-feature). |
 | The chain's subject (`/chains/:id`) | `frontend/src/features/correspondence/ChainPage.tsx` | One reply chain: the block «Проект» (where the chain is, «Перенести», «Убрать из проекта»), then its emails oldest first, each as plain text. See [Correspondence feature](#correspondence-feature) and [Projects feature](#projects-feature). |
@@ -102,6 +142,20 @@ Every page is a `Panel` whose `title` is its `h1`.
 
 Forms carry no client-side rules. Each `<form>` has `noValidate`, so the server decides; the per-field messages of
 the answer show under their fields (see [Errors and messages](#errors-and-messages)).
+
+**Page states.** The list and detail pages use the shared states of [Components](#components): `Loading` while the first
+answer is pending, `EmptyState` for an empty list (with its link to the next action), and `LoadError` for a failed load,
+which shows the error in one alert with «Повторить». The texts of each page:
+
+- «Переписка» (`/chains`): with no chain, `Писем пока нет: подключите почтовый ящик` and the link «Подключить ящик» (`/mailboxes`).
+- «Почтовые ящики»: with no mailbox, `Ящики ещё не подключены` as a plain paragraph, with no link.
+- «Проекты» (`/projects`): with no project, `Проектов пока нет: создайте первый` and the link «Создать проект» (`/projects/new`).
+- «Правила» (`/rules`): with no project, `Сначала создайте проект` and the link «Создать проект» (`/projects/new`), with no form;
+  with no rule, `Правил пока нет` as a plain paragraph.
+- The chain's page and the project's page: while loading, a «Переписка» or «Проект» panel with `Загрузка…`; a failed load shows
+  the alert with «Повторить»; a 404 shows `NotFoundPage`.
+- The start page: while the mailboxes or the projects load, `Загрузка…` with no panel title; a failed load shows the panel
+  «Первые шаги» with the alert and «Повторить».
 
 ## Mailboxes feature
 
@@ -143,13 +197,13 @@ The files are `frontend/src/features/correspondence/`: `ChainsPage.tsx` (the lis
 - **The list (`/chains`).** The page «Переписка» reads `GET /api/v1/reply-chains` as an infinite query under the key
   `['reply-chains']`. The SPA sends no `limit`, so the server's default page size applies. Each row shows the subject as a link to
   `/chains/{id}`, the participants (`formatAddresses`), the email count (`emailCountLabel`, for example «1 письмо», «2 письма»,
-  «5 писем») and the date of the latest email (`formatDate`, date only). With no chain it shows `Писем пока нет: подключите почтовый ящик`.
+  «5 писем») and the date of the latest email (`formatDate`, date only). With no chain it shows `Писем пока нет: подключите почтовый ящик` with the link «Подключить ящик» (see [Pages](#pages)).
   The button «Показать ещё» loads the next page with the `cursor` of the last answer. It is disabled while that page loads, and it
   is not shown when the last answer has no `next_cursor`.
 - **One chain (`/chains/:id`).** `ChainPage` reads `GET /api/v1/reply-chains/{chain_id}` under the key `['reply-chains', id]`.
   The page title is the chain's subject, and the link «К переписке» goes back to `/chains`. It retries once on an error, except a
   404, which shows `NotFoundPage` (`Страница не найдена`): another user's chain and an unknown id look the same. While loading, and
-  on any other error, the page is a «Переписка» panel with `Загрузка…` or the error alert. Under the link «К переписке»
+  on any other error, the page is a «Переписка» panel with `Загрузка…` or the error alert with «Повторить». Under the link «К переписке»
   the page shows the block «Проект» (`ChainPlacement`, see [Projects feature](#projects-feature)), then the emails.
 - **Each email** is an `<article>` in the order of the answer, oldest first: `Тема:` with the email's subject, `От:` with the sender, `Кому:` with the recipients,
   `Копия:` only when there are copies, the sent date and time (`formatDateTime`), the text, and `Вложения: ` with the attachment
@@ -200,7 +254,8 @@ The server side is in [Projects](projects.md). The pages, their routes and their
   Движок разложит его переписку заново` with the buttons «Пересобрать» and «Отмена»; «Отмена» sends nothing. A project with
   no chain fills at once. While the fill runs the button reads «Заполняется…» and is disabled. On success the page's query data
   is replaced with the answer, and the projects list is invalidated.
-- **The start page** links to `/projects` as «Проекты», beside «Почтовые ящики», «Переписка» and «Правила» (`StartPage.tsx`).
+- **The header** links to `/projects` as «Проекты», beside «Переписка», «Почтовые ящики» and «Правила» ([Frames](#frames)).
+  The start page's third step links to the first project not yet filled (`StartPage.tsx`).
 - **The form (`NewProjectPage.tsx`).** It is a `FormField` pair: «Название» (a text field) and «Описание» (`multiline`, see
   [Components](#components)). Its server field messages show under the fields, and the form has `noValidate`.
 - **Query keys.** The project page reads under `['projects', id]`, a child of `['projects']`, so invalidating the list also
@@ -216,8 +271,8 @@ name the project of a rule. Its query keys are `RULES_KEY` (`['rules']`) and `PR
 [Projects feature](#projects-feature)).
 
 - **The page.** A `Panel` titled «Правила», wide, with the link «На главную» to `/`. Both queries show `Загрузка…` while they load,
-  and a failed query shows its message in an alert.
-- **No project.** With no project the page shows the link «Сначала создайте проект» to `/projects/new`, and no form.
+  and a failed query shows its message in an alert with «Повторить».
+- **No project.** With no project the page shows `Сначала создайте проект` with the link «Создать проект» to `/projects/new`, and no form.
 - **The form.** Fields «Условие» (a select: «Адрес отправителя», «Домен», «Слова темы»; it starts at «Адрес отправителя»),
   «Значение» (a `FormField`), «Проект» (a select that starts at «Выберите проект», then the user's projects) and «Ветка» (a text
   field with the placeholder «Неразобранное»). The form has `noValidate`. Its button is «Создать правило»; the field messages of
@@ -328,7 +383,21 @@ new paths through `apiClient`. `frontend/.prettierignore` skips `frontend/src/ap
 
 `frontend/src/components/` holds the shared pieces. Each one takes its look from `ui.module.css`.
 
-- `Panel` is the page card: a `<main>` with the title as its only `<h1>`. `wide` widens it to `--size-wide-content-width`.
+- `Panel` is the page card: a `<section>` with the title as its only `<h1>`. The frame supplies the one `<main>` around it
+  (see [Frames](#frames)). `Panel` calls `usePageTitle` (see below): the tab title is `<title> — VibeCoding` by default. The
+  optional `tabTitle` prop overrides it, and `tabTitle={null}` gives the plain `VibeCoding` (the start page and `Waiting`
+  use it). `wide` widens it to `--size-wide-content-width`.
+- `usePageTitle(title)` (`usePageTitle.ts`) sets `document.title` in an effect: `<title> — VibeCoding`, or `VibeCoding` for
+  `null`. `LandingPage` calls it directly with `null`, since it has no `Panel`.
+- `Loading` is the shared loading state: the text «Загрузка…» in a `role="status"` paragraph.
+- `EmptyState` is the shared state of an empty list: its `message`, and an optional `action` (`{ to, label }`), which
+  renders as a link after the message.
+- `LoadError` is the shared state of a failed load: with a non-null `error`, one `role="alert"` block that shows the
+  error's text (`errorMessage`) and the button «Повторить», which calls `onRetry`. A page passes the query's `refetch`.
+  With no error it renders nothing.
+- `Waiting` (`Waiting.tsx`) is the page for a session that is still loading or a server that does not answer: a `Panel`
+  titled `VibeCoding` with the tab title plain `VibeCoding`. It shows «Загрузка…», or with `failed` the alert
+  «Сервер не отвечает». `RequireUser`, `RequireGuest` and `AuthFrame` use it.
 - `FormField` is a labelled input (`type` `text`, `email` or `password`). It takes an optional `defaultValue`, which the
   input shows at first (the mailbox form uses it for the port `993`). It is uncontrolled: the form reads the values
   from `FormData`. Its label and its message are linked through `useId`.
@@ -384,7 +453,8 @@ replaces the list; the last successful answer is not kept on screen.
 
 - `frontend/src/styles/tokens.css` is the one token source: colors (`--color-background`, `--color-surface`,
   `--color-text`, `--color-text-muted`, `--color-border`, `--color-ok`, `--color-danger`), spacing (`--space-1` to
-  `--space-5`), sizes (`--size-border-width`, `--size-content-width`, `--size-wide-content-width`), radius
+  `--space-5`), sizes (`--size-border-width`, `--size-content-width`, `--size-wide-content-width`), the focus ring
+  (`--color-focus`, `--size-focus-width`, `--size-focus-offset`: the visible 2px outline of a focused control), radius
   (`--radius-md`) and fonts (`--font-family-base`, `--font-size-base`, `--font-size-heading`, `--font-size-subheading`).
   It also sets the `body` font, colors and margin.
 - Components style themselves with CSS Modules (`*.module.css` next to the component) and use tokens with
@@ -409,9 +479,12 @@ replaces the list; the last successful answer is not kept on screen.
   `frontend/src/test/setup.ts` before each file (`setupFiles`).
 - `setup.ts` loads the Jest DOM matchers and, after each test, unmounts the rendered tree and restores the globals
   (`cleanup()`, `vi.unstubAllGlobals()`). Vitest globals are off, so Testing Library does not clean up by itself.
-- The page tests render the whole app. They sit in `frontend/src/App.<area>.test.tsx`: `App.guards`, `App.start`,
-  `App.signIn`, `App.registration`, `App.passwordReset`, `App.mailboxes` (the «Почтовые ящики» page) and `App.chains` (the start
-  page links, «Переписка» and one chain), `App.projects` (the list and the new project, with the start page link «Проекты»),
+- The page tests render the whole app. They sit in `frontend/src/App.<area>.test.tsx`: `App.guards` (the route guards and «Страница не найдена»), `App.start` (the start page's sign-in and sign-out),
+  `App.firstSteps` (the first steps on the start page, FR-50), `App.shell` (the landing page, the header and its sections,
+  the menu on a narrow screen, the skip link and the tab titles, FR-48, FR-49 and FR-52), `App.states` (the loading,
+  empty and failed pages, FR-51),
+  `App.signIn`, `App.registration`, `App.passwordReset`, `App.mailboxes` (the «Почтовые ящики» page), `App.chains` (the header link
+  «Переписка», the list and one chain), `App.projects` (the header link «Проекты», the list and the new project),
   `App.projectTree` (the tree of a project), `App.projectFill` (the fill and its rebuild question), `App.chainPlacement` (the «Проект»
   block of a chain page: where the chain is, «Перенести» and «Убрать из проекта»), `App.rules` (the page «Правила» and the header link
   «Правила») `App.ruleExplanations` (the explanation of a rule's placement in the tree and on the chain page) and `App.ruleMoves` (the panel
@@ -421,7 +494,7 @@ replaces the list; the last successful answer is not kept on screen.
   `App.chains.test.tsx` and `App.mailboxes.test.tsx` set `process.env.TZ = 'UTC'` again at their top, so «14:05» in a test means
   14:05 on any machine. The app itself does not set a zone.
 - `App.mailboxes.test.tsx` covers the list and its statuses, «Обновить», the disconnect confirmation (confirm and «Отмена»)
-  and the connect form with its refusals. `App.chains.test.tsx` covers the start page links, the guard for `/chains`, the
+  and the connect form with its refusals. `App.chains.test.tsx` covers the header link «Переписка», the guard for `/chains`, the
   list with «Показать ещё», the empty list, reading a chain (order, attachments, plain text, line breaks) and the
   «Страница не найдена» answer for another user's chain.
 - `frontend/src/test/projectTrees.tsx` is the fixture set of the project tests. It holds the JSON shapes of `ProjectTree` and
@@ -470,7 +543,10 @@ replaces the list; the last successful answer is not kept on screen.
 - A handler may answer later: it returns a pending promise, which keeps the request in flight (the fill tests use it to
   check «Заполняется…»). `fieldOf` finds the field of a `<textarea>` too.
 - Other helpers in the harness: `heading`, `alertWith`, `rowOf`, `type`, `press`, `fieldOf`, `navigate` (moves the app
-  as back and forward do) and `callsTo` (the recorded calls of one route).
+  as back and forward do) and `callsTo` (the recorded calls of one route). Each recorded call (`Call`) holds `method`,
+  `path` without the `/api/v1` prefix, `query` (the URL's search string, empty without a query) and `body`.
+- `START_DATA` is the set of handlers `GET /mailboxes` and `GET /projects`, both answering `[]`. A test that only looks at
+  the header passes it as `routes`, so the start page gets its two lists without an unrouted 500.
 - `HealthStatus.test.tsx` renders the component with its own `QueryClient` (`retry: false`) and stubs `fetch`
   with `vi.stubGlobal`. The five tests cover the pending state, both database states, a failed request and a
   502 answer.
@@ -502,7 +578,8 @@ replaces the list; the last successful answer is not kept on screen.
    `apiClient` and wrap the call in `unwrap` or `unwrapEmpty`. Do not call `fetch`.
 4. Add the `<Route>` in `frontend/src/App.tsx` under the guard the page needs: under `RequireGuest` for a page that only a
    signed-out visitor sees; under `RequireUser` for a signed-in page; outside the guards for a page that takes its own
-   link token. Update the path in
+   link token. Under `RequireUser` the page gets `AppLayout` (the header); a page of the guest frame goes under `GuestLayout`
+   ([Frames](#frames)). Update the path in
    [Routes and API](../architecture.md#routes-and-api).
 5. Read the user only through `useAuth()`.
 6. Show the request's error with `ErrorAlert`. For a form, give each `FormField` its message with

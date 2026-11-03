@@ -39,6 +39,7 @@ export interface Session {
 export interface Call {
   method: string;
   path: string;
+  query: string;
   body: unknown;
 }
 
@@ -93,7 +94,7 @@ export function renderApp({ path, me, routes = {} }: Options): Rendered {
       const text = await request.clone().text();
       const body: unknown = text === '' ? undefined : JSON.parse(text);
       const apiPath = url.pathname.replace(/^\/api\/v1/, '');
-      calls.push({ method: request.method, path: apiPath, body });
+      calls.push({ method: request.method, path: apiPath, query: url.search, body });
       const handler = table[`${request.method} ${apiPath}`];
       return handler
         ? handler(body, session)
@@ -159,3 +160,9 @@ export function fieldOf(label: string): HTMLElement {
     container = parent;
   }
 }
+
+// The answers the start page needs when a test only looks at the header: no mailboxes, no projects.
+export const START_DATA: Record<string, Handler> = {
+  'GET /mailboxes': () => json(200, []),
+  'GET /projects': () => json(200, []),
+};

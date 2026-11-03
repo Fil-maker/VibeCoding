@@ -3,10 +3,11 @@ import { Link } from 'react-router';
 
 import { apiClient } from '../../api/client';
 import { unwrap } from '../../api/request';
-import { ErrorAlert } from '../../components/ErrorAlert';
+import { EmptyState } from '../../components/EmptyState';
+import { Loading } from '../../components/Loading';
+import { LoadError } from '../../components/LoadError';
 import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
-import { LOADING_MESSAGE } from '../../messages';
 import { emailCountLabel, formatAddresses, formatDate } from './format';
 
 const EMPTY_CHAINS_MESSAGE = 'Писем пока нет: подключите почтовый ящик';
@@ -32,9 +33,14 @@ export function ChainsPage(): React.JSX.Element {
       <p>
         <Link to="/">На главную</Link>
       </p>
-      <ErrorAlert error={chains.error} />
-      {chains.isPending && <p>{LOADING_MESSAGE}</p>}
-      {chains.data !== undefined && items.length === 0 && <p>{EMPTY_CHAINS_MESSAGE}</p>}
+      <LoadError error={chains.error} onRetry={() => void chains.refetch()} />
+      {chains.isPending && <Loading />}
+      {chains.data !== undefined && items.length === 0 && (
+        <EmptyState
+          message={EMPTY_CHAINS_MESSAGE}
+          action={{ to: '/mailboxes', label: 'Подключить ящик' }}
+        />
+      )}
       {items.length > 0 && (
         <table className={styles.table}>
           <tbody>

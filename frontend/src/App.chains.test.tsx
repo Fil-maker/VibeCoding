@@ -11,6 +11,7 @@ import {
   signedIn,
   type,
   type Handler,
+  START_DATA,
 } from './test/appHarness';
 
 // Dates are shown in the machine's time zone; the tests pin it to UTC so «14:05» means 14:05 everywhere.
@@ -119,17 +120,18 @@ function emailBlockOf(node: HTMLElement): HTMLElement {
   throw new Error('The element is in no email block');
 }
 
-describe('start page links', () => {
-  it('SPA pages «Start page»: the start page links «Почтовые ящики» to /mailboxes and «Переписка» to /chains', async () => {
-    renderApp({ path: '/', me: ANNA });
+describe('header links', () => {
+  it('SPA pages «Header»: the header links «Почтовые ящики» to /mailboxes and «Переписка» to /chains', async () => {
+    renderApp({ path: '/', me: ANNA, routes: START_DATA });
 
     await screen.findByText('Анна Петрова');
-    expect(screen.getByRole('link', { name: 'Почтовые ящики' })).toHaveAttribute(
+    const header = within(screen.getByRole('banner'));
+    expect(header.getByRole('link', { name: 'Почтовые ящики' })).toHaveAttribute(
       'href',
       '/mailboxes',
     );
-    expect(screen.getByRole('link', { name: 'Переписка' })).toHaveAttribute('href', '/chains');
-    expect(screen.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
+    expect(header.getByRole('link', { name: 'Переписка' })).toHaveAttribute('href', '/chains');
+    expect(header.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
   });
 });
 

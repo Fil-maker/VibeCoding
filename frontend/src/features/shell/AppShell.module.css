@@ -1,0 +1,142 @@
+.skipLink {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  color: var(--color-text);
+  transform: translateY(-100%);
+}
+
+.skipLink:focus {
+  transform: none;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  border-bottom: var(--size-border-width) solid var(--color-border);
+}
+
+.brand {
+  font-weight: bold;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.menu {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sections {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.section {
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.section[aria-current='page'] {
+  color: var(--color-text);
+  font-weight: bold;
+  border-bottom: var(--size-focus-width) solid var(--color-text);
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.toggle {
+  display: none;
+  padding: var(--space-2) var(--space-3);
+  border: var(--size-border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.signOut {
+  padding: var(--space-1) var(--space-3);
+  border: var(--size-border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.signOut:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.skipLink:focus-visible,
+.brand:focus-visible,
+.section:focus-visible,
+.toggle:focus-visible,
+.signOut:focus-visible {
+  outline: var(--size-focus-width) solid var(--color-focus);
+  outline-offset: var(--size-focus-offset);
+}
+
+.content:focus {
+  outline: none;
+}
+
+.lead {
+  margin: 0 0 var(--space-3);
+}
+
+.steps {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-4);
+}
+
+.cta {
+  display: flex;
+  gap: var(--space-3);
+}
+
+/* 40rem is written here and not in tokens.css: a media query cannot read a custom property. */
+@media (max-width: 40rem) {
+  .header {
+    align-items: flex-start;
+  }
+
+  .toggle {
+    display: inline-block;
+  }
+
+  .menu {
+    display: none;
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .menuOpen {
+    display: flex;
+  }
+
+  .sections,
+  .account {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

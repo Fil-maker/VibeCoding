@@ -343,8 +343,8 @@ The field messages, from `schemas.py`:
 ## The SPA
 
 The pages are in `frontend/src/features/projects/`, behind `RequireUser`: `/projects` (`ProjectsPage`, «Проекты»), `/projects/new`
-(`NewProjectPage`, «Новый проект») and `/projects/:id` (`ProjectPage`: the name, the description, «Заполнить» and the tree). The start
-page links to «Проекты». `format.ts` holds the plural labels of the counts (for example «1 цепочка», «2 цепочки», «5 цепочек») and
+(`NewProjectPage`, «Новый проект») and `/projects/:id` (`ProjectPage`: the name, the description, «Заполнить» and the tree). The header
+of every signed-in page links to «Проекты» ([Frames](frontend.md#frames)). `format.ts` holds the plural labels of the counts (for example «1 цепочка», «2 цепочки», «5 цепочек») and
 `placementLabel`. The chain page (`/chains/:id`) shows the «Проект» block of its chain, from `frontend/src/features/projects/ChainPlacement.tsx`;
 it places the chain by hand as described in [Placing by hand](#placing-by-hand). The page `/rules` is described in [Rules](rules.md#the-spa). A project page whose tree has no counterparties and no «Неразобранное» shows «Подходящей переписки не нашлось:
 уточните описание» when the project is filled, and «Проект пуст: нажмите «Заполнить», чтобы найти его переписку» when it is not.

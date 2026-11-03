@@ -138,9 +138,9 @@ The page `/rules` (`RulesPage.tsx`, the title «Правила») has the form a
 the fields «Условие» (the conditions «Адрес отправителя», «Домен» and «Слова темы»), «Значение», «Проект» and «Ветка», and its button is
 «Создать правило» for a new rule and «Сохранить» for an edit. Each rule has «Изменить» and «Удалить»; «Удалить» asks «Удалить правило?
 Цепочки, уже размещённые им, останутся на месте» before it deletes. An empty list says «Правил пока нет»; with no project the page says
-«Сначала создайте проект». After «Создать правило» or «Сохранить», the page shows the panel «Применить правило сейчас?» with the chains the rule would move
+«Сначала создайте проект» with the link «Создать проект». After «Создать правило» or «Сохранить», the page shows the panel «Применить правило сейчас?» with the chains the rule would move
 (`RuleApplyPanel.tsx`), and «Применить» or «Не сейчас»; the panel is described in [Applying a rule now](projects.md#applying-a-rule-now).
-The start page links to it as «Правила». The page's state handling is in [Frontend](frontend.md#rules-feature). A rule's explanation in the tree and on a chain page reads «Правило ·
+The header links to it as «Правила» ([Frames](frontend.md#frames)). The page's state handling is in [Frontend](frontend.md#rules-feature). A rule's explanation in the tree and on a chain page reads «Правило ·
 адрес …», «Правило · домен …» or «Правило · слова темы «…»» (`format.ts`, see [Projects](projects.md#the-tree)).
 
 ## Modules and their files

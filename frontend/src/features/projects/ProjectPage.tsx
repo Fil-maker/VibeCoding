@@ -6,10 +6,11 @@ import { apiClient } from '../../api/client';
 import type { components } from '../../api/generated/schema';
 import { ApiError, unwrap } from '../../api/request';
 import { ErrorAlert } from '../../components/ErrorAlert';
+import { Loading } from '../../components/Loading';
+import { LoadError } from '../../components/LoadError';
 import { NotFoundPage } from '../../components/NotFoundPage';
 import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
-import { LOADING_MESSAGE } from '../../messages';
 import { emailCountLabel, formatDate } from '../correspondence/format';
 import { placementLabel } from './format';
 import treeStyles from './ProjectPage.module.css';
@@ -171,8 +172,8 @@ export function ProjectPage(): React.JSX.Element {
   if (project.data === undefined) {
     return (
       <Panel title="Проект" wide>
-        <ErrorAlert error={project.error} />
-        {project.isPending && <p>{LOADING_MESSAGE}</p>}
+        <LoadError error={project.error} onRetry={() => void project.refetch()} />
+        {project.isPending && <Loading />}
       </Panel>
     );
   }
