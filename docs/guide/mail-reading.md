@@ -1,6 +1,6 @@
 # Mail reading
 
-Updated 02.11.2026
+Updated 03.11.2026
 
 **Code:** `backend/app/modules/mailboxes/`, `backend/app/modules/correspondence/`, the platform files
 `backend/app/platform/mail_reader.py`, `imap_folders.py`, `secret_box.py` and `pagination.py`, the migration
@@ -192,6 +192,12 @@ the copy.
 appearance, oldest email first. The user's own addresses are left out: the logins of all of the user's mailboxes, connected
 or disconnected, and the account email (`_own_addresses` in `backend/app/modules/correspondence/service.py`). Where an
 address appears with and without a name, the name is taken from the first occurrence that has one (FR-30).
+
+**Documents for placing.** `list_chain_documents` in `backend/app/modules/correspondence/service.py` gives the projects module
+every chain of the user as a `ChainDocument`, in reading order: the chain's id, its first email's subject, sent time and key,
+the text the placement engine reads, and `senders`. `senders` is the distinct `From` addresses of the chain's emails,
+lower-cased and sorted; the placement rules match a chain by them and by its subject. The read covers all of the user's
+emails, because the engine weighs words over the whole corpus.
 
 ## HTML to text
 

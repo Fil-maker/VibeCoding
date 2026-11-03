@@ -1,6 +1,6 @@
 # Ideas
 
-Updated 02.11.2026
+Updated 03.11.2026
 
 Ideas not yet planned, by product area, then the technical backlog. `/idea` adds an entry; `/explore`
 discusses a raw one.
@@ -79,6 +79,36 @@ Added 28.10. One person or company may write from several addresses; merge them 
 the tree. Why: otherwise one counterparty splits into several branches.
 
 **Open:** merged by hand, by domain or by the engine.
+
+**Touches:** nothing new.
+
+### Apply a rule now
+
+Added 03.11. A new or edited rule places the matching chains at once, without «Заполнить». Why: since
+task 1.5 a rule acts only on new chains and on filling a project again, so a fresh rule seems to do
+nothing.
+
+**Open:** which chains it may move — only «Неразобранное» and engine placements, or rule placements too;
+whether the user confirms the list first.
+
+**Touches:** invariant «History is kept» (never a chain placed by hand or taken out).
+
+### Richer rules
+
+Added 03.11. Rules by recipient and by words of the body, conditions joined by «or» and «not», and an
+order of rules set by hand. Why: task 1.5 has one condition per rule — sender address, domain or subject
+words — and a fixed priority.
+
+**Open:** how the user reads a rule with several conditions; what an explanation shows for it.
+
+**Touches:** invariants «Explainable placement» and «Reproducible placement».
+
+### A rule from a chain
+
+Added 03.11. On the page of a chain the user creates a rule from its sender, domain or subject with its
+current project and thread filled in. Why: today a rule is typed on «Правила» by hand.
+
+**Open:** which fields are offered; whether the rule applies to this chain at once.
 
 **Touches:** nothing new.
 

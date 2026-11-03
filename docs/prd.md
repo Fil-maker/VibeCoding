@@ -1,6 +1,8 @@
 # Product requirements
 
-Version 0.5 · 29.10.2026 · **Draft**
+Version 0.6 · 03.11.2026 · **Draft**
+
+Changes in 0.6: task 1.5 «Rules» done; stage «1. Project trees» done.
 
 Changes in 0.5: task 1.1 «Personal accounts» done; stage «1. Project trees» in progress.
 
@@ -75,7 +77,7 @@ emails take their place in the tree.
 | Stage | Scope | Status |
 |---|---|---|
 | 0. Skeleton | The application starts locally: backend, SPA, database; organizations, sign-in, invitations and members | ✅ done |
-| 1. Project trees | Personal accounts instead of organizations, several mailboxes, reply chains, projects filled by the engine, rules and placement by hand | 🚧 in progress |
+| 1. Project trees | Personal accounts instead of organizations, several mailboxes, reply chains, projects filled by the engine, rules and placement by hand | ✅ done |
 | 2. Sentiment | Sentiment of threads and counterparties over the trees | 💭 idea |
 
 ## Metrics

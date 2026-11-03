@@ -78,3 +78,9 @@ them.
 | 02.11.2026 | [0060](adr/0060-the-explicit-re-sorting-is-on.md) | The explicit re-sorting is «Заполнить» on a filled project: chains placed by hand and the threads holding them stay with their names, the engine lays out the rest again; the confirmation says so | [human] | Accepted |
 | 02.11.2026 | [0061](adr/0061-on-a-merge-of-chains-a.md) | On a merge of chains a placement by hand wins over the engine's whatever its date; among placements of one kind the earliest wins | [AI → accepted] | Accepted |
 | 02.11.2026 | [0062](adr/0062-re-sorting-keeps-adding-engine-chains.md) | Re-sorting keeps adding engine chains to the closest thread kept by hand, even when they had threads of their own before | [human] | Accepted |
+| 02.11.2026 | [0063](adr/0063-task-1-5-rules-is-a.md) | Task 1.5 Rules is a new capability: a new spec rules plus MODIFIED requirements of chain-placement | [human] | Accepted |
+| 02.11.2026 | [0064](adr/0064-when-several-rules-match-a-chain.md) | When several rules match a chain the more specific wins: address over domain over subject words; among equal ones the earlier created | [human] | Accepted |
+| 02.11.2026 | [0065](adr/0065-rules-apply-on-fill-before-the.md) | Rules apply on Fill before the engine; filling again recomputes the placements by rules of that project, placements by hand stay | [human] | Accepted |
+| 02.11.2026 | [0066](adr/0066-a-rule-targets-a-project-and.md) | A rule targets a project and a thread by name; the thread is found by name or created on the first match; no name means Unassigned | [human] | Accepted |
+| 03.11.2026 | [0067](adr/0067-rule-crud-moves-out-of-the.md) | Rule CRUD moves out of the projects module into its own module backend/app/modules/rules/ with the fixed role names | [human] | Accepted |
+| 03.11.2026 | [0068](adr/0068-spec-gaps-of-1-5-rules.md) | Spec gaps of 1-5-rules (clauses without their own scenario, all covered by tests) are accepted as they are | [human] | Accepted |

@@ -1,6 +1,8 @@
 # Domain
 
-Version 0.7 · 02.11.2026
+Version 0.8 · 03.11.2026
+
+Changes in 0.8: task 1.5: glossary term Rule; Placement gains placements by a rule; requirements map row placement-rules takes FR-43…FR-45 and chain-placement FR-46.
 
 Changes in 0.7: task 1.4: glossary term Placement gains placements by hand and chains taken out by hand, Thread may be created by hand; requirements map row chain-placement takes FR-40…FR-42.
 
@@ -23,7 +25,7 @@ emails and stored secrets in «Data and privacy».
 
 Changes in 0.1: skeleton; terms from the harness interview.
 
-Last FR number: FR-42
+Last FR number: FR-46
 
 ## Contents
 
@@ -46,7 +48,8 @@ Capability → its spec and FR numbers. A new FR number also goes into «Last FR
 | mailboxes | [spec](../openspec/specs/mailboxes/spec.md) | FR-22…FR-27 |
 | reply-chains | [spec](../openspec/specs/reply-chains/spec.md) | FR-28…FR-31 |
 | projects | [spec](../openspec/specs/projects/spec.md) | FR-32…FR-34 |
-| chain-placement | [spec](../openspec/specs/chain-placement/spec.md) | FR-35…FR-42 |
+| chain-placement | [spec](../openspec/specs/chain-placement/spec.md) | FR-35…FR-42, FR-46 |
+| placement-rules | [spec](../openspec/specs/placement-rules/spec.md) | FR-43…FR-45 |
 
 ## Glossary
 
@@ -60,7 +63,8 @@ Capability → its spec and FR numbers. A new FR number also goes into «Last FR
 | Reply chain | An email and all replies to it, linked by the `References` and `In-Reply-To` headers across all mailboxes; never split, belongs to at most one project |
 | Participant | An address in From, To or Cc of a reply chain's emails other than the user's own addresses: the logins of their mailboxes and their account email |
 | Thread | A topic of a project that groups whole reply chains: formed by the engine from chains similar to each other and named by the subject of its earliest chain, or created by the user when moving a chain by hand and named by them |
-| Placement | Where a reply chain sits — a thread of a project or its «Неразобранное» — and why: by hand («Вручную»), or by the engine with the similarity and the engine version; a chain taken out by hand («Убрать из проекта») is in no project and the engine never places it again by itself; the engine never changes a placement by hand |
+| Placement | Where a reply chain sits — a thread of a project or its «Неразобранное» — and why: by hand («Вручную»), by a rule («Правило» with the rule's condition and value as they were when it placed the chain), or by the engine with the similarity and the engine version; a chain taken out by hand («Убрать из проекта») is in no project and the engine never places it again by itself; the engine never changes a placement by hand |
+| Rule | A user's instruction that places a reply chain into a project and a thread named by the rule, or its «Неразобранное», before the engine: by a sender address, a sender domain with its subdomains, or words that begin words of the subject; an address wins over a domain and a domain over subject words, then the earlier rule; a rule never moves a chain placed by hand or taken out, and editing or deleting it moves nothing until the project is filled again |
 | Engine version | The name of the engine's method with its thresholds, for example `text-1`; the same version, emails and description give the same placement, and another version is a new name |
 | Unassigned | The place of a project for reply chains the engine is not sure about; the user places them |
 | Assessment | The sentiment of a thread or a counterparty within a project, with its evidence; a later layer over the tree |

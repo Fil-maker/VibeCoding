@@ -28,6 +28,8 @@ export const MESSAGES: Record<string, string> = {
   not_signed_in: 'Войдите в систему',
   not_found: 'Не найдено',
   validation_failed: 'Проверьте поля формы',
+  rule_exists: 'Такое правило уже есть',
+  too_many_rules: 'Правил не может быть больше 200',
 };
 
 export interface Session {

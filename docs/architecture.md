@@ -1,8 +1,8 @@
 # Architecture
 
-Updated 02.11.2026
+Updated 03.11.2026
 
-**Status: tasks 0.1, 0.2, 1.1, 1.2, 1.3 and 1.4 are built.** Task 0.1 «Application skeleton» built the backend, the SPA and the database
+**Status: tasks 0.1, 0.2, 1.1, 1.2, 1.3, 1.4 and 1.5 are built.** Task 0.1 «Application skeleton» built the backend, the SPA and the database
 container. Task 0.2 «Sign-in and organization» built registration, email confirmation, sign-in and sessions,
 password reset, and an organization with its members and invitations. Task 1.1 «Personal accounts» removed the
 organization layer: a registrant is an individual user and the root owner of their data ([ADR 0023](adr/0023-organizations-are-removed-anyone-can-register.md)).
@@ -10,7 +10,9 @@ Task 1.2 «Mailboxes and reply chains» built the mailbox reader (read-only IMAP
 in the backend and the SPA. Task 1.3 «Projects and the engine» built projects, their filling and the placement of new
 reply chains with the local placement engine `text-1`, in the backend and the SPA. Task 1.4 «Manual placement and re-sorting»
 built placing a chain by hand, taking it out of projects for good, and a fill that keeps the placements by hand, in the
-backend and the SPA. A third-party analysis model is not chosen yet.
+backend and the SPA. Task 1.5 «Rules» built the placement rules: a user's rule by sender address, domain or subject words places a
+chain into a project and a thread before the engine, on a mailbox read and on a fill, in the backend and the SPA. A third-party
+analysis model is not chosen yet.
 
 ## Contents
 
@@ -33,11 +35,12 @@ backend and the SPA. A third-party analysis model is not chosen yet.
 | Mailboxes and reply chains: connecting mailboxes over read-only IMAP, reading them in the background, joining emails into reply chains, the reply-chain list and page | ✅ | 1.2 |
 | Projects and the engine: projects with a description, filling a project with the local engine `text-1` into threads and «Неразобранное», placing new reply chains after each read batch, the project list and page | ✅ | 1.3 |
 | Manual placement and re-sorting: placing a chain by hand into a thread, a new thread or «Неразобранное» of any project, taking a chain out of projects for good, and a fill that keeps the placements by hand | ✅ | 1.4 |
+| Rules: the rules by sender address, domain or subject words with a target project and thread name, create, list, edit and delete, the page «Правила», a chain placed by a rule before the engine on a read and on a fill | ✅ | 1.5 |
 
 ## Components and processes
 
 - **Backend** — a FastAPI application (Python): the HTTP API, the modules `accounts`, `auth`, `health`, `mailboxes`,
-  `correspondence` and `projects`, the database access, the service emails and the mailbox reading loop.
+  `correspondence`, `projects` and `rules`, the database access, the service emails and the mailbox reading loop.
 - **Mailbox reader** — a background task of the backend, started in the FastAPI lifespan when `MAILBOX_READING_ENABLED`
   is `true`. Every `MAILBOX_READ_TICK_SECONDS` it looks for due mailboxes and reads each one once: a mailbox is due
   right after connecting, on «Обновить», and `MAILBOX_READ_INTERVAL_MINUTES` after its last read attempt. A read
@@ -62,18 +65,29 @@ backend and the SPA. A third-party analysis model is not chosen yet.
   «Неразобранное», and below 0.05 the chain is left out; 0.15 is also the threshold for joining a thread. Any change of a threshold, a stop word or the stemmer's
   version is a new engine version ([ADR 0055](adr/0055-similarity-thresholds-are-constants-of-the.md)). The version is stored
   with each placement, so a result names its engine.
+- **Placing by rules** — a rule of the user (by sender address, by domain, or by subject words) places a chain into its project and
+  thread before the engine is asked. The rule that wins is the most specific one: address over domain over subject words, then the
+  earlier created ([ADR 0064](adr/0064-when-several-rules-match-a-chain.md)). The thread is found by name in the project or created, or
+  the chain goes to «Неразобранное» when the rule has no thread name ([ADR 0066](adr/0066-a-rule-targets-a-project-and.md)). The placement
+  stores its own copy of the rule. On a read the rules place new chains into any project; on a fill they place the chains of that
+  project; a chain whose winning rule targets another project is left out, and only the chains with no winning rule go to the engine
+  ([ADR 0065](adr/0065-rules-apply-on-fill-before-the.md)). The guide is [Projects](guide/projects.md#placing-by-rules),
+  and the rules themselves are in [Rules](guide/rules.md).
 - **Filling a project** — «Заполнить» places the user's chains that have no placement row into the project, in one transaction
-  under a lock of all the user's project rows. Before that, the project's engine placements are dropped, and the threads that
-  no placement by hand points to; placements by hand and their threads stay. A filled project is rebuilt from the same emails
+  under a lock of all the user's project rows. Before that, the project's engine and rule placements are dropped, and the threads that
+  no placement by hand points to; placements by hand and their threads stay. The chains whose winning rule targets this project are
+  placed by that rule first; a chain whose winning rule targets another project is left out; the chains with no winning rule go to
+  the engine. A filled project is rebuilt from the same emails
   ([ADR 0054](adr/0054-on-a-filled-project-is-an.md)), and it keeps the placements by hand ([ADR 0060](adr/0060-the-explicit-re-sorting-is-on.md)). A chain scoring at least
   «sure» goes to a thread: in reading order (first email's send time, subject, first email key), it joins the most similar
   thread at or above the thread threshold, ties going to the earlier thread, or starts a new thread named by its first subject
   ([ADR 0052](adr/0052-threads-are-formed-by-grouping-a.md)). A chain between the two thresholds goes to «Неразобранное»
   without a thread; a chain below the lower threshold is not placed. The project is marked filled.
 - **Placing new chains** — after each batch a mailbox read stores, the chains that got an email and have no placement row
-  are scored against every filled project. Each goes to its best project (ties: the project created first, then by name), by
-  the same bands and the same thread rule as a fill. A chain with a placement row, placed or taken out by hand, is never scored
-  again. When two chains merge, the placement by hand wins over the engine's; among one kind the earliest `placed_at` wins
+  are placed by their winning rule when one matches, and the rest are scored against every filled project. Each goes to its best
+  project (ties: the project created first, then by name), by the same bands and the same thread rule as a fill. A chain with a
+  placement row, placed or taken out by hand, is never scored again. When two chains merge, the placement by hand wins over a rule's,
+  a rule's over the engine's; among one kind the earliest `placed_at` wins
   ([ADR 0061](adr/0061-on-a-merge-of-chains-a.md)).
 - **Placing by hand** — the user places a chain on its own page: into a thread, a new thread it names, or «Неразобранное» of any
   of their projects. «Убрать из проекта» takes it out of projects for good, and the engine never places it again by itself
@@ -121,7 +135,7 @@ backend/                 FastAPI application (own pyproject.toml, uv.lock)
       test_placement_engine.py unit tests of the placement engine
       test_secret_box.py unit tests of the secret box
       test_settings.py   unit tests of settings
-    modules/<module>/    one folder per module: health, accounts, auth, mailboxes, correspondence, projects
+    modules/<module>/    one folder per module: health, accounts, auth, mailboxes, correspondence, projects, rules
       accounts/          registration of a user and the users table; router.py (the registration route),
                          service.py, schemas.py, repository.py, models.py, errors.py, emails.py
       auth/              sign-in, the sign-in lock, sessions, email confirmation, password reset;
@@ -135,19 +149,25 @@ backend/                 FastAPI application (own pyproject.toml, uv.lock)
                          the page of a chain; router.py, service.py, schemas.py, domain.py (parsing, the email key,
                          the merge choice, HTML to text), repository.py, models.py, errors.py
       projects/          projects with a description, the fill, the tree of a project, the placement of reply chains
-                         into threads and «Неразобранное», and placing a chain by hand; router.py, service.py (the use cases,
-                         the new-chain placement), hand_placing.py (placing a chain by hand, taking it out), schemas.py,
-                         domain.py (the bands, the thread choice, the tree), placing.py (writes the engine's placements
-                         and threads of a project), repository.py, models.py, errors.py
+                         into threads and «Неразобранное», placing a chain by hand, and placing a chain by its rule; router.py,
+                         service.py (the use cases, the new-chain placement), hand_placing.py (placing a chain by hand, taking it
+                         out), rule_placing.py (placing a chain by its winning rule), schemas.py, domain.py (the bands, the thread
+                         choice, the tree), placing.py (writes the engine's placements and threads of a project), repository.py,
+                         models.py, errors.py
+      rules/             placement rules of a user: create, list, edit and delete, and the matching of a chain to its winning rule;
+                         router.py, service.py (RulesService, ProjectDirectory, list_match_rules, pick_winning_rule), schemas.py,
+                         domain.py (RULE_LIMIT, the matching), repository.py, models.py, errors.py, test_domain.py (unit tests of
+                         the matching); `__init__.py` is empty
     modules/health/test_*.py  unit tests of the health module (test_router.py, test_service.py)
   migrations/            Alembic: env.py, script.py.mako, versions/ (0001_baseline.py, 0002_accounts_auth_invitations.py,
                          0003_personal_accounts.py, 0004_mailboxes_and_reply_chains.py, 0005_projects_and_placements.py,
-                         0006_manual_placements.py)
+                         0006_manual_placements.py, 0007_placement_rules.py)
   tests/                 test support of the integration tests
     integration/         database tests through the HTTP API, one file per group of requirements
-    factories.py         users built through the public API: unconfirmed and confirmed users, signed-in clients
+    factories.py         users built through the public API: unconfirmed and confirmed users, signed-in clients, rule requests
     mail_factory.py      raw test emails built with the standard library, the way a mail server hands them over
     hand_placement.py    helpers of the placement-by-hand tests: seeding chains, finding a chain in a tree
+    rule_support.py      helpers of the placement-rule tests: the rule shape of a placement, the two-project fixture
     project_trees.py     helpers of the project and placement tests: the engine seam, the project routes, the mail
     settable_clock.py    a clock that the tests move by hand
     alembic_runner.py    runs Alembic against the test database (migration round trip)
@@ -160,7 +180,7 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
     main.tsx             entry: mounts App into #root, loads the design tokens
     App.tsx              root component: QueryClientProvider, BrowserRouter, AuthProvider and the routes
     App.*.test.tsx       page tests, one file per area (sign-in, registration, password reset, guards, start page,
-                         mailboxes, chains, projects, project tree, project fill, chain placement)
+                         mailboxes, chains, projects, project tree, project fill, chain placement, rules, rule explanations)
     api/
       client.ts          apiClient: openapi-fetch typed by the generated schema
       queryClient.ts     createQueryClient(): TanStack Query client
@@ -173,7 +193,7 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
     features/
       auth/              AuthProvider (who is signed in), guards (RequireUser, RequireGuest),
                          sign-in, registration, email confirmation, forgot and reset password pages
-      home/              StartPage: the signed-in user's name, links to the mailboxes, the chains and the projects, and sign-out
+      home/              StartPage: the signed-in user's name, links to the mailboxes, the chains, the projects and the rules, and sign-out
       health/            HealthStatus (page), useHealth (query), styles and tests
       mailboxes/         MailboxesPage: the connected mailboxes with their reading status, refresh and disconnect,
                          and the connect form
@@ -181,10 +201,12 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
                          text), ChainPage.module.css, format.ts (dates, email counts, addresses)
       projects/          ProjectsPage (the list), NewProjectPage («Новый проект»), ProjectPage (the description, «Заполнить»,
                          the tree and «Неразобранное»), ProjectPage.module.css, format.ts (plural labels, the placement line),
-                         ChainPlacement.tsx (the block «Проект» of the chain page: where the chain is, «Перенести», «Убрать из проекта»)
+                         ChainPlacement.tsx (the block «Проект» of the chain page: where the chain is, «Перенести», «Убрать из проекта»),
+                         RulesPage.tsx (the page «Правила»: the form of a rule, the rules with «Изменить» and «Удалить»)
     styles/tokens.css    design tokens: colors, spacing, sizes, fonts
     test/                appHarness.tsx (renders App with fetch stubbed), projectTrees.tsx (project fixtures and lookups),
                          chainPlacement.tsx (fixtures and stubs of the chain page's placement block),
+                         rulesPage.tsx (fixtures and stubs of the page «Правила»),
                          setup.ts (Vitest setup: Testing Library cleanup, unstubbed globals)
 docker/                  backend.Dockerfile (dev image); postgres/init/ runs once, on the first start of the database;
                          greenmail/demo/ holds the 40 prepared demo emails (.eml) and manifest.json, which say where each one goes
@@ -199,7 +221,7 @@ scripts/                 doc checkers, the check runner (run_checks.py), the API
 
 ## Layers
 
-Built so far: the platform and the modules health, accounts, auth, mailboxes, correspondence and projects. The layer rules are in
+Built so far: the platform and the modules health, accounts, auth, mailboxes, correspondence, projects and rules. The layer rules are in
 `.claude/rules/server-architecture.md`.
 
 Dependencies point down: router → service → domain and repository → platform.
@@ -208,7 +230,7 @@ Dependencies point down: router → service → domain and repository → platfo
 |---|---|---|
 | Router | `router.py` | Parses the request into `schemas.py` models, takes the caller from `AuthContext` where a route needs one, calls one method of the module's service, which FastAPI injects; maps the module's domain errors to HTTP. A router never receives the database session |
 | Service | `service.py` | The use cases as module-level functions that open the transaction (`session.begin()`), call domain logic and repositories, and enforce the access rules; a session-bound class (`AccountsService`, `AuthService`) delegates to them; the factory `get_<module>_service` builds the class from `get_database_session` |
-| Domain | `domain.py` | Pure functions: the sign-in lock rule (`backend/app/modules/auth/domain.py`), the reason of a failed read (`backend/app/modules/mailboxes/domain.py`), parsing a raw email, the email key and the merge choice (`backend/app/modules/correspondence/domain.py`), the bands of similarity, the thread choice and the tree of a project (`backend/app/modules/projects/domain.py`). `backend/app/modules/projects/placing.py` writes the engine's placements and threads through the repository |
+| Domain | `domain.py` | Pure functions: the sign-in lock rule (`backend/app/modules/auth/domain.py`), the reason of a failed read (`backend/app/modules/mailboxes/domain.py`), parsing a raw email, the email key and the merge choice (`backend/app/modules/correspondence/domain.py`), the bands of similarity, the thread choice and the tree of a project (`backend/app/modules/projects/domain.py`). `backend/app/modules/projects/placing.py` writes the engine's placements and threads through the repository; `backend/app/modules/rules/domain.py` picks the winning rule of a chain (`winning_rule`) |
 | Repository | `repository.py` | Named queries; no commits, no business decisions |
 | Models | `models.py` | SQLAlchemy tables of the module ([Data model](#data-model)) |
 | Platform | `backend/app/platform/` | settings, db, errors, clock, mail, passwords, tokens, validation, the Origin guard, the auth context, the mail reader, the secret box, pagination, the placement engine (`placement_engine.py`) |
@@ -260,6 +282,13 @@ accounts repository. The projects service reads chains, emails and participants 
 The placement by hand (`hand_placing.py`) reads one more function of the correspondence service, `has_chain`, which tells whether a chain is the user's. No module imports another module's models or
 private names.
 
+The rules module (`backend/app/modules/rules/`) imports only its own files and the platform, except its router: that imports
+`list_project_names` and `lock_project_names` from `backend/app/modules/projects/service.py` (passed into a `ProjectDirectory`
+in `service.py`), and `current_user` from `backend/app/modules/auth/dependencies.py`, as the other routers do. `RulesService` gets the project names through that directory and never imports the projects module, because the
+projects service imports the rules service. The projects module uses the rules only through `backend/app/modules/rules/service.py`
+(`MatchRule`, `list_match_rules`, `pick_winning_rule`) in `rule_placing.py` and `service.py`; `backend/app/modules/projects/schemas.py`
+also imports the enum `RuleCondition` from `backend/app/modules/rules/schemas.py` for the `rule` field of a placement.
+
 **Merge hook.** `store_raw_messages` takes an optional `on_merge` callable (`MergeHook` in
 `backend/app/modules/correspondence/service.py`). It runs before chains that one email joins are merged into a survivor, so
 the caller can carry over what hangs on the merged chains. The mailboxes service passes `carry_placement` from
@@ -281,7 +310,9 @@ five tables for the modules `mailboxes` and `correspondence`, listed below. Migr
 adds three tables for the module `projects`, listed below too. Migration `0006` (`backend/migrations/versions/0006_manual_placements.py`)
 adds no table; it changes `chain_placements`: it makes `project_id`, `similarity` and `engine_version` nullable, widens the `kind` check to
 `engine`, `manual` and `excluded`, and adds the check `ck_chain_placements_shape`. Its downgrade deletes the `manual` and
-`excluded` rows. The baseline `0001` stays empty. The models are in
+`excluded` rows. Migration `0007` (`backend/migrations/versions/0007_placement_rules.py`) creates the table `placement_rules`,
+adds the columns `rule_condition` and `rule_value` to `chain_placements`, widens its kind check to `rule` and its shape check to
+the rule shape. Its downgrade deletes the `rule` rows and drops the table and the two columns. The baseline `0001` stays empty. The models are in
 each module's `models.py`; the declarative `Base` in `backend/app/platform/db.py` is the metadata Alembic works from.
 
 The downgrade to `0002` recreates one organization per user, named after the user's name, makes every user an active
@@ -307,13 +338,16 @@ Conventions of the tables:
 | `email_copies` | `id`, `email_id`, `mailbox_id`, `folder_id`, `uid` (the IMAP UID) | `email_id` → `emails`, `mailbox_id` → `mailboxes` and `folder_id` → `mailbox_folders` (all cascade); unique `(folder_id, uid)`; indexes on `email_id` and `mailbox_id` |
 | `projects` | `id`, `user_id`, `name` (up to 100; unique per user ignoring letter case), `description` (text; the request allows up to 2000 characters), `filled_at` (empty until the first fill), `created_at` | `user_id` → `users` (cascade); unique index `(user_id, lower(name))` |
 | `threads` | `id`, `user_id`, `project_id`, `name` (text: the subject of the thread's first chain when the engine forms it, or the name the user gave with `new_thread_name` when a chain is moved by hand), `position` (the creation order in the project), `created_at` | `user_id` → `users` and `project_id` → `projects` (both cascade); unique `(project_id, position)` |
-| `chain_placements` | `chain_id` (primary key), `user_id`, `project_id` (empty only for `excluded`), `thread_id` (empty means «Неразобранное»), `kind` (`engine`, `manual` or `excluded`, checked), `similarity` (numeric 5,4; empty unless `engine`), `engine_version` (up to 32; empty unless `engine`), `placed_at` | `chain_id` → `reply_chains` (cascade, so a chain is in at most one project); `user_id` → `users`, `project_id` → `projects` and `thread_id` → `threads` (all cascade); index `(user_id, project_id)` |
+| `chain_placements` | `chain_id` (primary key), `user_id`, `project_id` (empty only for `excluded`), `thread_id` (empty means «Неразобранное»), `kind` (`engine`, `manual`, `excluded` or `rule`, checked), `similarity` (numeric 5,4; empty unless `engine`), `engine_version` (up to 32; empty unless `engine`), `rule_condition` (`address`, `domain` or `subject`; empty unless `rule`), `rule_value` (text; the rule's value as it was when the rule placed the chain; empty unless `rule`), `placed_at` | `chain_id` → `reply_chains` (cascade, so a chain is in at most one project); `user_id` → `users`, `project_id` → `projects` and `thread_id` → `threads` (all cascade); index `(user_id, project_id)` |
+| `placement_rules` | `id`, `user_id`, `condition` (`address`, `domain` or `subject`, checked), `value` (text; an address or a domain is kept lower-cased, subject words trimmed, runs of spaces collapsed, letter case kept), `project_id` (the project a match goes to), `thread_name` (text; empty means «Неразобранное»), `created_at`, `updated_at` | `user_id` → `users` and `project_id` → `projects` (both cascade); index `ix_placement_rules_user_id`; unique index `(user_id, condition, lower(value))`, which refuses a repeated rule |
 
 Disconnecting a mailbox sets its `password_encrypted` to null and keeps its folders, copies, emails and reply chains
 ([ADR 0048](adr/0048-disconnecting-a-mailbox-deletes-its-password.md)). Deleting a user deletes all of these rows.
-A row of `chain_placements` has one of three shapes, held by the check `ck_chain_placements_shape`: an `engine` row has a
+A row of `chain_placements` has one of four shapes, held by the check `ck_chain_placements_shape`: an `engine` row has a
 project, a similarity and an engine version; a `manual` row has a project and neither similarity nor version; an `excluded` row
-(a chain taken out by hand) has no project, no thread, no similarity and no version. A fill drops the project's engine placements
+(a chain taken out by hand) has no project, no thread, no similarity and no version; a `rule` row has a project, neither
+similarity nor version, and both `rule_condition` and `rule_value`. Only a `rule` row has the rule columns; they are copies, so
+a later edit of the rule does not change the placement. A fill drops the project's engine and rule placements
 and the threads that no placement by hand points to, before it writes new ones; placements by hand and their threads stay.
 Deleting a project drops its threads and placements.
 
@@ -349,6 +383,10 @@ caller of a signed-in route gets 401 `not_signed_in`. The routes below are all u
 | `GET /api/v1/placements/{chain_id}` | signed in | 200, `ChainLocation`: where the chain is (`state` `placed`, `none` or `excluded`) | `not_found` 404 |
 | `PUT /api/v1/placements/{chain_id}` | signed in | 200, `ChainLocation`; places the chain by hand in a thread (`thread_id`), a new thread (`new_thread_name`) or «Неразобранное» of the project (neither) | `not_found` 404, `validation_failed` 422 |
 | `DELETE /api/v1/placements/{chain_id}` | signed in | 200, `ChainLocation` (`state` `excluded`); takes the chain out of its project for good | `not_found` 404, `chain_not_in_project` 409 |
+| `GET /api/v1/rules` | signed in | 200, `list[Rule]`: the user's rules in the order they win (at most 200, not paginated) | none |
+| `POST /api/v1/rules` | signed in | 201, `Rule`; body `condition` (`address`, `domain` or `subject`), `value`, `project_id` and `thread_name` (optional; empty means «Неразобранное») | `not_found` 404 (another user's or an unknown project), `rule_exists` 409, `too_many_rules` 409, `validation_failed` 422 |
+| `PUT /api/v1/rules/{rule_id}` | signed in | 200, `Rule`; replaces every part of the rule with the same body | `not_found` 404, `rule_exists` 409, `validation_failed` 422 |
+| `DELETE /api/v1/rules/{rule_id}` | signed in | 204; deletes the rule, the placements it made stay | `not_found` 404 |
 
 Registration is `POST /api/v1/auth/registrations`, next to the other auth routes of the same prefix. Its body is `name`,
 `email` and `password` ([ADR 0037](adr/0037-registration-asks-for-name-email-and.md)); any other field, such as
@@ -361,7 +399,7 @@ a body with an unknown field, or an invalid one, answers 422 `validation_failed`
 Schemas of the responses: `Me` is `user_id`, `name`, `email`; `RegistrationResult` is `email`, `email_sent`. `ProjectSummary` is
 `id`, `name`, `filled`, `placed_count` and `unassigned_count`; `ProjectTree` is `id`, `name`, `description`, `filled`,
 `counterparties` (each with `address` — null for «Без контрагента» — `name` and `threads`) and `unassigned`. A chain in the tree
-carries its `placement`: `kind` (`engine` or `manual`), `engine_version` and `similarity`, the last two null for `manual`. `ChainLocation`
+carries its `placement`: `kind` (`engine`, `manual` or `rule`), `engine_version` and `similarity`, the last two null for `manual` and `rule`, and `rule` (`condition`, `value`; null unless the kind is `rule`). `Rule` is `id`, `condition`, `value`, `project` (`id`, `name`) and `thread_name`, null for «Неразобранное». `ChainLocation`
 is `state`, `project` (`id`, `name`), `thread` (`id`, `name`, null for «Неразобранное») and `placement`; `project`, `thread` and `placement`
 are null for `none` and `excluded`. `PlacementMove` is `project_id`, and at most one of `thread_id` and `new_thread_name`. The
 `project_exists` answer (409) is for a name equal to an existing one
@@ -388,6 +426,7 @@ A framework HTTP error other than 404 keeps FastAPI's `{"detail": …}` shape; a
 | `/projects` | «Проекты»: the user's projects by name, with their counts, and «Создать проект» | a signed-in user |
 | `/projects/new` | «Новый проект», with the fields «Название» and «Описание» | a signed-in user |
 | `/projects/:id` | «Проект»: the description, «Заполнить» (when the project already has chains, first the question «Пересобрать проект? Движок разложит его переписку заново, а цепочки, размещённые вручную, останутся на месте» with «Пересобрать» and «Отмена»), the tree and «Неразобранное» | a signed-in user |
+| `/rules` | «Правила»: the form of a rule and the user's rules in the order they win, with «Изменить» and «Удалить» | a signed-in user |
 | `*` | «Страница не найдена» | anyone; `/members` and `/invitation` fall here too |
 
 A signed-out visitor who opens a signed-in page goes to `/sign-in?next=…` and returns after signing in. A

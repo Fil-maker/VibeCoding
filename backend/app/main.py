@@ -19,6 +19,8 @@ from app.modules.mailboxes.service import run_reading_loop
 from app.modules.projects.router import ERROR_MAPPING as PROJECTS_ERRORS
 from app.modules.projects.router import placements_router
 from app.modules.projects.router import router as projects_router
+from app.modules.rules.router import ERROR_MAPPING as RULES_ERRORS
+from app.modules.rules.router import router as rules_router
 from app.platform.clock import get_clock
 from app.platform.db import Database
 from app.platform.errors import register_domain_errors, register_error_handlers
@@ -76,6 +78,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_domain_errors(app, AUTH_ERRORS)
     register_domain_errors(app, CORRESPONDENCE_ERRORS)
     register_domain_errors(app, PROJECTS_ERRORS)
+    register_domain_errors(app, RULES_ERRORS)
     register_mailbox_errors(app)
     app.add_middleware(OriginGuardMiddleware, app_base_url=resolved.app_base_url)
     app.include_router(health_router)
@@ -85,4 +88,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(correspondence_router)
     app.include_router(projects_router)
     app.include_router(placements_router)
+    app.include_router(rules_router)
     return app

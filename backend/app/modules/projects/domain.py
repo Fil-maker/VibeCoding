@@ -11,6 +11,7 @@ from app.modules.projects.schemas import (
     CounterpartyNode,
     PlacedChain,
     Placement,
+    PlacementRuleRef,
     ProjectTree,
     ThreadNode,
 )
@@ -44,6 +45,8 @@ class PlacementEntry:
     kind: str
     similarity: float | None
     engine_version: str | None
+    rule_condition: str | None = None
+    rule_value: str | None = None
 
 
 @dataclass(frozen=True)
@@ -97,23 +100,36 @@ def _chain_order(facts: ChainFacts) -> tuple[datetime, str, str]:
     return (facts.first_sent_at, facts.subject, facts.first_key)
 
 
+def build_placement(entry: PlacementEntry) -> Placement:
+    """The explanation of a stored placement; `rule` is set exactly for a placement by a rule."""
+    rule = (
+        PlacementRuleRef.model_validate(
+            {"condition": entry.rule_condition, "value": entry.rule_value}
+        )
+        if entry.rule_condition is not None
+        else None
+    )
+    return Placement.model_validate(
+        {
+            "kind": entry.kind,
+            "engine_version": entry.engine_version,
+            "similarity": (
+                round(entry.similarity, SIMILARITY_DECIMALS)
+                if entry.similarity is not None
+                else None
+            ),
+            "rule": rule,
+        }
+    )
+
+
 def _placed_chain(entry: PlacementEntry, facts: ChainFacts) -> PlacedChain:
     return PlacedChain(
         id=facts.chain_id,
         subject=facts.subject,
         email_count=facts.email_count,
         latest_email_at=facts.latest_email_at,
-        placement=Placement.model_validate(
-            {
-                "kind": entry.kind,
-                "engine_version": entry.engine_version,
-                "similarity": (
-                    round(entry.similarity, SIMILARITY_DECIMALS)
-                    if entry.similarity is not None
-                    else None
-                ),
-            }
-        ),
+        placement=build_placement(entry),
     )
 
 

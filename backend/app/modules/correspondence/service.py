@@ -271,7 +271,9 @@ async def has_chain(session: AsyncSession, user_id: UUID, chain_id: UUID) -> boo
 
 
 async def list_chain_documents(session: AsyncSession, user_id: UUID) -> list[ChainDocument]:
-    """The text of every chain of the user, in reading order, for the placement engine.
+    """The text and the senders of every chain of the user, in reading order.
+
+    For the placement engine and the rules.
 
     Runs in the caller's transaction. It reads all the user's emails: the engine needs the whole
     corpus to weigh words.
@@ -286,6 +288,7 @@ async def list_chain_documents(session: AsyncSession, user_id: UUID) -> list[Cha
             first_sent_at=emails[0].sent_at,
             first_key=emails[0].key,
             document=build_chain_document(emails[0].subject, [email.text for email in emails]),
+            senders=tuple(sorted({email.from_address.lower() for email in emails})),
         )
         for chain_id, emails in grouped.items()
     ]

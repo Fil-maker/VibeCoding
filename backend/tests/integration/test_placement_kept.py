@@ -242,6 +242,7 @@ async def test_fr36_the_engine_adds_a_sure_chain_to_a_kept_thread(
         "kind": "engine",
         "engine_version": "fake-1",
         "similarity": 0.5,
+        "rule": None,
     }
     assert (await chain_location(anna, act_id))["placement"] == MANUAL
 

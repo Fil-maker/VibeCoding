@@ -287,6 +287,7 @@ class EmailTextRow:
     subject: str
     sent_at: datetime
     text: str
+    from_address: str
 
 
 @dataclass(frozen=True)
@@ -308,12 +309,14 @@ class EmailStatsRow:
 
 
 async def list_email_texts_for_owner(session: AsyncSession, user_id: UUID) -> list[EmailTextRow]:
-    """Every email of the user, grouped by chain, each chain's emails oldest first (ties by key).
+    """Every email of the user with its sender, grouped by chain, oldest first (ties by key).
 
     Unbounded on purpose: the placement engine weighs words over all of the user's chains.
     """
     rows = await session.execute(
-        select(Email.chain_id, Email.key, Email.subject, Email.sent_at, Email.text)
+        select(
+            Email.chain_id, Email.key, Email.subject, Email.sent_at, Email.text, Email.from_address
+        )
         .where(Email.user_id == user_id)
         .order_by(Email.chain_id, Email.sent_at, Email.key)
     )

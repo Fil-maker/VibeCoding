@@ -1,6 +1,6 @@
 """Use cases of projects: create, list, show as a tree, fill, place new chains, place by hand."""
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from datetime import datetime
 from typing import Annotated
 from uuid import UUID
@@ -27,6 +27,7 @@ from app.modules.projects.domain import (
 from app.modules.projects.errors import ProjectExists
 from app.modules.projects.models import Project
 from app.modules.projects.placing import Placer, ThreadState
+from app.modules.projects.rule_placing import place_by_rules
 from app.modules.projects.schemas import (
     ChainLocation,
     PlacementMove,
@@ -35,11 +36,25 @@ from app.modules.projects.schemas import (
     ProjectTree,
     ThreadSummary,
 )
+from app.modules.rules.service import list_match_rules
 from app.platform.auth_context import AuthContext
 from app.platform.clock import Clock
 from app.platform.db import get_database_session
 from app.platform.errors import NotFound
 from app.platform.placement_engine import PlacementEngine
+
+
+async def list_project_names(
+    session: AsyncSession, user_id: UUID, project_ids: Collection[UUID]
+) -> dict[UUID, str]:
+    """The user's projects among `project_ids` as `id -> name`; runs in the caller's transaction."""
+    return await repository.list_project_names_for_owner(session, user_id, project_ids)
+
+
+async def lock_project_names(session: AsyncSession, user_id: UUID) -> dict[UUID, str]:
+    """Lock the user's projects, return `id -> name`."""
+    projects = await repository.lock_projects_for_owner(session, user_id)
+    return {project.id: project.name for project in projects}
 
 
 def _summary(row: repository.SummaryRow) -> ProjectSummary:
@@ -73,6 +88,8 @@ async def _load_tree(session: AsyncSession, user_id: UUID, project: Project) -> 
                     float(placement.similarity) if placement.similarity is not None else None
                 ),
                 engine_version=placement.engine_version,
+                rule_condition=placement.rule_condition,
+                rule_value=placement.rule_value,
             )
             for placement in placements
         ],
@@ -86,8 +103,9 @@ async def carry_placement(
 ) -> None:
     """Merge hook: keep the winning placement among the chains on the survivor, drop the rest.
 
-    A placement by hand (or a chain taken out by hand) wins over the engine's; among one kind the
-    earliest wins. Runs in the caller's transaction, before the merged chains are deleted.
+    A placement by hand (or a chain taken out by hand) wins over a rule's and a rule's over the
+    engine's; among one kind the earliest wins. Runs in the caller's transaction, before the
+    merged chains are deleted.
     """
     await repository.carry_placement_for_owner(session, user_id, survivor_id, merged_ids)
 
@@ -125,27 +143,32 @@ async def place_new_chains(
     engine: PlacementEngine,
     now: datetime,
 ) -> None:
-    """Place the new chains of the user into the filled projects.
+    """Place the new chains of the user: by winning rules first, then into filled projects.
 
     Runs in the caller's transaction (the mailbox batch). Only the chains in `chain_ids` that have
-    no placement row are scored; a chain taken out by hand has one, so it is never placed again.
-    A chain goes to its most similar filled project (ties: created first, then by name) by the
-    same bands as a fill. Placed chains are read, for the corpus and for the texts of the threads,
-    but they are never re-scored or moved, so a reply never moves its chain.
+    no placement row are placed; a chain taken out by hand has one, so it is never placed again.
+    A chain whose winning rule exists goes by that rule into the rule's project, filled or not.
+    The rest are scored, and a chain goes to its most similar filled project (ties: created first,
+    then by name) by the same bands as a fill. Placed chains are read, for the corpus and for the
+    texts of the threads, but they are never re-scored or moved, so a reply never moves its chain.
     """
     projects = await repository.lock_projects_for_owner(session, user_id)
     filled = sorted(
         (project for project in projects if project.filled_at is not None),
         key=lambda project: (project.created_at, project.name.lower(), project.name),
     )
-    if not filled or not chain_ids:
+    if not chain_ids:
         return
     documents = await list_chain_documents(session, user_id)
     placed = await repository.list_placed_chain_ids_for_owner(session, user_id)
     candidates = [
         item for item in documents if item.chain_id in chain_ids and item.chain_id not in placed
     ]
-    if not candidates:
+    rules = await list_match_rules(session, user_id)
+    candidates = await place_by_rules(
+        session, user_id, candidates, rules, now, only_project_id=None
+    )
+    if not candidates or not filled:
         return
     corpus = [item.document for item in documents]
     texts = [item.document for item in candidates]
@@ -219,11 +242,14 @@ class ProjectsService:
     async def fill(
         self, context: AuthContext, project_id: UUID, engine: PlacementEngine, clock: Clock
     ) -> ProjectTree:
-        """Fill the project from its description, rebuilding the engine's placements.
+        """Fill the project from its description, rebuilding the engine's and the rules' placements.
 
-        Placements by hand and the threads holding them stay; a chain taken out by hand is not
-        taken back. Only chains with no placement row are candidates. All the user's projects are
-        locked, so a fill and the mailbox reading never place the same chain twice.
+        The project's engine and rule placements are dropped and placed again: a chain whose
+        winning rule targets this project goes by that rule, the rest go to the engine, and a chain
+        whose winning rule targets another project is left out. Placements by hand and the threads
+        holding them stay; a chain taken out by hand is not taken back. Only chains with no
+        placement row are candidates. All the user's projects are locked, so a fill and the mailbox
+        reading never place the same chain twice.
         """
         now = clock.now()
         user_id = context.user_id
@@ -232,12 +258,16 @@ class ProjectsService:
             project = next((item for item in projects if item.id == project_id), None)
             if project is None:
                 raise NotFound
-            await repository.delete_engine_placements_and_unpinned_threads_for_owner(
+            await repository.delete_computed_placements_and_unpinned_threads_for_owner(
                 self._session, user_id, project.id
             )
             documents = await list_chain_documents(self._session, user_id)
             placed = await repository.list_placed_chain_ids_for_owner(self._session, user_id)
             candidates = [item for item in documents if item.chain_id not in placed]
+            rules = await list_match_rules(self._session, user_id)
+            candidates = await place_by_rules(
+                self._session, user_id, candidates, rules, now, only_project_id=project.id
+            )
             corpus = [item.document for item in documents]
             scores = engine.score(
                 project.description, [item.document for item in candidates], corpus

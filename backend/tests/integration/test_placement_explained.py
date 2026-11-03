@@ -69,6 +69,7 @@ async def test_fr37_a_chain_placed_by_the_engine_shows_its_version_and_similarit
         "kind": "engine",
         "engine_version": "text-1",
         "similarity": 0.4271,
+        "rule": None,
     }
 
 
@@ -85,7 +86,12 @@ async def test_fr37_an_unsure_chain_shows_its_version_and_similarity(
     tree = await open_project(anna, project["id"])
     [chain] = tree["unassigned"]
     assert chain["subject"] == "Офисная мебель"
-    assert chain["placement"] == {"kind": "engine", "engine_version": "text-1", "similarity": 0.195}
+    assert chain["placement"] == {
+        "kind": "engine",
+        "engine_version": "text-1",
+        "similarity": 0.195,
+        "rule": None,
+    }
 
 
 # --- FR-38 Reproducible placement ---

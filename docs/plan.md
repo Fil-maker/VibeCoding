@@ -1,6 +1,10 @@
 # Plan
 
-Version 0.12 · 02.11.2026
+Version 0.14 · 03.11.2026
+
+Changes in 0.14: task 1.5 «Rules» done.
+
+Changes in 0.13: task 1.5 «Rules» gets its full «Done when».
 
 Changes in 0.12: task 1.4 «Manual placement and re-sorting» done.
 
@@ -38,7 +42,6 @@ Changes in 0.1: task 0.1 «Application skeleton».
 
 | # | Task | FR | Done when |
 |---|---|---|---|
-| 1.5 | **Rules.** The user writes rules by address, domain or subject that place new chains into a project and a thread before the engine | — | The user creates a rule by sender address, domain or subject words with a target project and thread, and edits or deletes it. A new chain matching a rule goes into its project and thread before the engine compares it. A chain placed by a rule shows «Правило» and the rule. A rule never moves a chain placed by hand. `just check` and `just test-all` pass. |
 
 ## Done
 
@@ -50,3 +53,4 @@ Changes in 0.1: task 0.1 «Application skeleton».
 | 1.2 | **Mailboxes and reply chains.** The user connects several mailboxes over IMAP read-only, with the password stored encrypted; Inbox and Sent of the last 12 months are read in the background and on «Обновить»; a local demo mail server holds prepared correspondence; the emails of all mailboxes are collected into reply chains | FR-22…FR-31 | The user connects two mailboxes, and a wrong password is reported. After reading, the user sees the reply chains of all mailboxes and opens one to read its emails; an email present in both mailboxes is shown once; unread emails stay unread in the mailbox. A new email in the mailbox appears after «Обновить» or within 5 minutes. A disconnected mailbox is no longer read, and its emails stay. `just demo-mail` fills the demo mailboxes with prepared correspondence. `just check` and `just test-all` pass. |
 | 1.3 | **Projects and the engine.** The user creates a project with a description; a local deterministic engine fills it as a tree project → counterparty → thread and places new chains | FR-32…FR-39 | The user creates a project, presses «Заполнить» and sees the tree. Every placed chain shows why it is there, its similarity and the engine version. Chains the engine is not sure of go to «Неразобранное». New emails take their place in the tree without moving chains already placed. Filling the same project from the same emails again gives the same tree. `just check` and `just test-all` pass. |
 | 1.4 | **Manual placement and re-sorting.** The user moves a chain by hand into a project, a thread or «Неразобранное», takes it out of projects for good, and re-sorts a project explicitly | FR-35…FR-37, FR-39…FR-42 | On the page of a chain the user moves it into a thread of any of their projects, into «Неразобранное» or into a new thread they name, and the chain then shows «Вручную». A chain moved by hand stays where the user put it: a new email in it, a mailbox read and «Заполнить» never move it. «Убрать из проекта» takes a chain out of its project, and the engine never places it again by itself. «Заполнить» on a filled project keeps the chains placed by hand and the threads holding them, and lays out the rest again. Every chain in a project tree shows whether it was placed by hand or by the engine. `just check` and `just test-all` pass. |
+| 1.5 | **Rules.** The user writes rules by sender address, domain or subject words that place chains into a project and a thread before the engine, on a mailbox read and on «Заполнить» | FR-35…FR-37, FR-39, FR-42…FR-46 | On the page «Правила» the user creates a rule by sender address, domain or subject words with a target project and thread name, and edits or deletes it. A new chain matching a rule goes into its project and thread before the engine compares it, and the thread is created when the project has none of that name. «Заполнить» places the chains matching the project's rules by those rules first and gives the rest to the engine. When two rules match a chain, an address wins over a domain and a domain over subject words. A chain placed by a rule shows «Правило» and the rule. A rule never moves a chain placed by hand or taken out of projects. `just check` and `just test-all` pass. |

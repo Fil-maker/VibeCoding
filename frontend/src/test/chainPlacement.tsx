@@ -7,8 +7,14 @@ import { ANNA, apiError, json, renderApp, type Handler, type Rendered } from './
 // stub of the placement routes, and lookups of the location block and the form «Перенести».
 
 export type PlacementJson =
-  | { kind: 'engine'; engine_version: string; similarity: number }
-  | { kind: 'manual'; engine_version: null; similarity: null };
+  | { kind: 'engine'; engine_version: string; similarity: number; rule?: null }
+  | { kind: 'manual'; engine_version: null; similarity: null; rule?: null }
+  | {
+      kind: 'rule';
+      engine_version: null;
+      similarity: null;
+      rule: { condition: 'address' | 'domain' | 'subject'; value: string };
+    };
 
 export interface LocationJson {
   state: 'placed' | 'none' | 'excluded';

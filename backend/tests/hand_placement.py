@@ -15,7 +15,7 @@ MONITORS = "Счёт на мониторы"
 DISCOUNT = "Скидка на абонемент в фитнес-клуб"
 ACTS_THREAD = "Акты"
 MONITORS_THREAD = "Закупка мониторов"
-MANUAL = {"kind": "manual", "engine_version": None, "similarity": None}
+MANUAL = {"kind": "manual", "engine_version": None, "similarity": None, "rule": None}
 
 
 async def anna_with_chains(

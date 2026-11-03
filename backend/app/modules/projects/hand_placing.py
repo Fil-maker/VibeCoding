@@ -7,12 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.correspondence.service import has_chain
 from app.modules.projects import repository
-from app.modules.projects.domain import SIMILARITY_DECIMALS
+from app.modules.projects.domain import PlacementEntry, build_placement
 from app.modules.projects.errors import ChainNotInProject
-from app.modules.projects.models import PlacementKind, Project
+from app.modules.projects.models import Project
 from app.modules.projects.schemas import (
     ChainLocation,
-    Placement,
     PlacementMove,
     ProjectRef,
     ThreadSummary,
@@ -40,15 +39,16 @@ async def _location(session: AsyncSession, user_id: UUID, chain_id: UUID) -> Cha
         if found is None:
             raise NotFound
         thread = ThreadSummary(id=found.id, name=found.name)
-    manual = row.kind == PlacementKind.MANUAL
-    placement = Placement(
-        kind="manual" if manual else "engine",
-        engine_version=None if manual else row.engine_version,
-        similarity=(
-            None
-            if manual or row.similarity is None
-            else round(float(row.similarity), SIMILARITY_DECIMALS)
-        ),
+    placement = build_placement(
+        PlacementEntry(
+            chain_id=row.chain_id,
+            thread_id=row.thread_id,
+            kind=row.kind,
+            similarity=float(row.similarity) if row.similarity is not None else None,
+            engine_version=row.engine_version,
+            rule_condition=row.rule_condition,
+            rule_value=row.rule_value,
+        )
     )
     return ChainLocation(
         state="placed",

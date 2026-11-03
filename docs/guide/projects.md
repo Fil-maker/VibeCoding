@@ -1,19 +1,22 @@
 # Projects
 
-Updated 02.11.2026
+Updated 03.11.2026
 
-**Code:** `backend/app/modules/projects/` (`router.py`, `service.py`, `hand_placing.py`, `domain.py`, `placing.py`, `repository.py`,
-`models.py`, `schemas.py`, `errors.py`), the platform file `backend/app/platform/placement_engine.py`, its unit tests
+**Code:** `backend/app/modules/projects/` (`router.py`, `service.py`, `hand_placing.py`, `rule_placing.py`, `domain.py`, `placing.py`,
+`repository.py`, `models.py`, `schemas.py`, `errors.py`), the platform file `backend/app/platform/placement_engine.py`, its unit tests
 `backend/app/platform/test_placement_engine.py`, the wiring in `backend/app/modules/mailboxes/service.py`, the functions of
 `backend/app/modules/correspondence/service.py` that projects use (among them `has_chain`) and its `MergeHook`, the migrations
-`backend/migrations/versions/0005_projects_and_placements.py` and `0006_manual_placements.py`, the integration tests
-`backend/tests/integration/test_projects_*.py` and `test_placement_*.py`, the SPA's `frontend/src/features/projects/ChainPlacement.tsx`,
-and the test seams `backend/tests/project_trees.py`, `backend/tests/hand_placement.py`, `Factories.create_project` and the placement
-helpers in `backend/tests/factories.py`.
+`backend/migrations/versions/0005_projects_and_placements.py`, `0006_manual_placements.py` and `0007_placement_rules.py`, the integration
+tests `backend/tests/integration/test_projects_*.py`, `test_placement_*.py` and the rule groups, the SPA's
+`frontend/src/features/projects/ChainPlacement.tsx`, and the test seams `backend/tests/project_trees.py`, `backend/tests/hand_placement.py`,
+`backend/tests/rule_support.py`, `Factories.create_project` and the placement helpers in `backend/tests/factories.py`. The rules module
+`backend/app/modules/rules/` is in [Rules](rules.md).
 
 **Requirements:** [FR-32 … FR-34](../../openspec/specs/projects/spec.md) projects (create, list, show as a tree),
 [FR-35 … FR-42](../../openspec/specs/chain-placement/spec.md) chain placement (fill, fill again, every placement explained,
-reproducible placement, placing new chains, placing a chain by hand, taking a chain out of projects, placements by hand kept).
+reproducible placement, placing new chains, placing a chain by hand, taking a chain out of projects, placements by hand kept),
+[FR-43 … FR-45](../../openspec/specs/placement-rules/spec.md) placement rules (create, list, edit and delete a rule), and
+FR-46 in the [chain-placement spec](../../openspec/specs/chain-placement/spec.md) (placing chains by rules).
 The map is in [Requirements map](../domain.md#requirements-map).
 
 **Design:** [Components and processes](../architecture.md#components-and-processes), [Layers](../architecture.md#layers),
@@ -24,10 +27,15 @@ The map is in [Requirements map](../domain.md#requirements-map).
 [ADR 0053](../adr/0053-a-counterparty-in-the-tree-is.md) (a counterparty is one address),
 [ADR 0054](../adr/0054-on-a-filled-project-is-an.md) (filling again is an explicit rebuild),
 [ADR 0055](../adr/0055-similarity-thresholds-are-constants-of-the.md) (thresholds are constants of the engine version),
-[ADR 0056](../adr/0056-demo-descriptions-of-and-fixed-in.md) (the demo descriptions).
+[ADR 0056](../adr/0056-demo-descriptions-of-and-fixed-in.md) (the demo descriptions),
+[ADR 0063](../adr/0063-task-1-5-rules-is-a.md) (rules are a new capability),
+[ADR 0064](../adr/0064-when-several-rules-match-a-chain.md) (the more specific rule wins),
+[ADR 0065](../adr/0065-rules-apply-on-fill-before-the.md) (rules apply on fill before the engine),
+[ADR 0066](../adr/0066-a-rule-targets-a-project-and.md) (a rule targets a project and a thread by name).
 
 **Related:** [Backend](backend.md) (the layers, the reading loop, the platform layer), [Mail reading](mail-reading.md) (the reply
-chains that the engine places), [Auth and accounts](auth.md) (the caller and the access boundary), [Frontend](frontend.md).
+chains that the engine places), [Rules](rules.md) (the rules that place a chain before the engine), [Auth and accounts](auth.md)
+(the caller and the access boundary), [Frontend](frontend.md).
 
 ## Modules and their files
 
@@ -37,13 +45,14 @@ service, the service calls the pure rules of `domain.py` and the placer of `plac
 | File | What it holds |
 |---|---|
 | `router.py` | `router` (`/api/v1/projects`), `placements_router` (`/api/v1/placements`) and `ERROR_MAPPING`. A router holds no session and runs no query. |
-| `service.py` | `ProjectsService` (`list_projects`, `create`, `get_tree`, `fill`, `list_threads`, `get_location`, `move_chain`, `take_chain_out`), `get_projects_service`, and the two module functions: `place_new_chains`, which the reading run calls after each batch, and `carry_placement`, which the mailboxes module passes as `on_merge` (`backend/app/modules/mailboxes/service.py`). |
+| `service.py` | `ProjectsService` (`list_projects`, `create`, `get_tree`, `fill`, `list_threads`, `get_location`, `move_chain`, `take_chain_out`), `get_projects_service`, `list_project_names` and `lock_project_names` (the project directory of the rules module), and the two module functions: `place_new_chains`, which the reading run calls after each batch, and `carry_placement`, which the mailboxes module passes as `on_merge` (`backend/app/modules/mailboxes/service.py`). |
 | `hand_placing.py` | Placing by hand: `read_location`, `move_chain` and `take_chain_out`. |
+| `rule_placing.py` | Placing by rules: `place_by_rules`, which places each candidate by its winning rule and returns the chains that no rule matches, and the thread of a rule (found by name or created). |
 | `domain.py` | The pure rules: `classify` (the band of a similarity), `choose_thread`, `choose_best_index`, `build_tree`, and the `Band` values. |
 | `placing.py` | `Placer`, which stores the engine's placements and new threads of one project, and `ThreadState`, a thread with the documents in it. |
 | `repository.py` | The named queries; each one takes the owner's id, locks included. |
-| `models.py` | The tables `projects`, `threads` and `chain_placements`, and `PlacementKind` (`engine`, `manual`, `excluded`). |
-| `schemas.py` | `ProjectCreate`, `ProjectSummary`, `ProjectTree` and the nodes of the tree; `ThreadSummary`, `PlacementMove` and `ChainLocation` for placing by hand. |
+| `models.py` | The tables `projects`, `threads` and `chain_placements`, and `PlacementKind` (`engine`, `manual`, `excluded`, `rule`). |
+| `schemas.py` | `ProjectCreate`, `ProjectSummary`, `ProjectTree` and the nodes of the tree; `Placement` and `PlacementRuleRef` (the explanation of a placement); `ThreadSummary`, `PlacementMove` and `ChainLocation` for placing by hand. |
 | `errors.py` | `ProjectExists` and `ChainNotInProject`, the domain errors. |
 
 The engine is in `backend/app/platform/placement_engine.py`. The platform imports no module, so the engine knows nothing of projects.
@@ -103,7 +112,7 @@ chains, joined. The most similar thread takes the chain when its score is at lea
 earlier thread. Otherwise the chain starts a new thread at the next position, named by the chain's subject.
 
 An engine placement stores the `engine_version` and the similarity it was made with, and the tree shows both. A placement by hand
-stores neither ([Placing by hand](#placing-by-hand)).
+or by a rule stores neither ([Placing by hand](#placing-by-hand), [Placing by rules](#placing-by-rules)).
 
 ### Changing the engine
 
@@ -120,6 +129,32 @@ user presses «Заполнить» on the project ([FR-38](../../openspec/specs
 are placed by the new version, as the reading run uses the app's engine. Until a fill, one project can hold placements of two
 versions, and the tree shows which. A placement by hand is never re-placed by the engine, whatever version is current.
 
+## Placing by rules
+
+A rule places a chain before the engine is asked. The rules are the user's rows of `placement_rules`, described in [Rules](rules.md).
+`list_match_rules` in `backend/app/modules/rules/service.py` reads them in the order they win, in the caller's transaction.
+`place_by_rules` in `backend/app/modules/projects/rule_placing.py` then goes through the candidates in reading order:
+
+- The winning rule of a candidate is `pick_winning_rule(rules, chain.senders, chain.subject)`: the first rule that matches, by
+  address, then by domain, then by subject words ([Matching](rules.md#matching)). A chain with no winning rule goes on to the engine.
+- A chain with a winning rule is stored as a placement of kind `rule` in the rule's project. Its thread is the project's first thread
+  by position whose name, trimmed and lower-cased, equals the rule's thread name (`find_thread_by_name_for_owner`); when there is none,
+  a thread with the rule's name is created at the next position. A rule with no thread name puts the chain in «Неразобранное».
+- The placement keeps its own copy of the rule, `rule_condition` and `rule_value` (`add_rule_placement_for_owner`). An edit or a delete
+  of the rule later does not change it, and a delete keeps the placement. It stores no similarity and no engine version.
+
+The rules place a chain before the engine, and never a chain placed or taken out by hand:
+
+- **New chains** (`place_new_chains`, after a mailbox read): the rules place first, into any project, filled or not. The chains that no
+  rule matches go to the filled projects, as the engine does ([Placing new chains](#placing-new-chains)).
+- **A fill** (`ProjectsService.fill`): the project's engine and rule placements are dropped, then the candidates are placed by the rules
+  that target this project. A candidate whose winning rule targets another project is left out of this fill, so it is in no project until
+  that project is filled or the chain gets a new email. The rest go to the engine. The threads that the rules created or named are among
+  the threads of the engine's step.
+- **By hand:** a chain with a placement row is never a candidate, so no rule moves a placement by hand or a chain taken out. A move by
+  hand replaces a rule placement and clears its rule columns.
+- **On a merge** of chains, a placement by hand beats a rule's, and a rule's beats the engine's ([Merge hook](#merge-hook)).
+
 ## Filling a project
 
 `POST /api/v1/projects/{project_id}/fill` (signed in) answers 200 with `ProjectTree`. Another user's or an unknown project
@@ -131,20 +166,22 @@ answers 404 `not_found`. The SPA button «Заполнить» starts it. When t
 
 1. It locks every project row of the user (`lock_projects_for_owner`, `FOR UPDATE`, in id order). A fill and a reading batch
    therefore never place the same chain twice.
-2. It drops the project's engine placements (`delete_engine_placements_and_unpinned_threads_for_owner`), then the project's threads
-   that no placement by hand points to. Placements by hand and the threads holding them stay.
-3. It takes the candidates: every chain of the user that has no placement row. Step 2 freed the project's engine chains, so they
-   are candidates again; a chain placed by hand or taken out by hand is not.
-4. It scores each candidate against the description, with the whole corpus.
-5. It places each candidate by the bands above. The threaded chains come in reading order and join or start threads. The threads
+2. It drops the project's engine and rule placements (`delete_computed_placements_and_unpinned_threads_for_owner`), then the
+   project's threads that no placement by hand points to. Placements by hand and the threads holding them stay.
+3. It takes the candidates: every chain of the user that has no placement row. Step 2 freed the project's engine and rule chains, so
+   they are candidates again; a chain placed by hand or taken out by hand is not.
+4. It places the candidates by the rules that target this project, first ([Placing by rules](#placing-by-rules)). A candidate whose
+   winning rule targets another project is left out.
+5. It scores the rest against the description, with the whole corpus.
+6. It places each scored candidate by the bands above. The threaded chains come in reading order and join or start threads. The threads
    that stayed, the ones holding placements by hand, are the first threads of the fill: an engine chain joins the closest of them
    at or above the thread threshold, even when that chain had a thread of its own before.
-6. It sets `filled_at` to now and returns the tree.
+7. It sets `filled_at` to now and returns the tree.
 
 Reading order is the time of the first email, then its subject, then its key (`reading_order_key` in
 `backend/app/modules/correspondence/domain.py`). The chain id is never used, so the order does not depend on the database.
 
-A fill rebuilds the engine's placements: the same emails give the same engine placements
+A fill rebuilds the engine's and the rules' placements: the same emails give the same engine placements
 ([ADR 0054](../adr/0054-on-a-filled-project-is-an.md)). It keeps the placements by hand and their threads, with their names
 ([ADR 0060](../adr/0060-the-explicit-re-sorting-is-on.md)), and the confirmation says so. A chain taken out by hand is not taken
 back by a fill ([ADR 0059](../adr/0059-keeps-the-chain-out-of-every.md)). The engine's chains may join a thread kept by hand
@@ -162,12 +199,13 @@ After each stored batch, the reading run places the chains that got a new email.
    transaction. If placing raises, the batch and the progress roll back together, and the mailbox is recorded as `failed`
    with `read_failed` ([Reading a mailbox](mail-reading.md#reading-a-mailbox)).
 
-`place_new_chains` locks the user's projects, then returns at once when no project is filled or no chain is touched. Otherwise:
+`place_new_chains` locks the user's projects, then returns at once when no chain is touched. Otherwise:
 
 - A candidate is a touched chain with no placement row: in no project and not taken out by hand.
-- Each candidate is scored against every filled project. The best score takes it; a tie goes to the project created first, then
-  to the name, ignoring case and then exact. The bands and the thread rule of [Bands and the thread rule](#bands-and-the-thread-rule)
-  then apply, with the threads of that project as they stand now.
+- Each candidate whose winning rule exists is placed by that rule, in the rule's project, filled or not ([Placing by rules](#placing-by-rules)).
+- When no project is filled, the other candidates stay in no project. Otherwise each is scored against every filled project. The best
+  score takes it; a tie goes to the project created first, then to the name, ignoring case and then exact. The bands and the thread rule
+  of [Bands and the thread rule](#bands-and-the-thread-rule) then apply, with the threads of that project as they stand now.
 - A chain with a placement row, placed or taken out by hand, is never scored again, so a reply never moves its chain or brings
   back a chain taken out.
 - A chain below the lower threshold is not stored. It stays in no project and is scored again only when a new email reaches it,
@@ -180,7 +218,7 @@ merged chains move to the survivor. The hook is `carry_placement` in `backend/ap
 `(session, user_id, survivor_id, merged_ids)`. It:
 
 - keeps, among the placements of the survivor and of the merged chains, the winning one: a placement by hand (`manual`) or a
-  chain taken out by hand (`excluded`) beats the engine's whatever the dates; among one kind the earliest `placed_at` wins, then
+  chain taken out by hand (`excluded`) beats a rule's (`rule`), and a rule's beats the engine's, whatever the dates; among one kind the earliest `placed_at` wins, then
   the project created first, then the name, then the thread's position, with «Неразобранное» last. It drops the other placements
   of these chains ([ADR 0061](../adr/0061-on-a-merge-of-chains-a.md));
 - moves the kept placement to the survivor when it belonged to a merged chain.
@@ -199,11 +237,13 @@ The hook is a plain callable passed by the mailboxes module; the correspondence 
 - **Names.** A counterparty is named by the display name of the latest email from its address that had one
   (`get_latest_sender_names`); without one, the address is the name. Counterparties are sorted by name, ignoring case, then by address.
 - **Threads.** Under a counterparty, its threads come in creation order, and each thread's chains in reading order.
-- **«Неразобранное».** The chains with no thread: the chains placed by hand first, in reading order, then the engine's chains by
-  similarity from high to low, then in reading order (a placement by hand has no similarity, and the sort puts it first).
-- **Chains.** Each chain has `id`, `subject`, `email_count`, `latest_email_at` and `placement`: `kind` (`engine` or `manual`),
-  `engine_version` and `similarity`, rounded to 4 decimals; the last two are null for `manual`. The SPA shows the placement as
-  «Вручную» for a placement by hand and as «Движок text-1 · сходство 43%» for an engine one (`placementLabel` in `format.ts`).
+- **«Неразобранное».** The chains with no thread: the chains placed by hand or by a rule first, in reading order, then the engine's
+  chains by similarity from high to low, then in reading order (a placement by hand or by a rule has no similarity, and the sort puts it first).
+- **Chains.** Each chain has `id`, `subject`, `email_count`, `latest_email_at` and `placement`: `kind` (`engine`, `manual` or `rule`),
+  `engine_version` and `similarity`, rounded to 4 decimals; the last two are null for `manual` and `rule`. `rule` is the rule as it
+  placed the chain (`condition` and `value`, from the copy in the placement), and it is null unless the kind is `rule`. The SPA shows
+  the placement as «Вручную» for a placement by hand, as «Движок text-1 · сходство 43%» for an engine one, and as «Правило · адрес …»,
+  «Правило · домен …» or «Правило · слова темы «…»» for a rule (`placementLabel` in `format.ts`).
 
 A chain with two counterparties appears twice in the answer. `threads_of` in `backend/tests/project_trees.py` counts it once.
 
@@ -269,7 +309,7 @@ The pages are in `frontend/src/features/projects/`, behind `RequireUser`: `/proj
 (`NewProjectPage`, «Новый проект») and `/projects/:id` (`ProjectPage`: the name, the description, «Заполнить» and the tree). The start
 page links to «Проекты». `format.ts` holds the plural labels of the counts (for example «1 цепочка», «2 цепочки», «5 цепочек») and
 `placementLabel`. The chain page (`/chains/:id`) shows the «Проект» block of its chain, from `frontend/src/features/projects/ChainPlacement.tsx`;
-it places the chain by hand as described in [Placing by hand](#placing-by-hand). A project page whose tree has no counterparties and no «Неразобранное» shows «Подходящей переписки не нашлось:
+it places the chain by hand as described in [Placing by hand](#placing-by-hand). The page `/rules` is described in [Rules](rules.md#the-spa). A project page whose tree has no counterparties and no «Неразобранное» shows «Подходящей переписки не нашлось:
 уточните описание» when the project is filled, and «Проект пуст: нажмите «Заполнить», чтобы найти его переписку» when it is not.
 
 ## Test seams
@@ -294,14 +334,19 @@ it places the chain by hand as described in [Placing by hand](#placing-by-hand).
   `take_out_chain_response`, `chain_location` and `project_threads`.
 - **`backend/tests/hand_placement.py`** holds the helpers of the placement-by-hand suites: `anna_with_chains()` reads one chain per
   subject, and `chain_in_tree()` finds a chain in a tree (a thread or «Неразобранное»).
+- **`backend/tests/rule_support.py`** holds the helpers of the placement-rule suites: `by_rule()` builds the expected `Placement` of a
+  rule placement, `by_engine()` the engine's, `read_again()` reads new chains, and `anna_with_two_projects()` seeds the two-project fixture.
+  `create_rule()` and `create_rule_response()` in `backend/tests/factories.py` post a rule.
 
 ## Tests
 
-- Unit tests: `backend/app/platform/test_placement_engine.py` (the engine `text-1`, the fake, and the demo chains).
+- Unit tests: `backend/app/platform/test_placement_engine.py` (the engine `text-1`, the fake, and the demo chains), and
+  `backend/app/modules/rules/test_domain.py` (the matching of rules, in [Rules](rules.md#tests)).
 - Integration tests, through HTTP against the test database, one file per group: `test_projects_create_list.py` (FR-32, FR-33),
   `test_projects_tree.py` (FR-34), `test_projects_fill.py` (FR-35, FR-36), `test_placement_explained.py` (FR-37, FR-38) and
   `test_placement_new_chains.py` (FR-39), `test_placement_by_hand.py` (FR-40), `test_placement_taken_out.py` (FR-41) and
-  `test_placement_kept.py` (FR-42).
+  `test_placement_kept.py` (FR-42). The placing-by-rules groups are `test_placement_by_rules.py` (FR-46) and
+  `test_placement_rules_with_engine.py` (rules next to the engine); the rules CRUD is `test_rules_crud.py` (FR-43 to FR-45).
 - `just test` runs the unit tests, `just test-db` the integration tests, `just test-all` both. The database setup is in
   [Integration tests](backend.md#integration-tests).
 
@@ -310,7 +355,7 @@ it places the chain by hand as described in [Placing by hand](#placing-by-hand).
 - **A threshold, a stop word or the stemmer's version:** make a new engine version with its own `version` string and constants
   ([Changing the engine](#changing-the-engine)). Never edit the constants of `text-1` in place: placements store their version,
   and the same version must give the same placement ([ADR 0055](../adr/0055-similarity-thresholds-are-constants-of-the.md)).
-- **A rule** (the bands, the thread rule, the order of the tree, what a fill does): the behavior changes, so it goes through the
+- **A behavior** (the bands, the thread rule, the order of the tree, what a fill does, the placing by rules): the behavior changes, so it goes through the
   spec first ([projects spec](../../openspec/specs/projects/spec.md), [chain-placement spec](../../openspec/specs/chain-placement/spec.md)),
   with the user's approval, then the code, the tests and this article.
 - **One engine per run.** The reading loop gets its engine from `create_app` (`backend/app/main.py`), the fill route from
@@ -319,9 +364,9 @@ it places the chain by hand as described in [Placing by hand](#placing-by-hand).
 - **The merge hook** must run inside the caller's transaction and before the merged chains are deleted, and it must keep the rule of
   [Merge hook](#merge-hook).
 - **The locks.** Code that places chains takes `lock_projects_for_owner` first, as `fill`, `place_new_chains` and the placement
-  by hand do.
+  by hand do. The rule writes that add or retarget a rule (create and edit) take it too ([Rules](rules.md#use-cases)); a delete does not.
 - **The owner.** Every repository query takes the owner's id, and a route takes its caller from `current_user`
   ([Auth and accounts](auth.md#access-boundary) describes the boundary).
 - **The tables.** A change of a table is a new revision in `backend/migrations/versions/`, from `script.py.mako`; the revision
-  `0005` and `0006` stay as they are ([Migrations](backend.md#migrations)).
+  `0005` to `0007` stay as they are ([Migrations](backend.md#migrations)).
 - **Email text** is never logged. The tree answer carries subjects and counts, not email texts ([Mail reading](mail-reading.md)).

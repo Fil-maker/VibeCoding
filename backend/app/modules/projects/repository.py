@@ -1,6 +1,6 @@
 """Named queries over projects, threads and placements; every query is owner-scoped."""
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -87,15 +87,15 @@ async def list_project_summaries_for_owner(
     return [SummaryRow(project, placed, loose) for project, placed, loose in rows]
 
 
-async def delete_engine_placements_and_unpinned_threads_for_owner(
+async def delete_computed_placements_and_unpinned_threads_for_owner(
     session: AsyncSession, user_id: UUID, project_id: UUID
 ) -> None:
-    """Drop the engine's placements of the project, then its threads no `manual` row points to."""
+    """Drop the project's `engine` and `rule` placements, then its threads no `manual` row uses."""
     await session.execute(
         delete(ChainPlacement).where(
             ChainPlacement.user_id == user_id,
             ChainPlacement.project_id == project_id,
-            ChainPlacement.kind == PlacementKind.ENGINE,
+            ChainPlacement.kind.in_([PlacementKind.ENGINE, PlacementKind.RULE]),
         )
     )
     pinned = select(ChainPlacement.thread_id).where(
@@ -113,9 +113,9 @@ async def delete_engine_placements_and_unpinned_threads_for_owner(
 
 
 async def list_placed_chain_ids_for_owner(session: AsyncSession, user_id: UUID) -> set[UUID]:
-    """The user's chains placed in a project or taken out by hand.
+    """The user's chains with a placement row: placed by any kind, or taken out by hand.
 
-    The engine must never place either kind, so both have a placement row.
+    The engine and the rules must never place such a chain again, so each has a row.
     """
     rows = await session.execute(
         select(ChainPlacement.chain_id).where(ChainPlacement.user_id == user_id)
@@ -200,8 +200,9 @@ async def carry_placement_for_owner(
 ) -> None:
     """Keep on the survivor the best placement among it and the merged chains, drop the rest.
 
-    A placement by hand (`manual`, `excluded`) beats the engine's; among one kind the earliest
-    wins, ties go to the project created first, then by name, then to the thread created first.
+    A placement by hand (`manual`, `excluded`) beats a rule's and a rule's beats the engine's;
+    among one kind the earliest wins, ties go to the project created first, then by name, then
+    to the thread created first.
     """
     chain_ids = [survivor_id, *merged_ids]
     kept = (
@@ -211,7 +212,11 @@ async def carry_placement_for_owner(
             .outerjoin(Thread, Thread.id == ChainPlacement.thread_id)
             .where(ChainPlacement.user_id == user_id, ChainPlacement.chain_id.in_(chain_ids))
             .order_by(
-                case((ChainPlacement.kind == PlacementKind.ENGINE, 1), else_=0),
+                case(
+                    (ChainPlacement.kind == PlacementKind.RULE, 1),
+                    (ChainPlacement.kind == PlacementKind.ENGINE, 2),
+                    else_=0,
+                ),
                 ChainPlacement.placed_at,
                 Project.created_at,
                 func.lower(Project.name),
@@ -295,6 +300,8 @@ async def set_manual_placement_for_owner(
     row.kind = kind
     row.similarity = None
     row.engine_version = None
+    row.rule_condition = None
+    row.rule_value = None
     row.placed_at = now
     await session.flush()
 
@@ -309,3 +316,63 @@ async def delete_thread_if_empty_for_owner(
     await session.execute(
         delete(Thread).where(Thread.user_id == user_id, Thread.id == thread_id, ~in_use.exists())
     )
+
+
+async def list_project_names_for_owner(
+    session: AsyncSession, user_id: UUID, project_ids: Collection[UUID]
+) -> dict[UUID, str]:
+    """The given projects of the user as `id -> name`; the caller keeps `project_ids` bounded."""
+    rows = await session.execute(
+        select(Project.id, Project.name)
+        .where(Project.user_id == user_id, Project.id.in_(project_ids))
+        .order_by(Project.id)
+    )
+    return {project_id: name for project_id, name in rows}
+
+
+async def find_thread_by_name_for_owner(
+    session: AsyncSession, user_id: UUID, project_id: UUID, name: str
+) -> Thread | None:
+    """The first thread of the project by position named `name` (stripped, lower-cased)."""
+    return (
+        await session.execute(
+            select(Thread)
+            .where(
+                Thread.user_id == user_id,
+                Thread.project_id == project_id,
+                func.lower(func.trim(Thread.name)) == name.strip().lower(),
+            )
+            .order_by(Thread.position, Thread.id)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
+@dataclass(frozen=True)
+class NewRulePlacement:
+    """A placement by a rule to store; a null `thread_id` is «Неразобранное»."""
+
+    chain_id: UUID
+    project_id: UUID
+    thread_id: UUID | None
+    rule_condition: str
+    rule_value: str
+
+
+async def add_rule_placement_for_owner(
+    session: AsyncSession, user_id: UUID, placement: NewRulePlacement, *, now: datetime
+) -> None:
+    """Store a placement by a rule with its own copy of the rule."""
+    session.add(
+        ChainPlacement(
+            chain_id=placement.chain_id,
+            user_id=user_id,
+            project_id=placement.project_id,
+            thread_id=placement.thread_id,
+            kind=PlacementKind.RULE,
+            rule_condition=placement.rule_condition,
+            rule_value=placement.rule_value,
+            placed_at=now,
+        )
+    )
+    await session.flush()

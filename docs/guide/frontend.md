@@ -1,6 +1,6 @@
 # Frontend
 
-Updated 02.11.2026
+Updated 03.11.2026
 
 **Code:** `frontend/src/`, `frontend/index.html`, `frontend/vite.config.ts`, `frontend/package.json`,
 `frontend/tsconfig.json`, `frontend/eslint.config.js`, `frontend/.prettierrc.json`, `frontend/.prettierignore`.
@@ -13,7 +13,9 @@ The tests are `frontend/src/App.*.test.tsx`, `frontend/src/features/health/Healt
 [FR-22, FR-23, FR-24, FR-26 and FR-27](../../openspec/specs/mailboxes/spec.md) the mailbox page,
 [FR-30 and FR-31](../../openspec/specs/reply-chains/spec.md) the correspondence pages,
 [FR-32 … FR-34](../../openspec/specs/projects/spec.md) the project pages and
-[FR-35 … FR-42](../../openspec/specs/chain-placement/spec.md) the fill button of a project and the «Проект» block of a chain. The health page has no requirement:
+[FR-35 … FR-42](../../openspec/specs/chain-placement/spec.md) the fill button of a project and the «Проект» block of a chain,
+[FR-43 … FR-45](../../openspec/specs/placement-rules/spec.md) the rules page, and [FR-37](../../openspec/specs/chain-placement/spec.md)
+the rule explanations of a placement. The health page has no requirement:
 task 0.1 is a technical change without specs ([ADR 0004](../adr/0004-task-0-1-runs-as-a.md)).
 
 **Design:** [Components and processes](../architecture.md#components-and-processes),
@@ -42,7 +44,7 @@ task 0.1 is a technical change without specs ([ADR 0004](../adr/0004-task-0-1-ru
 - The paths and who sees each page are in [Routes and API](../architecture.md#routes-and-api), under «SPA routes».
   This article covers how `App.tsx` nests them:
   - `RequireGuest` wraps the pages for a signed-out visitor: registration, sign-in and the password reset request.
-  - `RequireUser` wraps the start page, `/mailboxes`, `/chains`, `/chains/:id`, `/projects`, `/projects/new` and `/projects/:id`.
+  - `RequireUser` wraps the start page, `/mailboxes`, `/chains`, `/chains/:id`, `/projects`, `/projects/new`, `/projects/:id` and `/rules`.
   - The pages that take their token from the link (email confirmation, new password), the health page
     and the catch-all route stay outside the guards.
 - The catch-all route shows `NotFoundPage`. The addresses `/members` and `/invitation` have no route, so they show
@@ -87,12 +89,13 @@ Every page is a `Panel` whose `title` is its `h1`.
 | «Вход» | `frontend/src/features/auth/SignInPage.tsx` | Posts email and password, then `setSession`; `RequireGuest` takes the user on. Links «Забыли пароль?» and «Регистрация». |
 | «Восстановление пароля» | `frontend/src/features/auth/ForgotPasswordPage.tsx` | Posts the email. The answer is the same text for every email. |
 | «Новый пароль» | `frontend/src/features/auth/ResetPasswordPage.tsx` | Takes the token from the link, posts it with the new password and shows `Пароль изменён. Теперь можно войти` with a link to «Вход». Without a token it shows the invalid-link text. |
-| «VibeCoding» (start page) | `frontend/src/features/home/StartPage.tsx` | Shows the signed-in user's name, the links «Почтовые ящики» (to `/mailboxes`), «Переписка» (to `/chains`) and «Проекты» (to `/projects`), and the button «Выйти», which ends the session and calls `setSession(null)`. |
+| «VibeCoding» (start page) | `frontend/src/features/home/StartPage.tsx` | Shows the signed-in user's name, the links «Почтовые ящики» (to `/mailboxes`), «Переписка» (to `/chains`), «Проекты» (to `/projects`) and «Правила» (to `/rules`), and the button «Выйти», which ends the session and calls `setSession(null)`. |
 | «Почтовые ящики» | `frontend/src/features/mailboxes/MailboxesPage.tsx` | The connected mailboxes, their reading status, «Обновить», «Отключить», and the connect form. See [Mailboxes feature](#mailboxes-feature). |
 | «Переписка» | `frontend/src/features/correspondence/ChainsPage.tsx` | The reply chains, the latest first, a page at a time. See [Correspondence feature](#correspondence-feature). |
 | The chain's subject (`/chains/:id`) | `frontend/src/features/correspondence/ChainPage.tsx` | One reply chain: the block «Проект» (where the chain is, «Перенести», «Убрать из проекта»), then its emails oldest first, each as plain text. See [Correspondence feature](#correspondence-feature) and [Projects feature](#projects-feature). |
 | «Проекты» (`/projects`) | `frontend/src/features/projects/ProjectsPage.tsx` | The user's projects by name, with their chain counts, and the button «Создать проект». See [Projects feature](#projects-feature). |
 | «Новый проект» (`/projects/new`) | `frontend/src/features/projects/NewProjectPage.tsx` | Fields «Название» and «Описание»; «Создать» opens the new project. See [Projects feature](#projects-feature). |
+| «Правила» (`/rules`) | `frontend/src/features/projects/RulesPage.tsx` | The form of a rule, the user's rules in the order they win, with «Изменить» and «Удалить». See [Rules feature](#rules-feature). |
 | The project's name (`/projects/:id`) | `frontend/src/features/projects/ProjectPage.tsx` | One project: its description, «Заполнить» with the rebuild question, and the tree of its chains. See [Projects feature](#projects-feature). |
 | «Состояние сервиса» | `frontend/src/features/health/HealthStatus.tsx` | The health page; see [Health feature](#health-feature). |
 | «Страница не найдена» | `frontend/src/components/NotFoundPage.tsx` | See [Components](#components). |
@@ -165,16 +168,18 @@ The files are `frontend/src/features/correspondence/`: `ChainsPage.tsx` (the lis
 The files are `frontend/src/features/projects/`: `ProjectsPage.tsx` (the list, and `PROJECTS_KEY`, the query key `['projects']`
 that the other two files invalidate), `NewProjectPage.tsx` (the form), `ProjectPage.tsx` (one project, its fill and its tree),
 `ProjectPage.module.css` (the tree's indents, the description's line breaks and the muted counterparty address), `ChainPlacement.tsx`
-  (the «Проект» block of a chain page, see below) and `format.ts`.
+  (the «Проект» block of a chain page, see below), `format.ts` and `RulesPage.tsx` (the page «Правила», see [Rules feature](#rules-feature)).
 The server side is in [Projects](projects.md). The pages, their routes and their texts are described in
 [The SPA](projects.md#the-spa) of that article; this section only says where things live.
 
 - **Texts.** Each page writes its Russian texts in its component. The two texts of the project page's empty tree
   are constants at the top of `ProjectPage.tsx`, next to `REFILL_QUESTION` and `NO_COUNTERPARTY_TITLE`.
 - **Formatters (`format.ts`).** `chainCountLabel` and `unassignedCountLabel` pick the Russian plural with `Intl.PluralRules('ru')`,
-  as `emailCountLabel` does. `placementLabel(placement)` gives `Вручную` for a placement by hand and `Движок text-1 · сходство 43%`
-  for an engine one: the similarity (0–1) is shown in whole percent. Each chain row of the tree shows its own placement, and so do
-  the chains of «Неразобранное».
+  as `emailCountLabel` does. `placementLabel(placement)` gives `Вручную` for a placement by hand, `Движок text-1 · сходство 43%`
+  for an engine one (the similarity (0–1) is shown in whole percent), and for a rule placement the rule's explanation:
+  `Правило · адрес s.petrov@stroymaster.example` (condition `address`), `Правило · домен techsnab.example` (`domain`), and
+  `Правило · слова темы «акт работ»` (`subject`; the words go in «»). Each chain row of the tree shows its own placement, and so do
+  the chains of «Неразобранное». The same line shows in the «Проект» block of a chain page.
 - **The «Проект» block (`ChainPlacement.tsx`).** `ChainPage` renders `ChainPlacement({ chainId })`. It reads
   `GET /api/v1/placements/{chain_id}` under the key `['placements', id]`. The text is `<project> → <thread or Неразобранное> · <placement>`,
   with the project name as a link to `/projects/{id}`; `Вне проектов` when the chain is in no project, and `Вне проектов · убрана вручную`
@@ -195,11 +200,43 @@ The server side is in [Projects](projects.md). The pages, their routes and their
   Движок разложит его переписку заново` with the buttons «Пересобрать» and «Отмена»; «Отмена» sends nothing. A project with
   no chain fills at once. While the fill runs the button reads «Заполняется…» and is disabled. On success the page's query data
   is replaced with the answer, and the projects list is invalidated.
-- **The start page** links to `/projects` as «Проекты», beside «Почтовые ящики» and «Переписка» (`StartPage.tsx`).
+- **The start page** links to `/projects` as «Проекты», beside «Почтовые ящики», «Переписка» and «Правила» (`StartPage.tsx`).
 - **The form (`NewProjectPage.tsx`).** It is a `FormField` pair: «Название» (a text field) and «Описание» (`multiline`, see
   [Components](#components)). Its server field messages show under the fields, and the form has `noValidate`.
 - **Query keys.** The project page reads under `['projects', id]`, a child of `['projects']`, so invalidating the list also
   refetches an open project.
+
+## Rules feature
+
+The page «Правила» (`/rules`) is `frontend/src/features/projects/RulesPage.tsx`: one file, with `RuleForm` (the form, for a new
+rule or for an edit in place) and `RuleLine` (one listed rule, with its edit and delete). The server side is in [Rules](rules.md),
+and the route is in [Routes and API](../architecture.md#routes-and-api). The page reads the projects too, so the form can
+name the project of a rule. Its query keys are `RULES_KEY` (`['rules']`) and `PROJECTS_KEY` (`['projects']`, see
+[Projects feature](#projects-feature)).
+
+- **The page.** A `Panel` titled «Правила», wide, with the link «На главную» to `/`. Both queries show `Загрузка…` while they load,
+  and a failed query shows its message in an alert.
+- **No project.** With no project the page shows the link «Сначала создайте проект» to `/projects/new`, and no form.
+- **The form.** Fields «Условие» (a select: «Адрес отправителя», «Домен», «Слова темы»; it starts at «Адрес отправителя»),
+  «Значение» (a `FormField`), «Проект» (a select that starts at «Выберите проект», then the user's projects) and «Ветка» (a text
+  field with the placeholder «Неразобранное»). The form has `noValidate`. Its button is «Создать правило»; the field messages of
+  `condition`, `value`, `project_id` and `thread_name` show under their fields, and any other error shows in an alert above them, only
+  when the answer has no field errors (`ErrorAlert error={errors.size > 0 ? null : save.error}`, `RulesPage.tsx`).
+  After a created rule the fields are empty again.
+- **The list.** Each rule is one item of a list, in the order of the answer (the order the rules win). The item reads the condition's
+  title, the value, the project's name and the thread's name, joined as `Адрес отправителя: s.petrov@stroymaster.example → Ремонт офиса → Смета`;
+  a rule with no thread name shows `Неразобранное` at the end. The titles are «Адрес отправителя», «Домен» and «Слова темы».
+  With no rule the page shows `Правил пока нет`.
+- **Edit in place.** «Изменить» replaces the item with the form filled from the rule, with «Сохранить» and «Отмена». «Сохранить»
+  sends `PUT /api/v1/rules/{rule_id}`, invalidates the list and returns to the item; a failure shows its messages in that form.
+  «Отмена» returns to the item and sends nothing.
+- **Delete with a confirmation.** «Удалить» does not send anything at first. It replaces the item's buttons with the question
+  `Удалить правило? Цепочки, уже размещённые им, останутся на месте` and two buttons: «Удалить» (sends
+  `DELETE /api/v1/rules/{rule_id}`; disabled while it runs) and «Отмена» (returns the buttons, sends nothing). On success the
+  list is invalidated and the rule disappears. A failure shows in the item.
+- **Create.** The form sends `POST /api/v1/rules` with `condition`, `value`, `project_id` and `thread_name`, read from the form
+  fields with `formValue`. The server's `rule_exists` answer («Такое правило уже есть») and `too_many_rules` answer («Правил не может
+  быть больше 200») show in the form, as the server's message.
 
 ## API client
 
@@ -216,7 +253,7 @@ Server data reaches the SPA only through the generated client; components never 
 - Schema types come from `components['schemas'][...]`, for example `Me` in `AuthProvider.tsx` and `HealthStatus`
   in `frontend/src/features/health/useHealth.ts`, `Mailbox` and `MailboxConnect` in `MailboxesPage.tsx`, and `EmailView`
   and `Address` in the correspondence files. The project files use `ProjectCreate`, `ProjectTree` and `PlacedChain`; the «Проект»
-  block uses `ChainLocation` and `PlacementMove`.
+  block uses `ChainLocation` and `PlacementMove`; the rules page uses `Rule`, `RuleInput` and `RuleCondition`.
 
 ### How the client is regenerated
 
@@ -357,8 +394,9 @@ replaces the list; the last successful answer is not kept on screen.
 - The page tests render the whole app. They sit in `frontend/src/App.<area>.test.tsx`: `App.guards`, `App.start`,
   `App.signIn`, `App.registration`, `App.passwordReset`, `App.mailboxes` (the «Почтовые ящики» page) and `App.chains` (the start
   page links, «Переписка» and one chain), `App.projects` (the list and the new project, with the start page link «Проекты»),
-  `App.projectTree` (the tree of a project), `App.projectFill` (the fill and its rebuild question) and `App.chainPlacement` (the «Проект»
-  block of a chain page: where the chain is, «Перенести» and «Убрать из проекта»). A scenario test names its FR, for example «FR-17 …»;
+  `App.projectTree` (the tree of a project), `App.projectFill` (the fill and its rebuild question), `App.chainPlacement` (the «Проект»
+  block of a chain page: where the chain is, «Перенести» and «Убрать из проекта»), `App.rules` (the page «Правила» and the header link
+  «Правила») and `App.ruleExplanations` (the explanation of a rule's placement in the tree and on the chain page). A scenario test names its FR, for example «FR-17 …»;
   a test of an SPA page without an FR, such as «Вход» or «Страница не найдена», names the page.
 - The dates of `format.ts` are in local time. `vite.config.ts` sets `TZ` to `UTC` for the test run (its `test` settings), and
   `App.chains.test.tsx` and `App.mailboxes.test.tsx` set `process.env.TZ = 'UTC'` again at their top, so «14:05» in a test means
@@ -372,13 +410,25 @@ replaces the list; the last successful answer is not kept on screen.
   its chains `ESTIMATE`, `ACT` and `FURNITURE`), the fixed ids and texts (`PROJECT_ID`, `FILL`, `EMPTY_PROJECT`, `REBUILD`), and the
   lookups `openProject({ tree }, fill?)`, `chainRow`, `blockOf`, `confirmationWith`, `exactForm` (a count matched whole) and `follows`
   (document order). `openProject` renders the page with a `GET` answer that reads `state.tree`, so a fill answer can replace it.
-  Its `placement` is an engine one or a manual one (`PlacedChainJson`), so the tests show both labels.
+  Its `placement` is an engine one, a manual one or a rule one (`PlacedChainJson`, with the rule's `RuleRefJson`), so the tests show
+  every label.
 - `frontend/src/test/chainPlacement.tsx` is the fixture set of the chain page's «Проект» block. It holds the JSON shapes of
-  `ChainLocation` and `PlacementMove` (`LocationJson`, `PlacementJson`, `PlacementMoveJson`), the projects «Ремонт офиса» (`OFFICE`) and
+  `ChainLocation` and `PlacementMove` (`LocationJson`, `PlacementJson`, `PlacementMoveJson`; `PlacementJson` covers the rule kind too), the projects «Ремонт офиса» (`OFFICE`) and
   «Закупка техники» (`TECH`) with their threads, the placements (`ENGINE_PLACEMENT`, `MANUAL_PLACEMENT`) and the states (`NONE`,
   `EXCLUDED`, `placed(...)`). `openChain(state, options?)` renders the chain page of `CHAIN_ID` with a stateful stub: a `GET` answers
   `state.location`, and a `PUT` or `DELETE` changes it as the server would, unless `options.put` or `options.del` replaces the handler.
   The lookups are `locationAround(projectName)`, `choose(label, option)` for a select of the form, and `rejectedName(message)` for a 422.
+- `frontend/src/test/rulesPage.tsx` is the fixture set of the page «Правила». It holds the JSON shapes of `Rule` and `RuleInput`
+  (`RuleJson`, `RuleInputJson`), the projects «Ремонт офиса» (`OFFICE`) and «Закупка техники» (`TECH`), three sample rules (`BY_ADDRESS`,
+  `BY_DOMAIN`, `BY_SUBJECT`) and the texts of the delete question and of «Такое правило уже есть». `openRules({ rules }, options?)`
+  renders `/rules` with a stateful stub: a `POST` appends the rule, a `PUT` replaces it and a `DELETE` removes it, unless `options`
+  replaces the handler. The lookups are `ruleRow(value)` (waits for the item of a rule), `listedRules()` (the item texts without the
+  buttons), `createForm()`, `editForm()`, `fillCreate(...)`, `chooseIn`, `typeIn`, `pressIn`, `fieldOfIn` and `writesOtherThan`.
+- `App.rules.test.tsx` covers the header link «Правила», the create form (a rule by address, by domain, by subject words, into
+  «Неразобранное», the field messages, no project, a repeated rule, the limit of 200), the list (order, «Правил пока нет», the link
+  «Сначала создайте проект», the guard of `/rules`), the edit in place («Изменить», «Сохранить», «Отмена», a repeated edit, a field
+  message) and the delete with its confirmation (confirm and «Отмена»). `App.ruleExplanations.test.tsx` covers the explanation of a
+  rule placement («Правило · адрес …», «Правило · домен …», «Правило · слова темы «…»») in the tree, in «Неразобранное» and on the chain page.
 - `frontend/src/test/appHarness.tsx` provides `renderApp({ path, me?, routes? })`. It moves the browser to `path`,
   stubs `fetch` with `vi.stubGlobal`, and renders `<App queryClient={…} />` with a new `QueryClient` that does not retry.
   `me` is the signed-in user, `{user_id, name, email}`; without it the visitor is signed out.
@@ -387,7 +437,7 @@ replaces the list; the last successful answer is not kept on screen.
   request body and the session and returns a `Response`; `signedIn(session, me)` records a sign-in. A request without a
   handler answers 500 with `{"unrouted": …}`, so a missing route shows up in the test.
 - `apiError(status, code, fields?)` builds an error body. Its messages come from `MESSAGES` in the harness, a copy of the
-  server's Russian messages for the fake API.
+  server's Russian messages for the fake API; it has the rule codes `rule_exists` and `too_many_rules` too.
 - A handler may answer later: it returns a pending promise, which keeps the request in flight (the fill tests use it to
   check «Заполняется…»). `fieldOf` finds the field of a `<textarea>` too.
 - Other helpers in the harness: `heading`, `alertWith`, `rowOf`, `type`, `press`, `fieldOf`, `navigate` (moves the app

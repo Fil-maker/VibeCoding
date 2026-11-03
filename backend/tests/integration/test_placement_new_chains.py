@@ -138,7 +138,12 @@ async def test_fr39_a_sure_new_chain_far_from_every_thread_starts_its_own_thread
         "Мебель для переговорной": {"Мебель для переговорной"},
     }
     [chain] = [c for c in placed_chains(tree) if c["subject"] == "Мебель для переговорной"]
-    assert chain["placement"] == {"kind": "engine", "engine_version": "fake-2", "similarity": 0.6}
+    assert chain["placement"] == {
+        "kind": "engine",
+        "engine_version": "fake-2",
+        "similarity": 0.6,
+        "rule": None,
+    }
     assert all_subjects(await open_project(anna, purchase["id"])) == set()
 
 
@@ -212,7 +217,12 @@ async def test_fr39_two_joined_chains_keep_the_placement_made_first(
 
     [chain] = placed_chains(await open_project(anna, renovation["id"]))
     assert chain["email_count"] == 3
-    assert chain["placement"] == {"kind": "engine", "engine_version": "fake-1", "similarity": 0.5}
+    assert chain["placement"] == {
+        "kind": "engine",
+        "engine_version": "fake-1",
+        "similarity": 0.5,
+        "rule": None,
+    }
     assert all_subjects(await open_project(anna, purchase["id"])) == set()
 
 
@@ -284,7 +294,12 @@ async def test_fr39_an_unplaced_chain_that_got_a_matching_reply_is_placed(
 
     [chain] = placed_chains(await open_project(anna, project["id"]))
     assert (chain["subject"], chain["email_count"]) == ("Письмо подрядчику", 2)
-    assert chain["placement"] == {"kind": "engine", "engine_version": "fake-1", "similarity": 0.5}
+    assert chain["placement"] == {
+        "kind": "engine",
+        "engine_version": "fake-1",
+        "similarity": 0.5,
+        "rule": None,
+    }
 
 
 async def test_fr39_an_unsure_chain_that_got_a_new_email_stays_in_unassigned(

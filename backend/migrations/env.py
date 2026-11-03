@@ -14,6 +14,7 @@ from app.modules.auth.models import SignInFailure, UserSession, UserToken
 from app.modules.correspondence.models import Email, EmailCopy, ReplyChain
 from app.modules.mailboxes.models import Mailbox, MailboxFolder
 from app.modules.projects.models import ChainPlacement, Project, Thread
+from app.modules.rules.models import PlacementRule
 from app.platform.db import Base
 
 config = context.config
@@ -34,6 +35,7 @@ MODELS = (
     Project,
     Thread,
     ChainPlacement,
+    PlacementRule,
 )
 target_metadata = Base.metadata
 LOG = logging.getLogger("alembic.env")

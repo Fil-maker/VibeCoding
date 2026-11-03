@@ -17,6 +17,7 @@ import { MailboxesPage } from './features/mailboxes/MailboxesPage';
 import { NewProjectPage } from './features/projects/NewProjectPage';
 import { ProjectPage } from './features/projects/ProjectPage';
 import { ProjectsPage } from './features/projects/ProjectsPage';
+import { RulesPage } from './features/projects/RulesPage';
 import { StartPage } from './features/home/StartPage';
 import { HealthStatus } from './features/health/HealthStatus';
 
@@ -48,6 +49,7 @@ export function App({
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/new" element={<NewProjectPage />} />
               <Route path="/projects/:id" element={<ProjectPage />} />
+              <Route path="/rules" element={<RulesPage />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

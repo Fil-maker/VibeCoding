@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import AfterValidator, BaseModel, ValidationInfo, model_validator
 from pydantic_core import PydanticCustomError
 
+from app.modules.rules.schemas import RuleCondition
 from app.platform.errors import FIELD_MESSAGE_TYPE
 from app.platform.validation import RequestModel
 
@@ -73,12 +74,23 @@ class ProjectSummary(BaseModel):
     unassigned_count: int
 
 
-class Placement(BaseModel):
-    """How a chain got where it is; the version and similarity are null for a placement by hand."""
+class PlacementRuleRef(BaseModel):
+    """The rule as it was when it placed a chain."""
 
-    kind: Literal["engine", "manual"]
+    condition: RuleCondition
+    value: str
+
+
+class Placement(BaseModel):
+    """How a chain got where it is.
+
+    The version and similarity are set exactly for `engine`, `rule` exactly for `rule`.
+    """
+
+    kind: Literal["engine", "manual", "rule"]
     engine_version: str | None
     similarity: float | None
+    rule: PlacementRuleRef | None
 
 
 class PlacedChain(BaseModel):

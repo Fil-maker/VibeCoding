@@ -11,8 +11,14 @@ export interface PlacedChainJson {
   email_count: number;
   latest_email_at: string;
   placement:
-    | { kind: 'engine'; engine_version: string; similarity: number }
-    | { kind: 'manual'; engine_version: null; similarity: null };
+    | { kind: 'engine'; engine_version: string; similarity: number; rule?: null }
+    | { kind: 'manual'; engine_version: null; similarity: null; rule?: null }
+    | { kind: 'rule'; engine_version: null; similarity: null; rule: RuleRefJson };
+}
+
+export interface RuleRefJson {
+  condition: 'address' | 'domain' | 'subject';
+  value: string;
 }
 
 export interface ThreadJson {

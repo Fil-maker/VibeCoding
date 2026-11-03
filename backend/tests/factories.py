@@ -277,3 +277,92 @@ async def project_threads(client: AsyncClient, project_id: str) -> list[dict[str
     assert response.status_code == HTTPStatus.OK, response.text
     threads: list[dict[str, Any]] = response.json()
     return threads
+
+
+def rule_body(
+    condition: str, value: str, project_id: str | None, thread_name: str | None = None
+) -> dict[str, Any]:
+    """A body of POST /rules and PUT /rules/{id}."""
+    return {
+        "condition": condition,
+        "value": value,
+        "project_id": project_id,
+        "thread_name": thread_name,
+    }
+
+
+async def create_rule_response(
+    client: AsyncClient,
+    condition: str,
+    value: str,
+    project_id: str | None,
+    thread_name: str | None = None,
+) -> Response:
+    """POST /rules: the raw answer."""
+    return await client.post(
+        f"{API}/rules", json=rule_body(condition, value, project_id, thread_name)
+    )
+
+
+async def create_rule(
+    client: AsyncClient,
+    condition: str,
+    value: str,
+    project_id: str,
+    thread_name: str | None = None,
+) -> dict[str, Any]:
+    """Create a rule through the API; returns its `Rule`."""
+    response = await create_rule_response(client, condition, value, project_id, thread_name)
+    assert response.status_code == HTTPStatus.CREATED, response.text
+    rule: dict[str, Any] = response.json()
+    return rule
+
+
+async def list_rules(client: AsyncClient) -> list[dict[str, Any]]:
+    """GET /rules: the `Rule` list in priority order."""
+    response = await client.get(f"{API}/rules")
+    assert response.status_code == HTTPStatus.OK, response.text
+    rules: list[dict[str, Any]] = response.json()
+    return rules
+
+
+async def update_rule_response(
+    client: AsyncClient,
+    rule_id: str,
+    condition: str,
+    value: str,
+    project_id: str | None,
+    thread_name: str | None = None,
+) -> Response:
+    """PUT /rules/{id}: the raw answer."""
+    return await client.put(
+        f"{API}/rules/{rule_id}", json=rule_body(condition, value, project_id, thread_name)
+    )
+
+
+async def update_rule(
+    client: AsyncClient,
+    rule_id: str,
+    condition: str,
+    value: str,
+    project_id: str,
+    thread_name: str | None = None,
+) -> dict[str, Any]:
+    """Change a rule through the API; returns its `Rule`."""
+    response = await update_rule_response(
+        client, rule_id, condition, value, project_id, thread_name
+    )
+    assert response.status_code == HTTPStatus.OK, response.text
+    rule: dict[str, Any] = response.json()
+    return rule
+
+
+async def delete_rule_response(client: AsyncClient, rule_id: str) -> Response:
+    """DELETE /rules/{id}: the raw answer."""
+    return await client.delete(f"{API}/rules/{rule_id}")
+
+
+async def delete_rule(client: AsyncClient, rule_id: str) -> None:
+    """Delete a rule through the API."""
+    response = await delete_rule_response(client, rule_id)
+    assert response.status_code == HTTPStatus.NO_CONTENT, response.text

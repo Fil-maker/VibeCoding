@@ -8,7 +8,7 @@ import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
 import { useAuth } from '../auth/AuthProvider';
 
-// The start page: who is signed in, the links to the mailboxes, the chains and the projects, and sign-out.
+// The start page: who is signed in, the links to the mailboxes, the chains, the projects and the rules, and sign-out.
 export function StartPage(): React.JSX.Element | null {
   const { state, setSession } = useAuth();
   const signOut = useMutation({
@@ -29,6 +29,7 @@ export function StartPage(): React.JSX.Element | null {
         <Link to="/mailboxes">Почтовые ящики</Link>
         <Link to="/chains">Переписка</Link>
         <Link to="/projects">Проекты</Link>
+        <Link to="/rules">Правила</Link>
       </p>
       <ErrorAlert error={signOut.error} />
       <button

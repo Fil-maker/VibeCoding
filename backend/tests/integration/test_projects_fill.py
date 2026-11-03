@@ -254,7 +254,10 @@ async def test_fr36_filling_again_rebuilds_the_project_and_keeps_other_projects(
     tree = await fill_project(anna, renovation["id"])
 
     assert [(c["subject"], c["placement"]) for c in placed_chains(tree)] == [
-        ("Смета на ремонт", {"kind": "engine", "engine_version": "fake-2", "similarity": 0.4})
+        (
+            "Смета на ремонт",
+            {"kind": "engine", "engine_version": "fake-2", "similarity": 0.4, "rule": None},
+        )
     ]
     assert tree["unassigned"] == []
     assert tree_snapshot(await open_project(anna, purchase["id"])) == purchase_before

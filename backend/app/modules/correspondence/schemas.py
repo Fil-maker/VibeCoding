@@ -9,13 +9,14 @@ from pydantic import BaseModel, ConfigDict
 
 @dataclass(frozen=True)
 class ChainDocument:
-    """A chain as the placement engine reads it, with what fixes its place in reading order."""
+    """A chain as the placement engine and the rules read it, with its reading-order key."""
 
     chain_id: UUID
     subject: str  # of the first email
     first_sent_at: datetime
     first_key: str  # the key of the first email
     document: str
+    senders: tuple[str, ...]  # distinct lower-cased `from` addresses of the chain's emails, sorted
 
 
 @dataclass(frozen=True)
