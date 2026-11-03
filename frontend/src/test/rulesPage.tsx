@@ -75,6 +75,7 @@ interface Options {
   post?: Handler;
   put?: Handler;
   del?: Handler;
+  extraRoutes?: Record<string, Handler>;
 }
 
 // The page /rules; GET /rules answers `state.rules`. By default a created rule is appended (value kept
@@ -97,6 +98,7 @@ export function openRules(state: { rules: RuleJson[] }, options: Options = {}): 
     path: '/rules',
     me: ANNA,
     routes: {
+      ...options.extraRoutes,
       'GET /projects': () => json(200, projects),
       'GET /rules': () => json(200, state.rules),
       'POST /rules':

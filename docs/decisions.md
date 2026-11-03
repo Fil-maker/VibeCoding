@@ -84,3 +84,10 @@ them.
 | 02.11.2026 | [0066](adr/0066-a-rule-targets-a-project-and.md) | A rule targets a project and a thread by name; the thread is found by name or created on the first match; no name means Unassigned | [human] | Accepted |
 | 03.11.2026 | [0067](adr/0067-rule-crud-moves-out-of-the.md) | Rule CRUD moves out of the projects module into its own module backend/app/modules/rules/ with the fixed role names | [human] | Accepted |
 | 03.11.2026 | [0068](adr/0068-spec-gaps-of-1-5-rules.md) | Spec gaps of 1-5-rules (clauses without their own scenario, all covered by tests) are accepted as they are | [human] | Accepted |
+| 03.11.2026 | [0069](adr/0069-task-1-6-is-apply-a.md) | Task 1.6 is «Apply a rule now»: a new or edited rule places matching chains at once | [human] | Accepted |
+| 03.11.2026 | [0070](adr/0070-applying-a-rule-may-move-chains.md) | Applying a rule may move chains in no project, engine placements (incl. «Неразобранное») and rule placements; never chains placed by hand or taken out of projects | [human] | Accepted |
+| 03.11.2026 | [0071](adr/0071-after-a-rule-is-saved-the.md) | After a rule is saved the page lists the chains it would move (from → to) with «Применить» and «Не сейчас»; nothing moves without confirmation | [human] | Accepted |
+| 03.11.2026 | [0072](adr/0072-a-chain-moves-only-when-the.md) | A chain moves only when the applied rule is its winning rule by FR-46 priority, so the result equals what «Заполнить» would give | [human] | Accepted |
+| 03.11.2026 | [0073](adr/0073-deltas-of-1-6-apply-rule.md) | Deltas of 1-6-apply-rule-now approved: FR-47 added, FR-45 and FR-46 modified; a chain already in place keeps its placement; apply moves only the listed ids that still qualify | [human] | Accepted |
+| 03.11.2026 | [0074](adr/0074-fr-47-gets-the-scenario-a.md) | FR-47 gets the scenario «A weaker rule's chain»: a new address rule takes a chain a domain rule placed | [human] | Accepted |
+| 03.11.2026 | [0075](adr/0075-fr-46-keeps-its-text-from.md) | FR-46 keeps its text from before task 1.6; the sentence on when a rule places chains is dropped | [human] | Accepted |

@@ -352,6 +352,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/placements/by-rule/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Rule Moves
+         * @description The chains a rule would move, from where to where.
+         */
+        get: operations["list_rule_moves_api_v1_placements_by_rule__rule_id__get"];
+        put?: never;
+        /**
+         * Apply Rule
+         * @description Place by the rule the listed chains that still qualify.
+         */
+        post: operations["apply_rule_api_v1_placements_by_rule__rule_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/placements/{chain_id}": {
         parameters: {
             query?: never;
@@ -835,6 +859,22 @@ export interface components {
             thread_name: string | null;
         };
         /**
+         * RuleApplied
+         * @description How many chains an applied rule moved.
+         */
+        RuleApplied: {
+            /** Moved */
+            moved: number;
+        };
+        /**
+         * RuleApply
+         * @description The chains the user saw in the list; duplicates are ignored.
+         */
+        RuleApply: {
+            /** Chain Ids */
+            chain_ids: string[];
+        };
+        /**
          * RuleCondition
          * @description What a rule looks at in a chain.
          * @enum {string}
@@ -855,6 +895,56 @@ export interface components {
             project_id: string;
             /** Thread Name */
             thread_name?: string | null;
+        };
+        /**
+         * RuleMove
+         * @description A chain a rule would move, with where it is and where it goes.
+         */
+        RuleMove: {
+            /**
+             * Chain Id
+             * Format: uuid
+             */
+            chain_id: string;
+            /** Subject */
+            subject: string;
+            /**
+             * Latest Email At
+             * Format: date-time
+             */
+            latest_email_at: string;
+            current: components["schemas"]["RuleMoveSource"];
+            target: components["schemas"]["RuleMoveTarget"];
+        };
+        /**
+         * RuleMoveSource
+         * @description Where a chain is before a rule moves it: in no project, or in a project (and a thread).
+         */
+        RuleMoveSource: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "none" | "placed";
+            project: components["schemas"]["ProjectRef"] | null;
+            thread: components["schemas"]["ThreadSummary"] | null;
+        };
+        /**
+         * RuleMoveTarget
+         * @description Where the rule puts a chain; a null `thread_name` is «Неразобранное».
+         */
+        RuleMoveTarget: {
+            project: components["schemas"]["ProjectRef"];
+            /** Thread Name */
+            thread_name: string | null;
+        };
+        /**
+         * RuleMoves
+         * @description The chains a rule would move, newest first.
+         */
+        RuleMoves: {
+            /** Moves */
+            moves: components["schemas"]["RuleMove"][];
         };
         /**
          * RuleProject
@@ -1872,6 +1962,121 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_rule_moves_api_v1_placements_by_rule__rule_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: {
+                vc_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleMoves"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_rule_api_v1_placements_by_rule__rule_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: {
+                vc_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleApply"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleApplied"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

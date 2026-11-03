@@ -82,14 +82,11 @@ the tree. Why: otherwise one counterparty splits into several branches.
 
 **Touches:** nothing new.
 
-### Apply a rule now
+### Apply a rule later
 
-Added 03.11. A new or edited rule places the matching chains at once, without «Заполнить». Why: since
-task 1.5 a rule acts only on new chains and on filling a project again, so a fresh rule seems to do
-nothing.
-
-**Open:** which chains it may move — only «Неразобранное» and engine placements, or rule placements too;
-whether the user confirms the list first.
+Added 03.11. Apply a saved rule from its row on «Правила», or several rules at once, with the same list
+of moves and «Применить». Why: since task 1.6 a rule can be applied only right after it is saved;
+after «Не сейчас» the only way is to save it again or «Заполнить».
 
 **Touches:** invariant «History is kept» (never a chain placed by hand or taken out).
 

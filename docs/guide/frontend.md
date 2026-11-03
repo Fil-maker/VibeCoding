@@ -14,7 +14,7 @@ The tests are `frontend/src/App.*.test.tsx`, `frontend/src/features/health/Healt
 [FR-30 and FR-31](../../openspec/specs/reply-chains/spec.md) the correspondence pages,
 [FR-32 … FR-34](../../openspec/specs/projects/spec.md) the project pages and
 [FR-35 … FR-42](../../openspec/specs/chain-placement/spec.md) the fill button of a project and the «Проект» block of a chain,
-[FR-43 … FR-45](../../openspec/specs/placement-rules/spec.md) the rules page, and [FR-37](../../openspec/specs/chain-placement/spec.md)
+[FR-43 … FR-45 and FR-47](../../openspec/specs/placement-rules/spec.md) the rules page and the panel after a saved rule, and [FR-37](../../openspec/specs/chain-placement/spec.md)
 the rule explanations of a placement. The health page has no requirement:
 task 0.1 is a technical change without specs ([ADR 0004](../adr/0004-task-0-1-runs-as-a.md)).
 
@@ -95,7 +95,7 @@ Every page is a `Panel` whose `title` is its `h1`.
 | The chain's subject (`/chains/:id`) | `frontend/src/features/correspondence/ChainPage.tsx` | One reply chain: the block «Проект» (where the chain is, «Перенести», «Убрать из проекта»), then its emails oldest first, each as plain text. See [Correspondence feature](#correspondence-feature) and [Projects feature](#projects-feature). |
 | «Проекты» (`/projects`) | `frontend/src/features/projects/ProjectsPage.tsx` | The user's projects by name, with their chain counts, and the button «Создать проект». See [Projects feature](#projects-feature). |
 | «Новый проект» (`/projects/new`) | `frontend/src/features/projects/NewProjectPage.tsx` | Fields «Название» and «Описание»; «Создать» opens the new project. See [Projects feature](#projects-feature). |
-| «Правила» (`/rules`) | `frontend/src/features/projects/RulesPage.tsx` | The form of a rule, the user's rules in the order they win, with «Изменить» and «Удалить». See [Rules feature](#rules-feature). |
+| «Правила» (`/rules`) | `frontend/src/features/projects/RulesPage.tsx` | The form of a rule, the user's rules in the order they win, with «Изменить» and «Удалить»; after a rule is saved, the panel «Применить правило сейчас?» (`RuleApplyPanel.tsx`). See [Rules feature](#rules-feature). |
 | The project's name (`/projects/:id`) | `frontend/src/features/projects/ProjectPage.tsx` | One project: its description, «Заполнить» with the rebuild question, and the tree of its chains. See [Projects feature](#projects-feature). |
 | «Состояние сервиса» | `frontend/src/features/health/HealthStatus.tsx` | The health page; see [Health feature](#health-feature). |
 | «Страница не найдена» | `frontend/src/components/NotFoundPage.tsx` | See [Components](#components). |
@@ -168,7 +168,7 @@ The files are `frontend/src/features/correspondence/`: `ChainsPage.tsx` (the lis
 The files are `frontend/src/features/projects/`: `ProjectsPage.tsx` (the list, and `PROJECTS_KEY`, the query key `['projects']`
 that the other two files invalidate), `NewProjectPage.tsx` (the form), `ProjectPage.tsx` (one project, its fill and its tree),
 `ProjectPage.module.css` (the tree's indents, the description's line breaks and the muted counterparty address), `ChainPlacement.tsx`
-  (the «Проект» block of a chain page, see below), `format.ts` and `RulesPage.tsx` (the page «Правила», see [Rules feature](#rules-feature)).
+  (the «Проект» block of a chain page, see below), `format.ts`, `RulesPage.tsx` and `RuleApplyPanel.tsx` (the page «Правила» and its panel, see [Rules feature](#rules-feature)).
 The server side is in [Projects](projects.md). The pages, their routes and their texts are described in
 [The SPA](projects.md#the-spa) of that article; this section only says where things live.
 
@@ -208,8 +208,9 @@ The server side is in [Projects](projects.md). The pages, their routes and their
 
 ## Rules feature
 
-The page «Правила» (`/rules`) is `frontend/src/features/projects/RulesPage.tsx`: one file, with `RuleForm` (the form, for a new
-rule or for an edit in place) and `RuleLine` (one listed rule, with its edit and delete). The server side is in [Rules](rules.md),
+The page «Правила» (`/rules`) is `frontend/src/features/projects/RulesPage.tsx`, with `RuleForm` (the form, for a new
+rule or for an edit in place) and `RuleLine` (one listed rule, with its edit and delete). The panel «Применить правило сейчас?»
+is `RuleApplyPanel.tsx`, in the same folder. The server side is in [Rules](rules.md),
 and the route is in [Routes and API](../architecture.md#routes-and-api). The page reads the projects too, so the form can
 name the project of a rule. Its query keys are `RULES_KEY` (`['rules']`) and `PROJECTS_KEY` (`['projects']`, see
 [Projects feature](#projects-feature)).
@@ -237,6 +238,23 @@ name the project of a rule. Its query keys are `RULES_KEY` (`['rules']`) and `PR
 - **Create.** The form sends `POST /api/v1/rules` with `condition`, `value`, `project_id` and `thread_name`, read from the form
   fields with `formValue`. The server's `rule_exists` answer («Такое правило уже есть») and `too_many_rules` answer («Правил не может
   быть больше 200») show in the form, as the server's message.
+- **The panel «Применить правило сейчас?» (`RuleApplyPanel.tsx`).** After a created rule («Создать правило») and after a saved
+  edit («Сохранить»), `RulesPage` shows the panel above the list for that rule. One panel is open at a time; a new offer replaces
+  it. On mount the panel reads `GET /api/v1/placements/by-rule/{rule_id}` under the key `['rule-moves', ruleId]`, which is not kept
+  in the cache (`gcTime: 0`). Each listed chain reads `<тема>: <откуда> → <проект> → <ветка или Неразобранное>`; `<откуда>` is
+  `Вне проектов` for a chain in no project, and otherwise the chain's project and thread (`Неразобранное` for no thread).
+  - «Применить» sends `POST /api/v1/placements/by-rule/{rule_id}` with the `chain_ids` of the listed chains, in the list's order.
+    Both buttons are disabled while that request runs. On success the panel shows `Перемещено цепочек: N` with N from the answer, and
+    «Понятно»; the projects query is invalidated.
+  - «Не сейчас» closes the panel and sends nothing.
+  - With no chain to move the panel shows `Подходящих цепочек нет` and «Понятно» (no «Применить»); «Понятно» closes the panel.
+  - A failed request shows its error in an alert (`ErrorAlert`). When the list request fails, the panel shows only that alert and has
+    no button (`RuleApplyPanel.tsx`, the two `ErrorAlert` lines above the list), so it stays on the page until the next offer or a reload.
+  - The texts `UNASSIGNED_TITLE`, `NO_PROJECT_TITLE`, `APPLY_QUESTION` and `NO_MOVES_MESSAGE` are constants at the top of
+    `RuleApplyPanel.tsx`; the buttons and the result line are written in its JSX.
+
+  Which chains move and how a move is applied are in [Applying a rule now](projects.md#applying-a-rule-now); this section says
+  only what the page shows.
 
 ## API client
 
@@ -253,7 +271,7 @@ Server data reaches the SPA only through the generated client; components never 
 - Schema types come from `components['schemas'][...]`, for example `Me` in `AuthProvider.tsx` and `HealthStatus`
   in `frontend/src/features/health/useHealth.ts`, `Mailbox` and `MailboxConnect` in `MailboxesPage.tsx`, and `EmailView`
   and `Address` in the correspondence files. The project files use `ProjectCreate`, `ProjectTree` and `PlacedChain`; the «Проект»
-  block uses `ChainLocation` and `PlacementMove`; the rules page uses `Rule`, `RuleInput` and `RuleCondition`.
+  block uses `ChainLocation` and `PlacementMove`; the rules page uses `Rule`, `RuleInput` and `RuleCondition`, and the panel «Применить правило сейчас?» uses `RuleMove`.
 
 ### How the client is regenerated
 
@@ -396,7 +414,8 @@ replaces the list; the last successful answer is not kept on screen.
   page links, «Переписка» and one chain), `App.projects` (the list and the new project, with the start page link «Проекты»),
   `App.projectTree` (the tree of a project), `App.projectFill` (the fill and its rebuild question), `App.chainPlacement` (the «Проект»
   block of a chain page: where the chain is, «Перенести» and «Убрать из проекта»), `App.rules` (the page «Правила» and the header link
-  «Правила») and `App.ruleExplanations` (the explanation of a rule's placement in the tree and on the chain page). A scenario test names its FR, for example «FR-17 …»;
+  «Правила») `App.ruleExplanations` (the explanation of a rule's placement in the tree and on the chain page) and `App.ruleMoves` (the panel
+  «Применить правило сейчас?» after «Создать правило» and «Сохранить»). A scenario test names its FR, for example «FR-17 …»;
   a test of an SPA page without an FR, such as «Вход» or «Страница не найдена», names the page.
 - The dates of `format.ts` are in local time. `vite.config.ts` sets `TZ` to `UTC` for the test run (its `test` settings), and
   `App.chains.test.tsx` and `App.mailboxes.test.tsx` set `process.env.TZ = 'UTC'` again at their top, so «14:05» in a test means
@@ -422,8 +441,18 @@ replaces the list; the last successful answer is not kept on screen.
   (`RuleJson`, `RuleInputJson`), the projects «Ремонт офиса» (`OFFICE`) and «Закупка техники» (`TECH`), three sample rules (`BY_ADDRESS`,
   `BY_DOMAIN`, `BY_SUBJECT`) and the texts of the delete question and of «Такое правило уже есть». `openRules({ rules }, options?)`
   renders `/rules` with a stateful stub: a `POST` appends the rule, a `PUT` replaces it and a `DELETE` removes it, unless `options`
-  replaces the handler. The lookups are `ruleRow(value)` (waits for the item of a rule), `listedRules()` (the item texts without the
+  replaces the handler; `options.extraRoutes` adds routes to the stub, such as the panel's (`moveRoutes`, see `ruleMoves.tsx`).
+  The lookups are `ruleRow(value)` (waits for the item of a rule), `listedRules()` (the item texts without the
   buttons), `createForm()`, `editForm()`, `fillCreate(...)`, `chooseIn`, `typeIn`, `pressIn`, `fieldOfIn` and `writesOtherThan`.
+- `frontend/src/test/ruleMoves.tsx` is the fixture set of the panel «Применить правило сейчас?». It holds the texts `PANEL_TITLE` and
+  `NOTHING`, the chain ids `CHAIN_A` and `CHAIN_B`, the JSON shape of `RuleMove` (`MoveJson`, built by `move(...)`), the sources
+  `NOT_PLACED` and `placedIn(project, thread)`, and the answers `movesAnswer` and `appliedAnswer(moved)`. `moveRoutes(ruleId, moves, apply?)`
+  gives the `GET` and `POST` routes of one rule, for `extraRoutes`. The lookups are `panel(anchor?)` (the nearest ancestor of the title that
+  holds a button, and not the «Создать правило» button), `textOf`, `textShown` and `idsOf` (the sorted `chain_ids` of a request body).
+- `frontend/src/App.ruleMoves.test.tsx` covers the panel after «Создать правило» and after «Сохранить»: the listed text for a chain in no
+  project, for an engine chain and for a chain in «Неразобранное»; «Применить» with exactly the listed ids and the count the answer gives;
+  «Не сейчас» with no request; nothing to move («Подходящих цепочек нет», «Понятно», no «Применить»); and both buttons disabled while
+  the request runs.
 - `App.rules.test.tsx` covers the header link «Правила», the create form (a rule by address, by domain, by subject words, into
   «Неразобранное», the field messages, no project, a repeated rule, the limit of 200), the list (order, «Правил пока нет», the link
   «Сначала создайте проект», the guard of `/rules`), the edit in place («Изменить», «Сохранить», «Отмена», a repeated edit, a field

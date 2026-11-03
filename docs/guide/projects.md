@@ -2,8 +2,8 @@
 
 Updated 03.11.2026
 
-**Code:** `backend/app/modules/projects/` (`router.py`, `service.py`, `hand_placing.py`, `rule_placing.py`, `domain.py`, `placing.py`,
-`repository.py`, `models.py`, `schemas.py`, `errors.py`), the platform file `backend/app/platform/placement_engine.py`, its unit tests
+**Code:** `backend/app/modules/projects/` (`router.py`, `service.py`, `hand_placing.py`, `rule_placing.py`, `rule_applying.py`, `domain.py`,
+`placing.py`, `repository.py`, `models.py`, `schemas.py`, `errors.py`), the platform file `backend/app/platform/placement_engine.py`, its unit tests
 `backend/app/platform/test_placement_engine.py`, the wiring in `backend/app/modules/mailboxes/service.py`, the functions of
 `backend/app/modules/correspondence/service.py` that projects use (among them `has_chain`) and its `MergeHook`, the migrations
 `backend/migrations/versions/0005_projects_and_placements.py`, `0006_manual_placements.py` and `0007_placement_rules.py`, the integration
@@ -16,7 +16,8 @@ tests `backend/tests/integration/test_projects_*.py`, `test_placement_*.py` and 
 [FR-35 … FR-42](../../openspec/specs/chain-placement/spec.md) chain placement (fill, fill again, every placement explained,
 reproducible placement, placing new chains, placing a chain by hand, taking a chain out of projects, placements by hand kept),
 [FR-43 … FR-45](../../openspec/specs/placement-rules/spec.md) placement rules (create, list, edit and delete a rule), and
-FR-46 in the [chain-placement spec](../../openspec/specs/chain-placement/spec.md) (placing chains by rules).
+FR-46 in the [chain-placement spec](../../openspec/specs/chain-placement/spec.md) (placing chains by rules), and
+[FR-47](../../openspec/specs/placement-rules/spec.md) (apply a rule now).
 The map is in [Requirements map](../domain.md#requirements-map).
 
 **Design:** [Components and processes](../architecture.md#components-and-processes), [Layers](../architecture.md#layers),
@@ -31,7 +32,10 @@ The map is in [Requirements map](../domain.md#requirements-map).
 [ADR 0063](../adr/0063-task-1-5-rules-is-a.md) (rules are a new capability),
 [ADR 0064](../adr/0064-when-several-rules-match-a-chain.md) (the more specific rule wins),
 [ADR 0065](../adr/0065-rules-apply-on-fill-before-the.md) (rules apply on fill before the engine),
-[ADR 0066](../adr/0066-a-rule-targets-a-project-and.md) (a rule targets a project and a thread by name).
+[ADR 0066](../adr/0066-a-rule-targets-a-project-and.md) (a rule targets a project and a thread by name),
+[ADR 0070](../adr/0070-applying-a-rule-may-move-chains.md) (applying a rule may move chains),
+[ADR 0071](../adr/0071-after-a-rule-is-saved-the.md) (after a rule is saved the page lists the moves),
+[ADR 0072](../adr/0072-a-chain-moves-only-when-the.md) (a chain moves only when the rule is its winning rule).
 
 **Related:** [Backend](backend.md) (the layers, the reading loop, the platform layer), [Mail reading](mail-reading.md) (the reply
 chains that the engine places), [Rules](rules.md) (the rules that place a chain before the engine), [Auth and accounts](auth.md)
@@ -45,14 +49,15 @@ service, the service calls the pure rules of `domain.py` and the placer of `plac
 | File | What it holds |
 |---|---|
 | `router.py` | `router` (`/api/v1/projects`), `placements_router` (`/api/v1/placements`) and `ERROR_MAPPING`. A router holds no session and runs no query. |
-| `service.py` | `ProjectsService` (`list_projects`, `create`, `get_tree`, `fill`, `list_threads`, `get_location`, `move_chain`, `take_chain_out`), `get_projects_service`, `list_project_names` and `lock_project_names` (the project directory of the rules module), and the two module functions: `place_new_chains`, which the reading run calls after each batch, and `carry_placement`, which the mailboxes module passes as `on_merge` (`backend/app/modules/mailboxes/service.py`). |
+| `service.py` | `ProjectsService` (`list_projects`, `create`, `get_tree`, `fill`, `list_threads`, `get_location`, `move_chain`, `take_chain_out`, `list_rule_moves`, `apply_rule`), `get_projects_service`, `list_project_names` and `lock_project_names` (the project directory of the rules module), and the two module functions: `place_new_chains`, which the reading run calls after each batch, and `carry_placement`, which the mailboxes module passes as `on_merge` (`backend/app/modules/mailboxes/service.py`). |
 | `hand_placing.py` | Placing by hand: `read_location`, `move_chain` and `take_chain_out`. |
 | `rule_placing.py` | Placing by rules: `place_by_rules`, which places each candidate by its winning rule and returns the chains that no rule matches, and the thread of a rule (found by name or created). |
+| `rule_applying.py` | Applying one rule now: `list_moves`, which lists the chains the rule would move, and `apply_moves`, which moves the chosen ones ([Applying a rule now](#applying-a-rule-now)). |
 | `domain.py` | The pure rules: `classify` (the band of a similarity), `choose_thread`, `choose_best_index`, `build_tree`, and the `Band` values. |
 | `placing.py` | `Placer`, which stores the engine's placements and new threads of one project, and `ThreadState`, a thread with the documents in it. |
 | `repository.py` | The named queries; each one takes the owner's id, locks included. |
 | `models.py` | The tables `projects`, `threads` and `chain_placements`, and `PlacementKind` (`engine`, `manual`, `excluded`, `rule`). |
-| `schemas.py` | `ProjectCreate`, `ProjectSummary`, `ProjectTree` and the nodes of the tree; `Placement` and `PlacementRuleRef` (the explanation of a placement); `ThreadSummary`, `PlacementMove` and `ChainLocation` for placing by hand. |
+| `schemas.py` | `ProjectCreate`, `ProjectSummary`, `ProjectTree` and the nodes of the tree; `Placement` and `PlacementRuleRef` (the explanation of a placement); `ThreadSummary`, `PlacementMove` and `ChainLocation` for placing by hand; `RuleMoveSource`, `RuleMoveTarget`, `RuleMove` and `RuleMoves` (the moves a rule would make), `RuleApply` and `RuleApplied` (applying them). |
 | `errors.py` | `ProjectExists` and `ChainNotInProject`, the domain errors. |
 
 The engine is in `backend/app/platform/placement_engine.py`. The platform imports no module, so the engine knows nothing of projects.
@@ -154,6 +159,38 @@ The rules place a chain before the engine, and never a chain placed or taken out
 - **By hand:** a chain with a placement row is never a candidate, so no rule moves a placement by hand or a chain taken out. A move by
   hand replaces a rule placement and clears its rule columns.
 - **On a merge** of chains, a placement by hand beats a rule's, and a rule's beats the engine's ([Merge hook](#merge-hook)).
+
+## Applying a rule now
+
+A saved rule places nothing by itself: a placement changes when the user applies the rule. On the page «Правила» the user
+gets the list of the chains the rule would move, and «Применить» moves them ([FR-47](../../openspec/specs/placement-rules/spec.md),
+[ADR 0070](../adr/0070-applying-a-rule-may-move-chains.md), [ADR 0071](../adr/0071-after-a-rule-is-saved-the.md)). The routes are in
+`placements_router` of `backend/app/modules/projects/router.py`; the use cases are `ProjectsService.list_rule_moves` and
+`ProjectsService.apply_rule`; the logic is in `rule_applying.py`.
+
+- `GET /api/v1/placements/by-rule/{rule_id}` (signed in) answers `RuleMoves`: `moves`, newest first by `latest_email_at`, then by
+  `chain_id`. Each move has `chain_id`, `subject`, `latest_email_at`, `current` (`state` `none` for a chain in no project, or `placed`
+  with its `project` and `thread`; the thread is null for «Неразобранное») and `target` (`project`, and `thread_name`, null for
+  «Неразобранное»). The route writes nothing.
+- `POST /api/v1/placements/by-rule/{rule_id}` takes `RuleApply`: `chain_ids`, at most 5000 ids; a repeated id counts once. It answers
+  200 with `RuleApplied`: `moved`, the number of chains moved. The listed ids that no longer qualify are skipped without an error,
+  and an unknown id moves nothing.
+
+Another user's or an unknown rule answers 404 `not_found` on both routes.
+
+**Which chains a rule moves** (`_compute_moves`). A chain is a move of a rule when all of these hold:
+
+- the rule is the chain's winning rule, by `pick_winning_rule` and the FR-46 priority ([ADR 0072](../adr/0072-a-chain-moves-only-when-the.md)).
+  So a chain that a stronger rule wins is not listed, and a weaker rule's chain is listed for a stronger one that is new;
+- the chain has no placement row, or its row is of kind `engine` or `rule`. A chain placed by hand or taken out is never listed;
+- the chain is not already in the rule's project and thread. For a rule with no thread name, that is «Неразобранное» of its project.
+
+**Applying** (`apply_moves`) runs in one transaction, after `lock_projects_for_owner` (as the other writes of
+[Placing by hand](#placing-by-hand) and [Filling a project](#filling-a-project) do). It recomputes the moves, keeps the ones whose
+`chain_id` was sent, deletes each former placement row, places each chain by the rule with `place_by_rules` (only that rule), and
+deletes a former thread that is left empty, as a move by hand does. The rule's placement keeps the copy of the rule, as in
+[Placing by rules](#placing-by-rules). An applied rule never moves a chain that the rule does not win, so the result equals what
+«Заполнить» gives for that rule.
 
 ## Filling a project
 
@@ -286,9 +323,9 @@ the take-out take the project locks first (`lock_projects_for_owner`), in the ca
 
 | Code | Status | When | Mapped in |
 |---|---|---|---|
-| `validation_failed` | 422 | a field of `ProjectCreate` is empty, too long, missing or not text; or a field is unknown | `ProjectCreate` in `backend/app/modules/projects/schemas.py`; `RequestModel` in `backend/app/platform/validation.py` |
+| `validation_failed` | 422 | a field of `ProjectCreate` is empty, too long, missing or not text; or a field is unknown; or `RuleApply` has more than 5000 `chain_ids` | `ProjectCreate` in `backend/app/modules/projects/schemas.py`; `RequestModel` in `backend/app/platform/validation.py` |
 | `project_exists` | 409 | the user already has a project with this name, ignoring case | `ERROR_MAPPING` in `backend/app/modules/projects/router.py` |
-| `not_found` | 404 | another user's or an unknown project, chain or thread, on read, fill or placement by hand | `NotFound` (`backend/app/platform/errors.py`) |
+| `not_found` | 404 | another user's or an unknown project, chain, thread or rule, on read, fill, placement by hand or applying a rule | `NotFound` (`backend/app/platform/errors.py`) |
 | `chain_not_in_project` | 409 | taking out a chain that is already out or in no project | `ERROR_MAPPING` in `backend/app/modules/projects/router.py` |
 | `not_signed_in` | 401 | no live session of a confirmed user | `current_user` |
 | `forbidden_origin` | 403 | a POST without the app's `Origin` | `OriginGuardMiddleware` |
@@ -336,6 +373,8 @@ it places the chain by hand as described in [Placing by hand](#placing-by-hand).
   subject, and `chain_in_tree()` finds a chain in a tree (a thread or «Неразобранное»).
 - **`backend/tests/rule_support.py`** holds the helpers of the placement-rule suites: `by_rule()` builds the expected `Placement` of a
   rule placement, `by_engine()` the engine's, `read_again()` reads new chains, and `anna_with_two_projects()` seeds the two-project fixture.
+  `rule_moves()` and `apply_rule()` call the two routes of [Applying a rule now](#applying-a-rule-now), and `rule_moves_response()`
+  and `apply_rule_response()` return the raw responses.
   `create_rule()` and `create_rule_response()` in `backend/tests/factories.py` post a rule.
 
 ## Tests
@@ -347,6 +386,9 @@ it places the chain by hand as described in [Placing by hand](#placing-by-hand).
   `test_placement_new_chains.py` (FR-39), `test_placement_by_hand.py` (FR-40), `test_placement_taken_out.py` (FR-41) and
   `test_placement_kept.py` (FR-42). The placing-by-rules groups are `test_placement_by_rules.py` (FR-46) and
   `test_placement_rules_with_engine.py` (rules next to the engine); the rules CRUD is `test_rules_crud.py` (FR-43 to FR-45).
+  Applying a rule now is tested in `test_placement_apply_rule.py` (FR-47, and FR-46 for a new rule that moves nothing),
+  `test_placement_apply_rule_edits.py` (FR-47 after an edit, FR-45) and `test_placement_apply_rule_requests.py` (FR-47 requests:
+  order, repeated ids, another user's rule, malformed body, the route guards).
 - `just test` runs the unit tests, `just test-db` the integration tests, `just test-all` both. The database setup is in
   [Integration tests](backend.md#integration-tests).
 
@@ -365,6 +407,7 @@ it places the chain by hand as described in [Placing by hand](#placing-by-hand).
   [Merge hook](#merge-hook).
 - **The locks.** Code that places chains takes `lock_projects_for_owner` first, as `fill`, `place_new_chains` and the placement
   by hand do. The rule writes that add or retarget a rule (create and edit) take it too ([Rules](rules.md#use-cases)); a delete does not.
+  Applying a rule takes it too ([Applying a rule now](#applying-a-rule-now)).
 - **The owner.** Every repository query takes the owner's id, and a route takes its caller from `current_user`
   ([Auth and accounts](auth.md#access-boundary) describes the boundary).
 - **The tables.** A change of a table is a new revision in `backend/migrations/versions/`, from `script.py.mako`; the revision

@@ -22,3 +22,4 @@ mistakes and lessons, what remains. Written by `/journal` at `/finish`.
 | 02.11.2026 | [Projects and the engine](2026-11-02-01-projects-and-engine.md) | 1.3 | 1-3-projects-and-engine |
 | 02.11.2026 | [Manual placement and re-sorting](2026-11-02-02-manual-placement.md) | 1.4 | 1-4-manual-placement |
 | 03.11.2026 | [Rules](2026-11-03-01-rules.md) | 1.5 | 1-5-rules |
+| 03.11.2026 | [Apply a rule now](2026-11-03-02-apply-rule-now.md) | 1.6 | 1-6-apply-rule-now |

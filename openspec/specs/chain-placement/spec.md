@@ -325,7 +325,7 @@ placed by a rule.
 - **THEN** the chain is still in no project
 
 #### Scenario: A new rule moves nothing
-- **WHEN** the engine placed «Счёт на мониторы» in «Ремонт офиса» and Анна creates the rule «Слова темы» «мониторы» → «Закупка техники»
+- **WHEN** the engine placed «Счёт на мониторы» in «Ремонт офиса», and Анна creates the rule «Слова темы» «мониторы» → «Закупка техники» and does not apply it
 - **THEN** «Счёт на мониторы» stays in «Ремонт офиса» and shows «Движок»
 
 #### Scenario: Only one's own chains

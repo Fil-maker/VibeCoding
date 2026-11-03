@@ -13,6 +13,9 @@ from app.modules.projects.schemas import (
     ProjectCreate,
     ProjectSummary,
     ProjectTree,
+    RuleApplied,
+    RuleApply,
+    RuleMoves,
     ThreadSummary,
 )
 from app.modules.projects.service import ProjectsService, get_projects_service
@@ -95,6 +98,30 @@ async def list_project_threads(
 ) -> list[ThreadSummary]:
     """The threads of a project in order."""
     return await service.list_threads(context, project_id)
+
+
+@placements_router.get(
+    "/by-rule/{rule_id}",
+    response_model=RuleMoves,
+    status_code=200,
+    responses=error_responses(401, 404),
+)
+async def list_rule_moves(rule_id: UUID, service: Service, context: Caller) -> RuleMoves:
+    """The chains a rule would move, from where to where."""
+    return await service.list_rule_moves(context, rule_id)
+
+
+@placements_router.post(
+    "/by-rule/{rule_id}",
+    response_model=RuleApplied,
+    status_code=200,
+    responses=error_responses(401, 403, 404, 422),
+)
+async def apply_rule(
+    rule_id: UUID, body: RuleApply, service: Service, context: Caller, clock: ClockDep
+) -> RuleApplied:
+    """Place by the rule the listed chains that still qualify."""
+    return await service.apply_rule(context, clock, rule_id, body)
 
 
 @placements_router.get(

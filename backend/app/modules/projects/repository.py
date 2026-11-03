@@ -376,3 +376,18 @@ async def add_rule_placement_for_owner(
         )
     )
     await session.flush()
+
+
+async def list_placements_for_owner(session: AsyncSession, user_id: UUID) -> list[ChainPlacement]:
+    """Every placement row of the user (one per placed or taken-out chain)."""
+    rows = await session.execute(select(ChainPlacement).where(ChainPlacement.user_id == user_id))
+    return list(rows.scalars())
+
+
+async def delete_placement_for_owner(session: AsyncSession, user_id: UUID, chain_id: UUID) -> None:
+    """Delete the chain's placement row, if it has one."""
+    await session.execute(
+        delete(ChainPlacement).where(
+            ChainPlacement.user_id == user_id, ChainPlacement.chain_id == chain_id
+        )
+    )

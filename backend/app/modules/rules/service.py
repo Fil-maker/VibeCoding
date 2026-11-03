@@ -21,6 +21,7 @@ __all__ = [
     "MatchRule",
     "ProjectDirectory",
     "RulesService",
+    "get_match_rule",
     "list_match_rules",
     "pick_winning_rule",
 ]
@@ -65,6 +66,21 @@ async def list_match_rules(session: AsyncSession, user_id: UUID) -> list[MatchRu
         )
         for row in rows
     ]
+
+
+async def get_match_rule(session: AsyncSession, user_id: UUID, rule_id: UUID) -> MatchRule | None:
+    """The user's rule for matching, or `None` for an unknown or another user's id."""
+    row = await repository.get_rule_for_owner(session, user_id, rule_id)
+    if row is None:
+        return None
+    return MatchRule(
+        id=row.id,
+        condition=RuleCondition(row.condition),
+        value=row.value,
+        project_id=row.project_id,
+        thread_name=row.thread_name,
+        created_at=row.created_at,
+    )
 
 
 def pick_winning_rule(

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import AfterValidator, BaseModel, ValidationInfo, model_validator
+from pydantic import AfterValidator, BaseModel, Field, ValidationInfo, model_validator
 from pydantic_core import PydanticCustomError
 
 from app.modules.rules.schemas import RuleCondition
@@ -172,3 +172,46 @@ class PlacementMove(RequestModel):
     project_id: UUID
     thread_id: UUID | None = None
     new_thread_name: Annotated[str | None, AfterValidator(_check_thread_name)] = None
+
+
+class RuleMoveSource(BaseModel):
+    """Where a chain is before a rule moves it: in no project, or in a project (and a thread)."""
+
+    state: Literal["none", "placed"]
+    project: ProjectRef | None
+    thread: ThreadSummary | None
+
+
+class RuleMoveTarget(BaseModel):
+    """Where the rule puts a chain; a null `thread_name` is «Неразобранное»."""
+
+    project: ProjectRef
+    thread_name: str | None
+
+
+class RuleMove(BaseModel):
+    """A chain a rule would move, with where it is and where it goes."""
+
+    chain_id: UUID
+    subject: str
+    latest_email_at: datetime
+    current: RuleMoveSource
+    target: RuleMoveTarget
+
+
+class RuleMoves(BaseModel):
+    """The chains a rule would move, newest first."""
+
+    moves: list[RuleMove]
+
+
+class RuleApply(RequestModel):
+    """The chains the user saw in the list; duplicates are ignored."""
+
+    chain_ids: Annotated[list[UUID], Field(max_length=5000)]
+
+
+class RuleApplied(BaseModel):
+    """How many chains an applied rule moved."""
+
+    moved: int

@@ -16,7 +16,7 @@ from app.modules.correspondence.service import (
     list_chain_documents,
     list_chain_facts,
 )
-from app.modules.projects import hand_placing, repository
+from app.modules.projects import hand_placing, repository, rule_applying
 from app.modules.projects.domain import (
     PlacementEntry,
     ProjectHead,
@@ -34,9 +34,12 @@ from app.modules.projects.schemas import (
     ProjectCreate,
     ProjectSummary,
     ProjectTree,
+    RuleApplied,
+    RuleApply,
+    RuleMoves,
     ThreadSummary,
 )
-from app.modules.rules.service import list_match_rules
+from app.modules.rules.service import get_match_rule, list_match_rules
 from app.platform.auth_context import AuthContext
 from app.platform.clock import Clock
 from app.platform.db import get_database_session
@@ -320,6 +323,29 @@ class ProjectsService:
             return await hand_placing.take_chain_out(
                 self._session, context.user_id, chain_id, clock.now()
             )
+
+    async def list_rule_moves(self, context: AuthContext, rule_id: UUID) -> RuleMoves:
+        """The chains the user's rule would move; `NotFound` for a rule that is not the user's."""
+        async with self._session.begin():
+            rule = await get_match_rule(self._session, context.user_id, rule_id)
+            if rule is None:
+                raise NotFound
+            moves = await rule_applying.list_moves(self._session, context.user_id, rule)
+        return RuleMoves(moves=moves)
+
+    async def apply_rule(
+        self, context: AuthContext, clock: Clock, rule_id: UUID, body: RuleApply
+    ) -> RuleApplied:
+        """Place by the rule the listed chains that still qualify; `NotFound` for another's rule."""
+        async with self._session.begin():
+            await repository.lock_projects_for_owner(self._session, context.user_id)
+            rule = await get_match_rule(self._session, context.user_id, rule_id)
+            if rule is None:
+                raise NotFound
+            moved = await rule_applying.apply_moves(
+                self._session, context.user_id, rule, set(body.chain_ids), clock.now()
+            )
+        return RuleApplied(moved=moved)
 
 
 def get_projects_service(

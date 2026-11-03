@@ -12,6 +12,7 @@ import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
 import { LOADING_MESSAGE } from '../../messages';
 import { PROJECTS_KEY } from './ProjectsPage';
+import { RuleApplyPanel } from './RuleApplyPanel';
 
 type Rule = components['schemas']['Rule'];
 type RuleCondition = components['schemas']['RuleCondition'];
@@ -154,9 +155,11 @@ function RuleForm({
 function RuleLine({
   rule,
   projects,
+  onSaved,
 }: {
   rule: Rule;
   projects: readonly { id: string; name: string }[];
+  onSaved: (ruleId: string) => void;
 }): React.JSX.Element {
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<'view' | 'edit' | 'delete'>('view');
@@ -184,6 +187,7 @@ function RuleLine({
             );
             await queryClient.invalidateQueries({ queryKey: RULES_KEY });
             setMode('view');
+            onSaved(saved.id);
             return saved;
           }}
           onCancel={() => {
@@ -252,6 +256,11 @@ function RuleLine({
 // «Правила»: the form of a new rule and the user's rules in the order they win.
 export function RulesPage(): React.JSX.Element {
   const queryClient = useQueryClient();
+  // The nonce restarts the panel when the same rule is saved twice.
+  const [offer, setOffer] = useState<{ ruleId: string; nonce: number } | null>(null);
+  const offerApply = (ruleId: string): void => {
+    setOffer((previous) => ({ ruleId, nonce: (previous?.nonce ?? 0) + 1 }));
+  };
   const rules = useQuery({
     queryKey: RULES_KEY,
     queryFn: () => unwrap(apiClient.GET('/api/v1/rules')),
@@ -282,7 +291,17 @@ export function RulesPage(): React.JSX.Element {
           onSubmit={async (body) => {
             const created = await unwrap(apiClient.POST('/api/v1/rules', { body }));
             await queryClient.invalidateQueries({ queryKey: RULES_KEY });
+            offerApply(created.id);
             return created;
+          }}
+        />
+      )}
+      {offer !== null && (
+        <RuleApplyPanel
+          key={offer.nonce}
+          ruleId={offer.ruleId}
+          onClose={() => {
+            setOffer(null);
           }}
         />
       )}
@@ -291,7 +310,12 @@ export function RulesPage(): React.JSX.Element {
       {rules.data !== undefined && rules.data.length > 0 && (
         <ul>
           {rules.data.map((rule) => (
-            <RuleLine key={rule.id} rule={rule} projects={projects.data ?? []} />
+            <RuleLine
+              key={rule.id}
+              rule={rule}
+              projects={projects.data ?? []}
+              onSaved={offerApply}
+            />
           ))}
         </ul>
       )}

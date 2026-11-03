@@ -1361,6 +1361,184 @@
         }
       }
     },
+    "/api/v1/placements/by-rule/{rule_id}": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "List Rule Moves",
+        "description": "The chains a rule would move, from where to where.",
+        "operationId": "list_rule_moves_api_v1_placements_by_rule__rule_id__get",
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Rule Id"
+            }
+          },
+          {
+            "name": "vc_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vc Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleMoves"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Apply Rule",
+        "description": "Place by the rule the listed chains that still qualify.",
+        "operationId": "apply_rule_api_v1_placements_by_rule__rule_id__post",
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Rule Id"
+            }
+          },
+          {
+            "name": "vc_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vc Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleApply"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleApplied"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/api/v1/placements/{chain_id}": {
       "get": {
         "tags": [
@@ -2877,6 +3055,40 @@
         "title": "Rule",
         "description": "A rule of the list; a null `thread_name` is «Неразобранное»."
       },
+      "RuleApplied": {
+        "properties": {
+          "moved": {
+            "type": "integer",
+            "title": "Moved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "moved"
+        ],
+        "title": "RuleApplied",
+        "description": "How many chains an applied rule moved."
+      },
+      "RuleApply": {
+        "properties": {
+          "chain_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 5000,
+            "title": "Chain Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "chain_ids"
+        ],
+        "title": "RuleApply",
+        "description": "The chains the user saw in the list; duplicates are ignored."
+      },
       "RuleCondition": {
         "type": "string",
         "enum": [
@@ -2922,6 +3134,122 @@
         ],
         "title": "RuleInput",
         "description": "The form of a rule; a rule is created and replaced by the same body."
+      },
+      "RuleMove": {
+        "properties": {
+          "chain_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chain Id"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "latest_email_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Latest Email At"
+          },
+          "current": {
+            "$ref": "#/components/schemas/RuleMoveSource"
+          },
+          "target": {
+            "$ref": "#/components/schemas/RuleMoveTarget"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chain_id",
+          "subject",
+          "latest_email_at",
+          "current",
+          "target"
+        ],
+        "title": "RuleMove",
+        "description": "A chain a rule would move, with where it is and where it goes."
+      },
+      "RuleMoveSource": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "none",
+              "placed"
+            ],
+            "title": "State"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "thread": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThreadSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "project",
+          "thread"
+        ],
+        "title": "RuleMoveSource",
+        "description": "Where a chain is before a rule moves it: in no project, or in a project (and a thread)."
+      },
+      "RuleMoveTarget": {
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/ProjectRef"
+          },
+          "thread_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thread Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project",
+          "thread_name"
+        ],
+        "title": "RuleMoveTarget",
+        "description": "Where the rule puts a chain; a null `thread_name` is «Неразобранное»."
+      },
+      "RuleMoves": {
+        "properties": {
+          "moves": {
+            "items": {
+              "$ref": "#/components/schemas/RuleMove"
+            },
+            "type": "array",
+            "title": "Moves"
+          }
+        },
+        "type": "object",
+        "required": [
+          "moves"
+        ],
+        "title": "RuleMoves",
+        "description": "The chains a rule would move, newest first."
       },
       "RuleProject": {
         "properties": {

@@ -6,7 +6,9 @@ Updated 03.11.2026
 `errors.py`, `test_domain.py`), the migration `backend/migrations/versions/0007_placement_rules.py`, the integration tests
 `backend/tests/integration/test_rules_crud.py`, `test_placement_by_rules.py` and `test_placement_rules_with_engine.py`, the helpers
 `backend/tests/rule_support.py`, and the SPA page `frontend/src/features/projects/RulesPage.tsx` (route `/rules`). The placing of a chain
-by a rule is in `backend/app/modules/projects/rule_placing.py`, described in [Projects](projects.md#placing-by-rules).
+by a rule is in `backend/app/modules/projects/rule_placing.py`, described in [Projects](projects.md#placing-by-rules). Applying a saved
+rule now (the list of its moves and the apply) is in `backend/app/modules/projects/rule_applying.py`, described in
+[Projects](projects.md#applying-a-rule-now).
 
 **Requirements:** [FR-43 … FR-45](../../openspec/specs/placement-rules/spec.md) (create a rule, list the rules, edit and delete a rule) and
 [FR-46](../../openspec/specs/chain-placement/spec.md) (place chains by rules). The map is in [Requirements map](../domain.md#requirements-map).
@@ -20,13 +22,17 @@ by a rule is in `backend/app/modules/projects/rule_placing.py`, described in [Pr
 [ADR 0066](../adr/0066-a-rule-targets-a-project-and.md) (a rule targets a project and a thread by name),
 [ADR 0067](../adr/0067-rule-crud-moves-out-of-the.md) (rule CRUD is its own module).
 
-**Related:** [Projects](projects.md) (placing by rules, filling, the tree), [Auth and accounts](auth.md#access-boundary) (the owner
+**Related:** [Projects](projects.md) (placing by rules, applying a rule now, filling, the tree), [Auth and accounts](auth.md#access-boundary) (the owner
 boundary), [Backend](backend.md#modules-layout) (the module layout).
 
 ## A rule
 
 A rule is a user's instruction: chains that match its condition go to a project and to a thread of that project. The row is
 `PlacementRule` in `models.py`, table `placement_rules`; its columns are in [Data model](../architecture.md#data-model).
+
+Saving a rule moves no chain at once by itself. On the page «Правила» the list of the chains the rule would move follows the save,
+and «Применить» places them; «Не сейчас» leaves them where they are. The list and the apply are described in
+[Applying a rule now](projects.md#applying-a-rule-now).
 
 | Field | Meaning |
 |---|---|
@@ -83,7 +89,10 @@ caller's `user_id`.
 - **Delete** (`delete`): it deletes the user's rule (else `not_found`). Placements the rule made keep their own copy of it
   ([Projects](projects.md#placing-by-rules)).
 
-No use case moves a placement. The lock on the project rows keeps two parallel creates from both passing the 200-rule limit, as the
+No `RulesService` use case moves a placement; a rule's chains move only when the user applies the rule, which the projects module does
+([Applying a rule now](projects.md#applying-a-rule-now)). `get_match_rule` in `service.py` is the one read of a single rule: it returns
+the user's `MatchRule` for the id, or `None` for an unknown or another user's id, and the projects module uses it to read the rule it
+lists or applies. It takes no lock and needs no use-case transaction of its own. The lock on the project rows keeps two parallel creates from both passing the 200-rule limit, as the
 class docstring says. A repeat is refused by the unique index `uq_placement_rules_user_id_condition_lower_value` as well as by the check,
 so a rule with the same value under another condition is not a repeat.
 
@@ -129,7 +138,9 @@ The page `/rules` (`RulesPage.tsx`, the title «Правила») has the form a
 the fields «Условие» (the conditions «Адрес отправителя», «Домен» and «Слова темы»), «Значение», «Проект» and «Ветка», and its button is
 «Создать правило» for a new rule and «Сохранить» for an edit. Each rule has «Изменить» and «Удалить»; «Удалить» asks «Удалить правило?
 Цепочки, уже размещённые им, останутся на месте» before it deletes. An empty list says «Правил пока нет»; with no project the page says
-«Сначала создайте проект». The start page links to it as «Правила». The page's state handling is in [Frontend](frontend.md#rules-feature). A rule's explanation in the tree and on a chain page reads «Правило ·
+«Сначала создайте проект». After «Создать правило» or «Сохранить», the page shows the panel «Применить правило сейчас?» with the chains the rule would move
+(`RuleApplyPanel.tsx`), and «Применить» or «Не сейчас»; the panel is described in [Applying a rule now](projects.md#applying-a-rule-now).
+The start page links to it as «Правила». The page's state handling is in [Frontend](frontend.md#rules-feature). A rule's explanation in the tree and on a chain page reads «Правило ·
 адрес …», «Правило · домен …» or «Правило · слова темы «…»» (`format.ts`, see [Projects](projects.md#the-tree)).
 
 ## Modules and their files
@@ -137,7 +148,7 @@ the fields «Условие» (the conditions «Адрес отправител�
 | File | What it holds |
 |---|---|
 | `router.py` | `router` (`/api/v1/rules`), `ERROR_MAPPING` and `get_rules_service`, which builds the `ProjectDirectory`. A router holds no session. |
-| `service.py` | `RulesService`, `ProjectDirectory`, and the two functions the projects module uses: `list_match_rules` (the user's rules for matching) and `pick_winning_rule`. It re-exports `MatchRule`. |
+| `service.py` | `RulesService`, `ProjectDirectory`, and the functions the projects module uses: `list_match_rules` (the user's rules for matching), `get_match_rule` (one of the user's rules, or `None`) and `pick_winning_rule`. It re-exports `MatchRule`. |
 | `domain.py` | `RULE_LIMIT` (200), `MatchRule`, `priority_key`, `subject_words` and `winning_rule`. |
 | `schemas.py` | `RuleCondition` (`address`, `domain`, `subject`), `RuleInput` with the checks, `RuleProject` and `Rule`. |
 | `repository.py` | The owner-scoped queries: list (at most `RULE_LIMIT`), count, get, the repeat check, add and delete. |
@@ -173,4 +184,4 @@ one exception described above.
 - **Imports:** the rules service never imports the projects module (the import cycle). The projects module reaches the rules only through
   `backend/app/modules/rules/service.py`.
 - **Placements keep their copy of the rule.** An edit or a delete never rewrites a placement. A rule placement changes only on a fill of
-  its project, which drops it and places again, or by hand ([Projects](projects.md#placing-by-rules)).
+  its project, which drops it and places again; by applying the rule now ([Applying a rule now](projects.md#applying-a-rule-now)); or by hand ([Projects](projects.md#placing-by-rules)).
