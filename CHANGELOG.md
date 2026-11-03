@@ -6,6 +6,25 @@ All notable changes for the product's users. The format follows
 
 ## Unreleased
 
+## [0.4.0] - 2026-11-03
+
+### Added
+
+- The page «Правила»: rules by sender address, domain or subject words, each with a target project
+  and a thread name; rules can be edited and deleted, up to 200 per user.
+- A new chain that matches a rule goes into the rule's project and thread before the engine compares
+  it, also into a project not filled yet; a missing thread is created.
+- «Заполнить» places the chains matching the project's rules by those rules first and gives the rest
+  to the engine.
+- A chain placed by a rule shows «Правило» and the rule as it was when it placed the chain.
+
+### Changed
+
+- When several rules match a chain, an address wins over a domain, a domain over subject words, then
+  the earlier rule.
+- Rules never move a chain placed by hand or taken out of projects, and a new rule moves no chain
+  already placed.
+
 ## [0.3.0] - 2026-11-02
 
 ### Added
