@@ -1,6 +1,6 @@
 # Backend
 
-Updated 03.11.2026
+Updated 05.11.2026
 
 **Code:** `backend/app/main.py`, `backend/app/openapi.py`, `backend/app/platform/`, `backend/app/modules/`,
 `backend/migrations/`, `backend/alembic.ini`, `backend/tests/`, `backend/pyproject.toml`,
@@ -318,6 +318,9 @@ its unit tests are `backend/app/platform/test_placement_engine.py`.
   `chain_placements`, the columns `rule_condition` and `rule_value`, the kind `rule` and the widened kind and shape checks.
   Its downgrade deletes the `rule` rows and drops the table and the two columns. The columns and constraints are in
   [Data model](../architecture.md#data-model).
+- The revision `0008` (`backend/migrations/versions/0008_project_description_changed_at.py`) adds the nullable column
+  `projects.description_changed_at`. Its downgrade drops it. The column is in [Data model](../architecture.md#data-model), and
+  the edit that sets it in [Projects](projects.md#editing-and-deleting-a-project).
 - `backend/migrations/versions/` is excluded from ruff and pyright strict, because Alembic generates those files.
 
 Apply the migrations to the dev database: `uv run --directory backend alembic upgrade head`

@@ -64,6 +64,17 @@ class ProjectCreate(RequestModel):
         return filled
 
 
+class ProjectEdit(ProjectCreate):
+    """The form «Изменить» of a project: the checks of creation."""
+
+
+class ProjectDeletion(BaseModel):
+    """What deleting a project takes along, for the confirmation."""
+
+    chain_count: int
+    rule_count: int
+
+
 class ProjectSummary(BaseModel):
     """A row of the list of projects."""
 
@@ -126,6 +137,7 @@ class ProjectTree(BaseModel):
     name: str
     description: str
     filled: bool
+    description_changed: bool
     counterparties: list[CounterpartyNode]
     unassigned: list[PlacedChain]
 

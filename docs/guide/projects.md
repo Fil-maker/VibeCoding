@@ -1,18 +1,21 @@
 # Projects
 
-Updated 03.11.2026
+Updated 05.11.2026
 
-**Code:** `backend/app/modules/projects/` (`router.py`, `service.py`, `hand_placing.py`, `rule_placing.py`, `rule_applying.py`, `domain.py`,
-`placing.py`, `repository.py`, `models.py`, `schemas.py`, `errors.py`), the platform file `backend/app/platform/placement_engine.py`, its unit tests
+**Code:** `backend/app/modules/projects/` (`router.py`, `service.py`, `hand_placing.py`, `rule_placing.py`, `rule_applying.py`,
+`project_editing.py`, `editing_repository.py`, `domain.py`, `placing.py`, `repository.py`, `models.py`, `schemas.py`, `errors.py`), the platform
+file `backend/app/platform/placement_engine.py`, its unit tests
 `backend/app/platform/test_placement_engine.py`, the wiring in `backend/app/modules/mailboxes/service.py`, the functions of
 `backend/app/modules/correspondence/service.py` that projects use (among them `has_chain`) and its `MergeHook`, the migrations
-`backend/migrations/versions/0005_projects_and_placements.py`, `0006_manual_placements.py` and `0007_placement_rules.py`, the integration
-tests `backend/tests/integration/test_projects_*.py`, `test_placement_*.py` and the rule groups, the SPA's
-`frontend/src/features/projects/ChainPlacement.tsx`, and the test seams `backend/tests/project_trees.py`, `backend/tests/hand_placement.py`,
-`backend/tests/rule_support.py`, `Factories.create_project` and the placement helpers in `backend/tests/factories.py`. The rules module
-`backend/app/modules/rules/` is in [Rules](rules.md).
+`backend/migrations/versions/0005_projects_and_placements.py`, `0006_manual_placements.py`, `0007_placement_rules.py` and
+`0008_project_description_changed_at.py`, the integration tests `backend/tests/integration/test_projects_*.py`, `test_placement_*.py`,
+`test_project_editing.py`, `test_project_deletion.py` and the rule groups, the SPA's
+`frontend/src/features/projects/ChainPlacement.tsx` and `ProjectManagement.tsx`, and the test seams `backend/tests/project_trees.py`,
+`backend/tests/hand_placement.py`, `backend/tests/rule_support.py`, `Factories.create_project` and the placement helpers in
+`backend/tests/factories.py`. The rules module `backend/app/modules/rules/` is in [Rules](rules.md).
 
 **Requirements:** [FR-32 … FR-34](../../openspec/specs/projects/spec.md) projects (create, list, show as a tree),
+[FR-55](../../openspec/specs/projects/spec.md) (edit a project) and [FR-56](../../openspec/specs/projects/spec.md) (delete a project),
 [FR-35 … FR-42](../../openspec/specs/chain-placement/spec.md) chain placement (fill, fill again, every placement explained,
 reproducible placement, placing new chains, placing a chain by hand, taking a chain out of projects, placements by hand kept),
 [FR-43 … FR-45](../../openspec/specs/placement-rules/spec.md) placement rules (create, list, edit and delete a rule), and
@@ -35,7 +38,12 @@ The map is in [Requirements map](../domain.md#requirements-map).
 [ADR 0066](../adr/0066-a-rule-targets-a-project-and.md) (a rule targets a project and a thread by name),
 [ADR 0070](../adr/0070-applying-a-rule-may-move-chains.md) (applying a rule may move chains),
 [ADR 0071](../adr/0071-after-a-rule-is-saved-the.md) (after a rule is saved the page lists the moves),
-[ADR 0072](../adr/0072-a-chain-moves-only-when-the.md) (a chain moves only when the rule is its winning rule).
+[ADR 0072](../adr/0072-a-chain-moves-only-when-the.md) (a chain moves only when the rule is its winning rule),
+[ADR 0097](../adr/0097-task-1-10-covers-both-deleting.md) (task 1.10 covers both deleting and editing),
+[ADR 0098](../adr/0098-chains-of-a-deleted-project-become.md) (chains of a deleted project become taken out by hand),
+[ADR 0099](../adr/0099-rules-targeting-a-deleted-project-are.md) (rules targeting a deleted project are deleted with it),
+[ADR 0101](../adr/0101-changing-a-project-s-description-moves.md) (a changed description moves no chain),
+[ADR 0102](../adr/0102-the-project-page-shows-a-hint.md) (the project page shows a hint after a changed description).
 
 **Related:** [Backend](backend.md) (the layers, the reading loop, the platform layer), [Mail reading](mail-reading.md) (the reply
 chains that the engine places), [Rules](rules.md) (the rules that place a chain before the engine), [Auth and accounts](auth.md)
@@ -49,15 +57,17 @@ service, the service calls the pure rules of `domain.py` and the placer of `plac
 | File | What it holds |
 |---|---|
 | `router.py` | `router` (`/api/v1/projects`), `placements_router` (`/api/v1/placements`) and `ERROR_MAPPING`. A router holds no session and runs no query. |
-| `service.py` | `ProjectsService` (`list_projects`, `create`, `get_tree`, `fill`, `list_threads`, `get_location`, `move_chain`, `take_chain_out`, `list_rule_moves`, `apply_rule`), `get_projects_service`, `list_project_names` and `lock_project_names` (the project directory of the rules module), and the two module functions: `place_new_chains`, which the reading run calls after each batch, and `carry_placement`, which the mailboxes module passes as `on_merge` (`backend/app/modules/mailboxes/service.py`). |
+| `service.py` | `ProjectsService` (`list_projects`, `create`, `get_tree`, `edit`, `read_deletion`, `delete`, `fill`, `list_threads`, `get_location`, `move_chain`, `take_chain_out`, `list_rule_moves`, `apply_rule`), `get_projects_service`, `list_project_names` and `lock_project_names` (the project directory of the rules module), and the two module functions: `place_new_chains`, which the reading run calls after each batch, and `carry_placement`, which the mailboxes module passes as `on_merge` (`backend/app/modules/mailboxes/service.py`). |
 | `hand_placing.py` | Placing by hand: `read_location`, `move_chain` and `take_chain_out`. |
 | `rule_placing.py` | Placing by rules: `place_by_rules`, which places each candidate by its winning rule and returns the chains that no rule matches, and the thread of a rule (found by name or created). |
 | `rule_applying.py` | Applying one rule now: `list_moves`, which lists the chains the rule would move, and `apply_moves`, which moves the chosen ones ([Applying a rule now](#applying-a-rule-now)). |
+| `project_editing.py` | Editing and deleting a project: `edit_project`, `read_deletion` (the counts of the confirmation) and `delete_project` ([Editing and deleting a project](#editing-and-deleting-a-project)). |
+| `editing_repository.py` | The owner-scoped queries of editing and deleting: `lock_project_for_owner`, `has_other_project_named_for_owner`, `count_chains_in_project_for_owner`, `exclude_placements_of_project_for_owner` and `delete_project_for_owner`. |
 | `domain.py` | The pure rules: `classify` (the band of a similarity), `choose_thread`, `choose_best_index`, `build_tree`, and the `Band` values. |
 | `placing.py` | `Placer`, which stores the engine's placements and new threads of one project, and `ThreadState`, a thread with the documents in it. |
 | `repository.py` | The named queries; each one takes the owner's id, locks included. |
 | `models.py` | The tables `projects`, `threads` and `chain_placements`, and `PlacementKind` (`engine`, `manual`, `excluded`, `rule`). |
-| `schemas.py` | `ProjectCreate`, `ProjectSummary`, `ProjectTree` and the nodes of the tree; `Placement` and `PlacementRuleRef` (the explanation of a placement); `ThreadSummary`, `PlacementMove` and `ChainLocation` for placing by hand; `RuleMoveSource`, `RuleMoveTarget`, `RuleMove` and `RuleMoves` (the moves a rule would make), `RuleApply` and `RuleApplied` (applying them). |
+| `schemas.py` | `ProjectCreate`, `ProjectEdit` (the body of `PATCH`, the checks of creation), `ProjectDeletion` (the counts), `ProjectSummary`, `ProjectTree` and the nodes of the tree; `Placement` and `PlacementRuleRef` (the explanation of a placement); `ThreadSummary`, `PlacementMove` and `ChainLocation` for placing by hand; `RuleMoveSource`, `RuleMoveTarget`, `RuleMove` and `RuleMoves` (the moves a rule would make), `RuleApply` and `RuleApplied` (applying them). |
 | `errors.py` | `ProjectExists` and `ChainNotInProject`, the domain errors. |
 
 The engine is in `backend/app/platform/placement_engine.py`. The platform imports no module, so the engine knows nothing of projects.
@@ -276,6 +286,9 @@ The hook is a plain callable passed by the mailboxes module; the correspondence 
 - **Threads.** Under a counterparty, its threads come in creation order, and each thread's chains in reading order.
 - **«Неразобранное».** The chains with no thread: the chains placed by hand or by a rule first, in reading order, then the engine's
   chains by similarity from high to low, then in reading order (a placement by hand or by a rule has no similarity, and the sort puts it first).
+- **Description state.** `description_changed` is true when the project is filled and its `description_changed_at` is later than
+  its `filled_at`. The SPA shows the hint of [Editing and deleting a project](#editing-and-deleting-a-project) on that flag; a new
+  filling sets `filled_at` after the change, so the flag goes.
 - **Chains.** Each chain has `id`, `subject`, `email_count`, `latest_email_at` and `placement`: `kind` (`engine`, `manual` or `rule`),
   `engine_version` and `similarity`, rounded to 4 decimals; the last two are null for `manual` and `rule`. `rule` is the rule as it
   placed the chain (`condition` and `value`, from the copy in the placement), and it is null unless the kind is `rule`. The SPA shows
@@ -317,18 +330,64 @@ the take-out take the project locks first (`lock_projects_for_owner`), in the ca
 - `POST /api/v1/projects` (signed in) takes `name` and `description` and answers 201 with the new project: not filled, both counts 0.
   The name and the description are trimmed. A name that differs from one of the user's projects only in letter case answers
   409 `project_exists`.
-- No route changes or deletes a project yet.
+- `PATCH /api/v1/projects/{project_id}` and `DELETE /api/v1/projects/{project_id}` change a project; they are described in
+  [Editing and deleting a project](#editing-and-deleting-a-project).
+
+## Editing and deleting a project
+
+The page `/projects/:id` edits the name and the description and deletes the project. The routes are in
+`backend/app/modules/projects/router.py`, the use cases in `project_editing.py`, and their queries in `editing_repository.py`.
+Every query takes the caller's `user_id`; another user's or an unknown project answers 404 `not_found` on each route.
+
+**Edit.** `PATCH /api/v1/projects/{project_id}` (signed in) takes `ProjectEdit`: `name` and `description`, both required, by the checks
+of creation (trimmed; a name of 1 to 100 characters, a description of 1 to 2000). The answer is 200 with the `ProjectTree`.
+
+- The same-name check ignores the project itself: saving the project's own name, or changing only its letter case, is saved. Another
+  project's name, in any letter case, answers 409 `project_exists`. The use case checks it under the project's row lock; a unique-index
+  violation at flush answers the same code.
+- **No chain moves.** The placements, the threads and the rules stay as they are ([ADR 0101](../adr/0101-changing-a-project-s-description-moves.md)).
+- `description_changed_at` is set to the time of the save only when the trimmed description differs from the stored one. A name-only
+  change, or a description saved unchanged, leaves it as it was.
+- After a changed description the project page shows «Описание изменено после заполнения: нажмите «Заполнить», чтобы пересобрать проект»
+  until the project is filled again ([ADR 0102](../adr/0102-the-project-page-shows-a-hint.md)). The user re-sorts the chains with
+  «Заполнить», which is the explicit fill of [Filling a project](#filling-a-project).
+
+**Delete.** The page asks first. `GET /api/v1/projects/{project_id}/deletion` (signed in) answers `ProjectDeletion` with the counts
+the question shows, and writes nothing:
+
+- `chain_count`: the chains with a placement row in the project, in its threads or in «Неразобранное».
+- `rule_count`: the user's rules whose `project_id` is the project, counted by `count_rules_targeting` in
+  `backend/app/modules/rules/service.py` (the projects module counts rules only through the rules service).
+
+`DELETE /api/v1/projects/{project_id}` (signed in) answers 204 and runs in one transaction under the project's row lock:
+
+1. Each placement row of the project becomes `excluded`: no project, no thread, no similarity, no engine version and no rule copy,
+   with `placed_at` set from the injected clock. The chains are out of every project for good; the engine and the rules never place
+   them again by themselves, only a placement by hand puts one back ([ADR 0098](../adr/0098-chains-of-a-deleted-project-become.md),
+   [Placing by hand](#placing-by-hand)).
+2. The project is deleted. Its threads go with it, and its rules go through the cascade on `placement_rules.project_id`
+   ([ADR 0099](../adr/0099-rules-targeting-a-deleted-project-are.md)).
+
+The order matters: the rewrite comes first, because the cascade would otherwise delete the placement rows and free the chains
+([ADR 0098](../adr/0098-chains-of-a-deleted-project-become.md)). The
+emails and the reply chains are never touched, so the chains stay in «Переписка» with all their emails. A repeated delete, or a delete of
+another user's project, answers 404 `not_found`. The Origin guard of the app covers both `PATCH` and `DELETE`.
+
+**The SPA.** `ProjectManagement.tsx` holds the «Изменить» form (the fields «Название» and «Описание», the buttons «Сохранить» and «Отмена»)
+and «Удалить проект» (the danger button). Its question reads «Удалить проект «<name>»? Цепочек в проекте: N — они останутся в «Переписке»
+как убранные вручную. Правил, ведущих в проект: M — они будут удалены. Письма не удаляются.», answered by «Удалить» or «Отмена». After
+«Удалить» the page goes to «Проекты», and the projects, rules and reply-chain queries are invalidated.
 
 ## Errors over HTTP
 
 | Code | Status | When | Mapped in |
 |---|---|---|---|
-| `validation_failed` | 422 | a field of `ProjectCreate` is empty, too long, missing or not text; or a field is unknown; or `RuleApply` has more than 5000 `chain_ids` | `ProjectCreate` in `backend/app/modules/projects/schemas.py`; `RequestModel` in `backend/app/platform/validation.py` |
-| `project_exists` | 409 | the user already has a project with this name, ignoring case | `ERROR_MAPPING` in `backend/app/modules/projects/router.py` |
-| `not_found` | 404 | another user's or an unknown project, chain, thread or rule, on read, fill, placement by hand or applying a rule | `NotFound` (`backend/app/platform/errors.py`) |
+| `validation_failed` | 422 | a field of `ProjectCreate` or `ProjectEdit` is empty, too long, missing or not text; or a field is unknown; or `RuleApply` has more than 5000 `chain_ids` | `ProjectCreate` in `backend/app/modules/projects/schemas.py`; `RequestModel` in `backend/app/platform/validation.py` |
+| `project_exists` | 409 | the user already has another project with this name, ignoring case (on create and on edit) | `ERROR_MAPPING` in `backend/app/modules/projects/router.py` |
+| `not_found` | 404 | another user's or an unknown project, chain, thread or rule, on read, fill, edit, deletion, placement by hand or applying a rule | `NotFound` (`backend/app/platform/errors.py`) |
 | `chain_not_in_project` | 409 | taking out a chain that is already out or in no project | `ERROR_MAPPING` in `backend/app/modules/projects/router.py` |
 | `not_signed_in` | 401 | no live session of a confirmed user | `current_user` |
-| `forbidden_origin` | 403 | a POST without the app's `Origin` | `OriginGuardMiddleware` |
+| `forbidden_origin` | 403 | a state-changing request (POST, PUT, PATCH or DELETE) without the app's `Origin` | `OriginGuardMiddleware` |
 
 The field messages, from `schemas.py`:
 
@@ -343,7 +402,8 @@ The field messages, from `schemas.py`:
 ## The SPA
 
 The pages are in `frontend/src/features/projects/`, behind `RequireUser`: `/projects` (`ProjectsPage`, «Проекты»), `/projects/new`
-(`NewProjectPage`, «Новый проект») and `/projects/:id` (`ProjectPage`: the name, the description, «Заполнить» and the tree). The header
+(`NewProjectPage`, «Новый проект») and `/projects/:id` (`ProjectPage`: the name, the description, «Изменить», «Заполнить», «Удалить проект»
+and the tree; see [Editing and deleting a project](#editing-and-deleting-a-project)). The header
 of every signed-in page links to «Проекты» ([Frames](frontend.md#frames)). `format.ts` holds the plural labels of the counts (for example «1 цепочка», «2 цепочки», «5 цепочек») and
 `placementLabel`. The chain page (`/chains/:id`) shows the «Проект» block of its chain, from `frontend/src/features/projects/ChainPlacement.tsx`;
 it places the chain by hand as described in [Placing by hand](#placing-by-hand). The page `/rules` is described in [Rules](rules.md#the-spa). A project page whose tree has no counterparties and no «Неразобранное» shows «Подходящей переписки не нашлось:
@@ -376,6 +436,9 @@ it places the chain by hand as described in [Placing by hand](#placing-by-hand).
   `rule_moves()` and `apply_rule()` call the two routes of [Applying a rule now](#applying-a-rule-now), and `rule_moves_response()`
   and `apply_rule_response()` return the raw responses.
   `create_rule()` and `create_rule_response()` in `backend/tests/factories.py` post a rule.
+- **Editing and deleting.** `backend/tests/factories.py` gains `update_project`, `update_project_response`, `deletion_counts`,
+  `delete_project` and `delete_project_response`. The SPA's `frontend/src/test/projectTrees.tsx` answers `PATCH /api/v1/projects/{id}`,
+  `GET /api/v1/projects/{id}/deletion` and `DELETE /api/v1/projects/{id}`.
 
 ## Tests
 
@@ -384,7 +447,8 @@ it places the chain by hand as described in [Placing by hand](#placing-by-hand).
 - Integration tests, through HTTP against the test database, one file per group: `test_projects_create_list.py` (FR-32, FR-33),
   `test_projects_tree.py` (FR-34), `test_projects_fill.py` (FR-35, FR-36), `test_placement_explained.py` (FR-37, FR-38) and
   `test_placement_new_chains.py` (FR-39), `test_placement_by_hand.py` (FR-40), `test_placement_taken_out.py` (FR-41) and
-  `test_placement_kept.py` (FR-42). The placing-by-rules groups are `test_placement_by_rules.py` (FR-46) and
+  `test_placement_kept.py` (FR-42). Editing a project is tested in `test_project_editing.py` (FR-55), deleting one in
+  `test_project_deletion.py` (FR-56, with the new scenarios of FR-41 and FR-45). The placing-by-rules groups are `test_placement_by_rules.py` (FR-46) and
   `test_placement_rules_with_engine.py` (rules next to the engine); the rules CRUD is `test_rules_crud.py` (FR-43 to FR-45).
   Applying a rule now is tested in `test_placement_apply_rule.py` (FR-47, and FR-46 for a new rule that moves nothing),
   `test_placement_apply_rule_edits.py` (FR-47 after an edit, FR-45) and `test_placement_apply_rule_requests.py` (FR-47 requests:
@@ -407,7 +471,11 @@ it places the chain by hand as described in [Placing by hand](#placing-by-hand).
   [Merge hook](#merge-hook).
 - **The locks.** Code that places chains takes `lock_projects_for_owner` first, as `fill`, `place_new_chains` and the placement
   by hand do. The rule writes that add or retarget a rule (create and edit) take it too ([Rules](rules.md#use-cases)); a delete does not.
-  Applying a rule takes it too ([Applying a rule now](#applying-a-rule-now)).
+  Applying a rule takes it too ([Applying a rule now](#applying-a-rule-now)). Editing and deleting a project lock only that project's
+  row (`lock_project_for_owner`), not all of the user's projects.
+- **The deletion order.** `delete_project` rewrites the project's placements to `excluded` before it deletes the project. Reversing
+  the two steps would let the cascade delete the placement rows, and the chains would become free for the engine and the rules
+  ([ADR 0098](../adr/0098-chains-of-a-deleted-project-become.md)).
 - **The owner.** Every repository query takes the owner's id, and a route takes its caller from `current_user`
   ([Auth and accounts](auth.md#access-boundary) describes the boundary).
 - **The tables.** A change of a table is a new revision in `backend/migrations/versions/`, from `script.py.mako`; the revision

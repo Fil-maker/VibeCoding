@@ -57,6 +57,7 @@ class ProjectHead:
     name: str
     description: str
     is_filled: bool
+    is_description_changed: bool = False
 
 
 def classify(engine: PlacementEngine, similarity: float) -> Band:
@@ -186,6 +187,7 @@ def build_tree(
         name=head.name,
         description=head.description,
         filled=head.is_filled,
+        description_changed=head.is_description_changed,
         counterparties=counterparties,
         unassigned=[_placed_chain(entry, facts[entry.chain_id]) for entry in loose],
     )

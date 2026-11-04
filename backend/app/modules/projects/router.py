@@ -11,6 +11,8 @@ from app.modules.projects.schemas import (
     ChainLocation,
     PlacementMove,
     ProjectCreate,
+    ProjectDeletion,
+    ProjectEdit,
     ProjectSummary,
     ProjectTree,
     RuleApplied,
@@ -68,6 +70,44 @@ async def create_project(
 async def read_project(project_id: UUID, service: Service, context: Caller) -> ProjectTree:
     """A project with its tree."""
     return await service.get_tree(context, project_id)
+
+
+@router.patch(
+    "/{project_id}",
+    response_model=ProjectTree,
+    status_code=200,
+    responses=error_responses(401, 403, 404, 409, 422),
+)
+async def edit_project(
+    project_id: UUID, body: ProjectEdit, service: Service, context: Caller, clock: ClockDep
+) -> ProjectTree:
+    """Change the name and description of a project; no chain moves."""
+    return await service.edit(context, clock, project_id, body)
+
+
+@router.get(
+    "/{project_id}/deletion",
+    response_model=ProjectDeletion,
+    status_code=200,
+    responses=error_responses(401, 404),
+)
+async def read_project_deletion(
+    project_id: UUID, service: Service, context: Caller
+) -> ProjectDeletion:
+    """What deleting the project takes along, for the confirmation."""
+    return await service.read_deletion(context, project_id)
+
+
+@router.delete(
+    "/{project_id}",
+    status_code=204,
+    responses=error_responses(401, 403, 404),
+)
+async def delete_project(
+    project_id: UUID, service: Service, context: Caller, clock: ClockDep
+) -> None:
+    """Delete a project; its chains stay, taken out by hand, and its rules go."""
+    await service.delete(context, clock, project_id)
 
 
 @router.post(

@@ -100,3 +100,15 @@ async def delete_rule_for_owner(session: AsyncSession, user_id: UUID, rule_id: U
     await session.execute(
         delete(PlacementRule).where(PlacementRule.user_id == user_id, PlacementRule.id == rule_id)
     )
+
+
+async def count_rules_targeting_for_owner(
+    session: AsyncSession, user_id: UUID, project_id: UUID
+) -> int:
+    """How many of the user's rules lead into this project."""
+    found = await session.execute(
+        select(func.count())
+        .select_from(PlacementRule)
+        .where(PlacementRule.user_id == user_id, PlacementRule.project_id == project_id)
+    )
+    return found.scalar_one()

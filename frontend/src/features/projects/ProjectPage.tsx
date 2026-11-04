@@ -14,6 +14,7 @@ import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
 import { emailCountLabel, formatDate } from '../correspondence/format';
 import { PlacementBadge } from './PlacementBadge';
+import { ProjectDeletion, ProjectEditing } from './ProjectManagement';
 import treeStyles from './ProjectPage.module.css';
 import { PROJECTS_KEY } from './ProjectsPage';
 
@@ -157,7 +158,7 @@ function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404;
 }
 
-// One project: name, description, «Заполнить» and the tree of its reply chains.
+// One project: name, description with «Изменить», «Заполнить», the tree of its reply chains and «Удалить проект».
 export function ProjectPage(): React.JSX.Element {
   const { id = '' } = useParams();
   const queryClient = useQueryClient();
@@ -190,7 +191,12 @@ export function ProjectPage(): React.JSX.Element {
       <p>
         <Link to="/projects">К проектам</Link>
       </p>
-      <p className={treeStyles.description}>{tree.description}</p>
+      <ProjectEditing
+        project={tree}
+        onSaved={(saved) => {
+          queryClient.setQueryData(key, saved);
+        }}
+      />
       <FillControl
         project={tree}
         onFilled={(filled) => {
@@ -199,6 +205,7 @@ export function ProjectPage(): React.JSX.Element {
       />
       {isEmpty && <p>{tree.filled ? EMPTY_FILLED_MESSAGE : EMPTY_NEVER_FILLED_MESSAGE}</p>}
       <Tree project={tree} />
+      <ProjectDeletion project={tree} />
     </Panel>
   );
 }

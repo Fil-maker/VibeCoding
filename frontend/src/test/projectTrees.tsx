@@ -38,6 +38,7 @@ export interface TreeJson {
   name: string;
   description: string;
   filled: boolean;
+  description_changed: boolean;
   counterparties: CounterpartyJson[];
   unassigned: PlacedChainJson[];
 }
@@ -88,6 +89,7 @@ export function tree(overrides: Partial<TreeJson> = {}): TreeJson {
     name: 'Ремонт офиса',
     description: DESCRIPTION,
     filled: true,
+    description_changed: false,
     counterparties: [
       {
         address: PETROV,
@@ -120,6 +122,80 @@ export function openProject(
     me: ANNA,
     routes: {
       [`GET /projects/${PROJECT_ID}`]: () => json(200, state.tree),
+      ...(fill ? { [`POST ${FILL}`]: fill } : {}),
+    },
+  });
+}
+
+// A rule targeting the project of `openEditableProject`; «Правила» shows it with the project's current name.
+export interface EditableRule {
+  id: string;
+  condition: 'address' | 'domain' | 'subject';
+  value: string;
+  thread_name: string | null;
+}
+
+export const PATCH_PROJECT = `/projects/${PROJECT_ID}`;
+export const DELETION = `/projects/${PROJECT_ID}/deletion`;
+export const HINT =
+  'Описание изменено после заполнения: нажмите «Заполнить», чтобы пересобрать проект';
+
+// The project page of FR-55/FR-56: GET answers `state.tree`; `edit` answers PATCH, `counts` answers
+// GET .../deletion, `remove` answers DELETE; the list of projects is empty after a deletion.
+export function openEditableProject(
+  state: { tree: TreeJson; deleted?: boolean; rules?: EditableRule[] },
+  answers: {
+    edit?: (body: unknown) => Response | Promise<Response>;
+    counts?: () => Response | Promise<Response>;
+    remove?: () => Response | Promise<Response>;
+    fill?: () => Response | Promise<Response>;
+  } = {},
+): Rendered {
+  const { edit, counts, remove, fill } = answers;
+  return renderApp({
+    path: `/projects/${PROJECT_ID}`,
+    me: ANNA,
+    routes: {
+      [`GET /projects/${PROJECT_ID}`]: () =>
+        state.deleted
+          ? json(404, { error: { code: 'not_found', message: 'Не найдено' } })
+          : json(200, state.tree),
+      'GET /projects': () =>
+        json(
+          200,
+          state.deleted
+            ? []
+            : [
+                {
+                  id: PROJECT_ID,
+                  name: state.tree.name,
+                  filled: state.tree.filled,
+                  placed_count: 2,
+                  unassigned_count: 1,
+                },
+              ],
+        ),
+      'GET /rules': () =>
+        json(
+          200,
+          state.deleted
+            ? []
+            : (state.rules ?? []).map((rule) => ({
+                ...rule,
+                project: { id: PROJECT_ID, name: state.tree.name },
+              })),
+        ),
+      ...(edit ? { [`PATCH ${PATCH_PROJECT}`]: edit } : {}),
+      ...(counts ? { [`GET ${DELETION}`]: counts } : {}),
+      ...(remove
+        ? {
+            [`DELETE ${PATCH_PROJECT}`]: async () => {
+              const answer = await remove();
+              state.deleted = true;
+              return answer;
+            },
+          }
+        : {}),
       ...(fill ? { [`POST ${FILL}`]: fill } : {}),
     },
   });

@@ -1,10 +1,11 @@
 # Frontend
 
-Updated 04.11.2026
+Updated 05.11.2026
 
 **Code:** `frontend/src/`, `frontend/index.html`, `frontend/vite.config.ts`, `frontend/package.json`,
 `frontend/tsconfig.json`, `frontend/eslint.config.js`, `frontend/.prettierrc.json`, `frontend/.prettierignore`.
-The chain page's «Проект» block is `frontend/src/features/projects/ChainPlacement.tsx`.
+The chain page's «Проект» block is `frontend/src/features/projects/ChainPlacement.tsx`. The project page's «Изменить» form,
+its hint and «Удалить проект» are `frontend/src/features/projects/ProjectManagement.tsx`.
 The tests are `frontend/src/App.*.test.tsx`, the unit tests next to their files (`frontend/src/**/*.test.ts(x)`, such as
 `frontend/src/components/Button.test.tsx`, `frontend/src/features/health/HealthStatus.test.tsx` and `frontend/src/styles/tokens.test.ts`) and `frontend/src/test/`.
 
@@ -14,7 +15,8 @@ The tests are `frontend/src/App.*.test.tsx`, the unit tests next to their files 
 [FR-22, FR-23, FR-24, FR-26 and FR-27](../../openspec/specs/mailboxes/spec.md) the mailbox page,
 [FR-53 and FR-54](../../openspec/specs/mailboxes/spec.md) the connect form's service pick and its hints,
 [FR-30 and FR-31](../../openspec/specs/reply-chains/spec.md) the correspondence pages,
-[FR-32 … FR-34](../../openspec/specs/projects/spec.md) the project pages and
+[FR-32 … FR-34](../../openspec/specs/projects/spec.md) the project pages,
+[FR-55 and FR-56](../../openspec/specs/projects/spec.md) the editing and the deletion of a project on its page, and
 [FR-35 … FR-42](../../openspec/specs/chain-placement/spec.md) the fill button of a project and the «Проект» block of a chain,
 [FR-43 … FR-45 and FR-47](../../openspec/specs/placement-rules/spec.md) the rules page and the panel after a saved rule, and [FR-37](../../openspec/specs/chain-placement/spec.md)
 the rule explanations of a placement, and [FR-48 … FR-52](../../openspec/specs/app-shell/spec.md) the landing page (FR-48),
@@ -141,7 +143,7 @@ health page (its own `<section>`, see [Health feature](#health-feature)).
 | «Проекты» (`/projects`) | `frontend/src/features/projects/ProjectsPage.tsx` | The user's projects by name, with their chain counts. With projects listed, the button «Создать проект» sits under the list; with none, the empty state shows the link instead (see [Page states](#pages)). See [Projects feature](#projects-feature). |
 | «Новый проект» (`/projects/new`) | `frontend/src/features/projects/NewProjectPage.tsx` | Fields «Название» and «Описание»; «Создать» opens the new project. See [Projects feature](#projects-feature). |
 | «Правила» (`/rules`) | `frontend/src/features/projects/RulesPage.tsx` | The form of a rule, the user's rules in the order they win, with «Изменить» and «Удалить»; after a rule is saved, the panel «Применить правило сейчас?» (`RuleApplyPanel.tsx`). See [Rules feature](#rules-feature). |
-| The project's name (`/projects/:id`) | `frontend/src/features/projects/ProjectPage.tsx` | One project: its description, «Заполнить» with the rebuild question, and the tree of its chains. See [Projects feature](#projects-feature). |
+| The project's name (`/projects/:id`) | `frontend/src/features/projects/ProjectPage.tsx` | One project: its description with «Изменить» (the edit form, and the hint after a changed description), «Заполнить» with the rebuild question, the tree of its chains, and «Удалить проект» with its confirmation (`ProjectManagement.tsx`). See [Projects feature](#projects-feature). |
 | «Состояние сервиса» | `frontend/src/features/health/HealthStatus.tsx` | The health page; see [Health feature](#health-feature). |
 | «Страница не найдена» | `frontend/src/components/NotFoundPage.tsx` | See [Components](#components). |
 
@@ -272,8 +274,8 @@ The files are `frontend/src/features/correspondence/`: `ChainsPage.tsx` (the lis
 ## Projects feature
 
 The files are `frontend/src/features/projects/`: `ProjectsPage.tsx` (the list, and `PROJECTS_KEY`, the query key `['projects']`
-that the other two files invalidate), `NewProjectPage.tsx` (the form), `ProjectPage.tsx` (one project, its fill and its tree),
-`ProjectPage.module.css` (the tree's indents, the description's line breaks, the muted counterparty address and the heading inside a
+that the other two files invalidate), `NewProjectPage.tsx` (the form), `ProjectPage.tsx` (one project: its description, its fill and its tree),
+`ProjectManagement.tsx` (the edit form, the hint of a changed description and the deletion, see below), `ProjectPage.module.css` (the tree's indents, the description's line breaks, the muted counterparty address and the heading inside a
   folding summary), `ChainPlacement.tsx` (the «Проект» block of a chain page, see below), `PlacementBadge.tsx` with `PlacementBadge.module.css`
   (the badge of a placement, see below), `format.ts`, `RulesPage.tsx` and `RuleApplyPanel.tsx` (the page «Правила» and its panel,
   see [Rules feature](#rules-feature)).
@@ -281,7 +283,28 @@ The server side is in [Projects](projects.md). The pages, their routes and their
 [The SPA](projects.md#the-spa) of that article; this section only says where things live.
 
 - **Texts.** Each page writes its Russian texts in its component. The two texts of the project page's empty tree
-  are constants at the top of `ProjectPage.tsx`, next to `REFILL_QUESTION` and `NO_COUNTERPARTY_TITLE`.
+  are constants at the top of `ProjectPage.tsx`, next to `REFILL_QUESTION` and `NO_COUNTERPARTY_TITLE`. The hint is the constant
+  `DESCRIPTION_CHANGED_HINT` at the top of `ProjectManagement.tsx`, and the deletion question is built by `deletionQuestion(name, chainCount, ruleCount)`
+  in the same file.
+- **The edit (`ProjectManagement.tsx`).** The description block shows the description, «Изменить» (`secondary`) and, when
+  `description_changed` is true, the hint `Описание изменено после заполнения: нажмите «Заполнить», чтобы пересобрать проект`. «Изменить»
+  replaces the block with the form: «Название» (a `FormField` with the project's name) and «Описание» (`multiline`, with the description),
+  then «Сохранить» (`primary`) and «Отмена» (`secondary`). The form has `noValidate`, so the server decides; the field messages of the answer
+  show under their fields, and any other error shows in an alert above them, only when the answer has no field errors
+  (`ErrorAlert error={errors.size > 0 ? null : save.error}`). «Сохранить» sends `PATCH /api/v1/projects/{project_id}` with `name` and
+  `description`, read with `formValue`; it is disabled while the request runs. «Отмена» closes the form, sends nothing and drops the typed values.
+  - On success the page's query data is replaced with the answer, the form closes, and the queries `['projects']` (`PROJECTS_KEY`),
+    `['rules']` and `['reply-chains']` are invalidated, so the new name shows in the list, in «Правила» and on the chain pages.
+    A saved description moves no chain on the page: the tree stays, and the hint shows until «Заполнить» is pressed.
+- **The deletion (`ProjectManagement.tsx`).** «Удалить проект» (`danger`, at the bottom of the page, under the tree) does not send the
+  deletion at first. It sends `GET /api/v1/projects/{project_id}/deletion` for fresh counts (disabled while that runs), and then replaces
+  the button with the question `Удалить проект «<name>»? Цепочек в проекте: N — они останутся в «Переписке» как убранные вручную.
+  Правил, ведущих в проект: M — они будут удалены. Письма не удаляются.`, with «Удалить» (`danger`) and «Отмена» (`secondary`).
+  «Отмена» returns the button and sends nothing. A failed count shows its alert above the button; a failed deletion shows its alert
+  above the buttons, and the question stays.
+  - «Удалить» sends `DELETE /api/v1/projects/{project_id}` (disabled while it runs). On success the cached query `['projects', id]` is
+    removed, the queries `['projects']`, `['rules']` and `['reply-chains']` are invalidated, and the page navigates to `/projects`
+    («Проекты»). The project is no longer listed, and the chains stay in «Переписка», taken out by hand.
 - **Formatters (`format.ts`).** `chainCountLabel` and `unassignedCountLabel` pick the Russian plural with `Intl.PluralRules('ru')`,
   as `emailCountLabel` does. `placementLabel(placement)` gives `Вручную` for a placement by hand, `Движок text-1 · сходство 43%`
   for an engine one (the similarity (0–1) is shown in whole percent), and for a rule placement the rule's explanation:
@@ -391,7 +414,7 @@ Server data reaches the SPA only through the generated client; components never 
 - Schema types come from `components['schemas'][...]`, for example `Me` in `AuthProvider.tsx` and `HealthStatus`
   in `frontend/src/features/health/useHealth.ts`, `Mailbox` in `frontend/src/features/mailboxes/MailboxRow.tsx`, `MailboxConnect` in `frontend/src/features/mailboxes/ConnectForm.tsx`, and `EmailView`
   and `Address` in the correspondence files. The project files use `ProjectCreate`, `ProjectTree` and `PlacedChain`; the «Проект»
-  block uses `ChainLocation` and `PlacementMove`; the rules page uses `Rule`, `RuleInput` and `RuleCondition`, and the panel «Применить правило сейчас?» uses `RuleMove`.
+  block uses `ChainLocation` and `PlacementMove`; the project's edit form uses `ProjectEdit`, its deletion question `ProjectDeletion`; the rules page uses `Rule`, `RuleInput` and `RuleCondition`, and the panel «Применить правило сейчас?» uses `RuleMove`.
 
 ### How the client is regenerated
 
@@ -587,7 +610,8 @@ replaces the list; the last successful answer is not kept on screen.
   empty and failed pages, FR-51),
   `App.signIn`, `App.registration`, `App.passwordReset`, `App.mailboxes` (the «Почтовые ящики» page), `App.chains` (the header link
   «Переписка», the list and one chain), `App.projects` (the header link «Проекты», the list and the new project),
-  `App.projectTree` (the tree of a project), `App.projectFill` (the fill and its rebuild question), `App.chainPlacement` (the «Проект»
+  `App.projectTree` (the tree of a project), `App.projectFill` (the fill and its rebuild question), `App.projectEdit` (the edit and the deletion of a project, FR-55 and FR-56; see
+  below), `App.chainPlacement` (the «Проект»
   block of a chain page: where the chain is, «Перенести» and «Убрать из проекта»), `App.rules` (the page «Правила» and the header link
   «Правила») `App.ruleExplanations` (the explanation of a rule's placement in the tree and on the chain page) and `App.ruleMoves` (the panel
   «Применить правило сейчас?» after «Создать правило» and «Сохранить»). A scenario test names its FR, for example «FR-17 …»;
@@ -609,6 +633,20 @@ replaces the list; the last successful answer is not kept on screen.
   (document order). `openProject` renders the page with a `GET` answer that reads `state.tree`, so a fill answer can replace it.
   Its `placement` is an engine one, a manual one or a rule one (`PlacedChainJson`, with the rule's `RuleRefJson`), so the tests show
   every label.
+  - `openEditableProject(state, answers)` renders the page of `PROJECT_ID` with a stateful stub. `state` holds `tree`, the `rules` (`EditableRule`
+    rows, shown in «Правила» with the project's current name) and `deleted`. A `GET` of the project answers `state.tree`, or 404 once
+    `state.deleted` is set; the list `GET /projects` and `GET /rules` then answer empty. `answers` may replace `edit` (`PATCH`, path `PATCH_PROJECT`),
+    `counts` (`GET`, path `DELETION`), `remove` (`DELETE`) and `fill` (`POST`, path `FILL`). A `DELETE` that the stub answers sets `state.deleted`,
+    so the next reads show the project gone. The constants are `PATCH_PROJECT`, `DELETION` and `HINT` (the hint's text).
+  - `tree()` sets `description_changed: false` by default.
+- `frontend/src/App.projectEdit.test.tsx` covers the edit and the deletion of a project on its page, with `openEditableProject`
+  and the helpers `confirmationWith`, `writes` (every call that is not a `GET`) and `patchBodies`. Under «project page: editing» (FR-55):
+  a rename that «Проекты» and «Правила» then list; «Отмена» with no request; a name of another project (409 «Проект с таким названием уже есть»,
+  the form stays); the empty name and the 2001-character description (their messages, the form stays); the hint after a changed description
+  with the chains kept and only the `PATCH` sent; the hint gone after «Заполнить» and «Пересобрать»; no hint after a name-only change; and an
+  unfilled project keeping «Проект пуст: нажмите «Заполнить», чтобы найти его переписку». Under «project page: deleting» (FR-56): the question
+  with the counts, then «Удалить» lands on «Проекты» without the project and its rules; the empty project asked with 0 and 0; «Отмена»
+  sends no write; and a deleted project shows «Страница не найдена».
 - `frontend/src/test/chainPlacement.tsx` is the fixture set of the chain page's «Проект» block. It holds the JSON shapes of
   `ChainLocation` and `PlacementMove` (`LocationJson`, `PlacementJson`, `PlacementMoveJson`; `PlacementJson` covers the rule kind too), the projects «Ремонт офиса» (`OFFICE`) and
   «Закупка техники» (`TECH`) with their threads, the placements (`ENGINE_PLACEMENT`, `MANUAL_PLACEMENT`) and the states (`NONE`,
@@ -644,7 +682,8 @@ replaces the list; the last successful answer is not kept on screen.
   request body and the session and returns a `Response`; `signedIn(session, me)` records a sign-in. A request without a
   handler answers 500 with `{"unrouted": …}`, so a missing route shows up in the test.
 - `apiError(status, code, fields?)` builds an error body. Its messages come from `MESSAGES` in the harness, a copy of the
-  server's Russian messages for the fake API; it has the rule codes `rule_exists` and `too_many_rules` too.
+  server's Russian messages for the fake API; it has the rule codes `rule_exists` and `too_many_rules` and the project code
+  `project_exists` («Проект с таким названием уже есть») too.
 - A handler may answer later: it returns a pending promise, which keeps the request in flight (the fill tests use it to
   check «Заполняется…»). `fieldOf` finds the field of a `<textarea>` too.
 - Other helpers in the harness: `heading`, `alertWith`, `rowOf`, `type`, `press`, `fieldOf`, `navigate` (moves the app

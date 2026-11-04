@@ -1,6 +1,6 @@
 # Ideas
 
-Updated 04.11.2026
+Updated 05.11.2026
 
 Ideas not yet planned, by product area, then the technical backlog. `/idea` adds an entry; `/explore`
 discusses a raw one.
@@ -31,16 +31,6 @@ emails arrive.
 placement» first.
 
 ## Projects
-
-### Edit and delete a project
-
-Added 29.10. The user renames a project, changes its description or deletes it. Why: task 1.3 creates
-projects but cannot change them.
-
-**Open:** what happens to the placements when the description changes; whether deleting a project
-releases its chains for other projects.
-
-**Touches:** invariant «History is kept».
 
 ### A reference in a second project
 

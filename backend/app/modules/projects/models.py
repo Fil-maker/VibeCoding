@@ -66,6 +66,8 @@ class Project(Base):
     description: Mapped[str] = mapped_column(Text)
     filled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # When an edit last changed the description; after `filled_at` the project is stale.
+    description_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 Index("uq_projects_user_id_lower_name", Project.user_id, func.lower(Project.name), unique=True)

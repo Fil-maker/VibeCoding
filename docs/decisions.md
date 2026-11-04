@@ -112,3 +112,9 @@ them.
 | 04.11.2026 | [0094](adr/0094-approve-change-1-9-mailbox-connection.md) | Approve change 1-9-mailbox-connection-hints: ADDED FR-53, FR-54; MODIFIED FR-22, FR-26 | [human] | Accepted |
 | 04.11.2026 | [0095](adr/0095-is-shown-only-for-a-refused.md) | «Как исправить» is shown only for a refused sign-in on a service that has connection steps; the demo mailbox gets none | [human] | Accepted |
 | 04.11.2026 | [0096](adr/0096-fr-53-gains-a-scenario-for.md) | FR-53 gains a scenario for a port changed by hand; the retry on «Обновить» stays without a new scenario | [human] | Accepted |
+| 04.11.2026 | [0097](adr/0097-task-1-10-covers-both-deleting.md) | Task 1.10 covers both deleting a project and editing its name and description | [human] | Accepted |
+| 04.11.2026 | [0098](adr/0098-chains-of-a-deleted-project-become.md) | Chains of a deleted project become taken out by hand (excluded); the engine and rules never place them again by themselves | [human] | Accepted |
+| 04.11.2026 | [0099](adr/0099-rules-targeting-a-deleted-project-are.md) | Rules targeting a deleted project are deleted with it; the confirmation shows how many rules and chains it touches | [human] | Accepted |
+| 04.11.2026 | [0100](adr/0100-refine-invariant-history-is-kept-in.md) | Refine invariant History is kept in prd.md and CLAUDE.md: history is kept while the project exists; only the user deletes a project after confirmation; emails and chains stay | [human] | Accepted |
+| 04.11.2026 | [0101](adr/0101-changing-a-project-s-description-moves.md) | Changing a project's description moves no chain; the user re-sorts with «Заполнить» | [human] | Accepted |
+| 04.11.2026 | [0102](adr/0102-the-project-page-shows-a-hint.md) | The project page shows a hint when the description changed after the last filling, until the project is filled again | [human] | Accepted |

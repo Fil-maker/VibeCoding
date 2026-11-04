@@ -225,8 +225,9 @@ left without chains SHALL disappear.
 ### Requirement: FR-41 Take a chain out of projects
 
 On the page of a chain in a project, «Убрать из проекта» SHALL take the chain out of its project; the
-page SHALL then show «Вне проектов · убрана вручную». The engine SHALL never place such a chain again,
-neither by «Заполнить» nor after new emails; only the user SHALL place it back by hand.
+page SHALL then show «Вне проектов · убрана вручную». The chains of a project the user deletes SHALL be
+taken out the same way. Neither the engine, by «Заполнить» or after new emails, nor a rule SHALL ever
+place such a chain again; only the user SHALL place it back by hand.
 
 #### Scenario: Taking a chain out
 - **WHEN** «Скидка на абонемент в фитнес-клуб» is in «Неразобранное» of «Ремонт офиса» and Анна presses «Убрать из проекта»
@@ -247,6 +248,10 @@ neither by «Заполнить» nor after new emails; only the user SHALL plac
 #### Scenario: Another user's chain
 - **WHEN** Вера presses «Убрать из проекта» with the identifier of a chain of Анна
 - **THEN** the answer is «not found» and Анна's chain stays where it was
+
+#### Scenario: The chains of a deleted project are not taken again
+- **WHEN** Анна has deleted «Ремонт офиса», which held «Смета на ремонт офиса» from «s.petrov@stroymaster.example», then fills «Закупка техники» described as «Смета на ремонт офиса», a new email of that chain is read, and she creates the rule «Адрес отправителя» «s.petrov@stroymaster.example» → «Закупка техники»
+- **THEN** «Смета на ремонт офиса» is still in no project and the rule's list of chains to move does not name it; Анна moves it by hand into «Закупка техники», where it shows «Вручную»
 
 ### Requirement: FR-42 Placements by hand are kept
 

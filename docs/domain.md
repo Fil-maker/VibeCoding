@@ -1,6 +1,9 @@
 # Domain
 
-Version 0.11 · 04.11.2026
+Version 0.12 · 05.11.2026
+
+Changes in 0.12: task 1.10: glossary term Project — the user edits and deletes it; requirements map row
+projects takes FR-55, FR-56.
 
 Changes in 0.11: task 1.9: glossary term Mail service; requirements map row mailboxes takes FR-53, FR-54.
 
@@ -31,7 +34,7 @@ emails and stored secrets in «Data and privacy».
 
 Changes in 0.1: skeleton; terms from the harness interview.
 
-Last FR number: FR-54
+Last FR number: FR-56
 
 ## Contents
 
@@ -53,7 +56,7 @@ Capability → its spec and FR numbers. A new FR number also goes into «Last FR
 | access-boundary | [spec](../openspec/specs/access-boundary/spec.md) | FR-17, FR-20, FR-21 |
 | mailboxes | [spec](../openspec/specs/mailboxes/spec.md) | FR-22…FR-27, FR-53, FR-54 |
 | reply-chains | [spec](../openspec/specs/reply-chains/spec.md) | FR-28…FR-31 |
-| projects | [spec](../openspec/specs/projects/spec.md) | FR-32…FR-34 |
+| projects | [spec](../openspec/specs/projects/spec.md) | FR-32…FR-34, FR-55, FR-56 |
 | chain-placement | [spec](../openspec/specs/chain-placement/spec.md) | FR-35…FR-42, FR-46 |
 | placement-rules | [spec](../openspec/specs/placement-rules/spec.md) | FR-43…FR-45, FR-47 |
 | app-shell | [spec](../openspec/specs/app-shell/spec.md) | FR-48…FR-52 |
@@ -67,7 +70,7 @@ Capability → its spec and FR numbers. A new FR number also goes into «Last FR
 | Mail service | A provider of mailboxes in the app's built-in list (Яндекс Почта, Mail.ru, Gmail, iCloud, Демо), picked by the domain of the address on connecting and giving the server, the port and the steps to connect; any other domain is «Другой» |
 | Counterparty | A person or company the user corresponds with; for now one participant address, named by the latest name it wrote with, else by the address; a reply chain with several of them is shown under each, one with none under «Без контрагента» |
 | Correspondence | The emails between the user and a counterparty, from all of the user's mailboxes |
-| Project | A piece of the user's work, created by hand with a description; its correspondence is laid out as a tree: project → counterparty → thread |
+| Project | A piece of the user's work, created by hand with a description; its correspondence is laid out as a tree: project → counterparty → thread. The user renames it or changes its description, which moves no chain, and deletes it after a confirmation: its chains become taken out by hand, the rules targeting it are deleted, the emails stay |
 | Reply chain | An email and all replies to it, linked by the `References` and `In-Reply-To` headers across all mailboxes; never split, belongs to at most one project |
 | Participant | An address in From, To or Cc of a reply chain's emails other than the user's own addresses: the logins of their mailboxes and their account email |
 | Thread | A topic of a project that groups whole reply chains: formed by the engine from chains similar to each other and named by the subject of its earliest chain, or created by the user when moving a chain by hand and named by them |

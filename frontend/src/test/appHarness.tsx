@@ -30,6 +30,7 @@ export const MESSAGES: Record<string, string> = {
   validation_failed: 'Проверьте поля формы',
   rule_exists: 'Такое правило уже есть',
   too_many_rules: 'Правил не может быть больше 200',
+  project_exists: 'Проект с таким названием уже есть',
 };
 
 export interface Session {

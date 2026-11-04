@@ -83,6 +83,11 @@ async def get_match_rule(session: AsyncSession, user_id: UUID, rule_id: UUID) ->
     )
 
 
+async def count_rules_targeting(session: AsyncSession, user_id: UUID, project_id: UUID) -> int:
+    """How many of the user's rules lead into the project; runs in the caller's transaction."""
+    return await repository.count_rules_targeting_for_owner(session, user_id, project_id)
+
+
 def pick_winning_rule(
     rules: Sequence[MatchRule], senders: Sequence[str], subject: str
 ) -> MatchRule | None:

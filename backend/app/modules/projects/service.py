@@ -1,4 +1,4 @@
-"""Use cases of projects: create, list, show as a tree, fill, place new chains, place by hand."""
+"""Use cases of projects: create, list, tree, fill, place new chains and by hand, edit, delete."""
 
 from collections.abc import Collection, Sequence
 from datetime import datetime
@@ -16,7 +16,7 @@ from app.modules.correspondence.service import (
     list_chain_documents,
     list_chain_facts,
 )
-from app.modules.projects import hand_placing, repository, rule_applying
+from app.modules.projects import hand_placing, project_editing, repository, rule_applying
 from app.modules.projects.domain import (
     PlacementEntry,
     ProjectHead,
@@ -32,6 +32,8 @@ from app.modules.projects.schemas import (
     ChainLocation,
     PlacementMove,
     ProjectCreate,
+    ProjectDeletion,
+    ProjectEdit,
     ProjectSummary,
     ProjectTree,
     RuleApplied,
@@ -80,7 +82,17 @@ async def _load_tree(session: AsyncSession, user_id: UUID, project: Project) -> 
     facts = await list_chain_facts(session, user_id, chain_ids)
     names = await get_latest_sender_names(session, user_id, chain_ids)
     return build_tree(
-        ProjectHead(project.id, project.name, project.description, project.filled_at is not None),
+        ProjectHead(
+            project.id,
+            project.name,
+            project.description,
+            project.filled_at is not None,
+            is_description_changed=(
+                project.filled_at is not None
+                and project.description_changed_at is not None
+                and project.description_changed_at > project.filled_at
+            ),
+        ),
         [ThreadRef(thread.id, thread.name) for thread in threads],
         [
             PlacementEntry(
@@ -241,6 +253,33 @@ class ProjectsService:
             if project is None:
                 raise NotFound
             return await _load_tree(self._session, context.user_id, project)
+
+    async def edit(
+        self, context: AuthContext, clock: Clock, project_id: UUID, body: ProjectEdit
+    ) -> ProjectTree:
+        """Change the name and description; `NotFound` or `ProjectExists` as `edit_project`."""
+        try:
+            async with self._session.begin():
+                project = await project_editing.edit_project(
+                    self._session, context.user_id, project_id, body, clock.now()
+                )
+                return await _load_tree(self._session, context.user_id, project)
+        except IntegrityError as e:
+            if isinstance(e.orig, UniqueViolation):
+                raise ProjectExists from e
+            raise
+
+    async def read_deletion(self, context: AuthContext, project_id: UUID) -> ProjectDeletion:
+        """What deleting the project takes along; `NotFound` for another user's or unknown id."""
+        async with self._session.begin():
+            return await project_editing.read_deletion(self._session, context.user_id, project_id)
+
+    async def delete(self, context: AuthContext, clock: Clock, project_id: UUID) -> None:
+        """Delete the project; its chains become taken out by hand. `NotFound` if not the user's."""
+        async with self._session.begin():
+            await project_editing.delete_project(
+                self._session, context.user_id, project_id, clock.now()
+            )
 
     async def fill(
         self, context: AuthContext, project_id: UUID, engine: PlacementEngine, clock: Clock

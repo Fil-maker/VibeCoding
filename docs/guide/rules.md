@@ -1,6 +1,6 @@
 # Rules
 
-Updated 03.11.2026
+Updated 05.11.2026
 
 **Code:** `backend/app/modules/rules/` (`router.py`, `service.py`, `domain.py`, `schemas.py`, `repository.py`, `models.py`,
 `errors.py`, `test_domain.py`), the migration `backend/migrations/versions/0007_placement_rules.py`, the integration tests
@@ -89,6 +89,14 @@ caller's `user_id`.
 - **Delete** (`delete`): it deletes the user's rule (else `not_found`). Placements the rule made keep their own copy of it
   ([Projects](projects.md#placing-by-rules)).
 
+Deleting the rule's target project deletes the rule too: the foreign key `placement_rules.project_id` cascades. That deletion is
+the projects module's ([Editing and deleting a project](projects.md#editing-and-deleting-a-project)), and the chains the project held
+are taken out by hand, not moved by the rule ([ADR 0099](../adr/0099-rules-targeting-a-deleted-project-are.md)).
+
+`count_rules_targeting` in `service.py` is a module function, not a `RulesService` use case. It returns how many of the user's rules
+have the given `project_id`, through `count_rules_targeting_for_owner` in `repository.py`, in the caller's transaction. The deletion
+confirmation of the projects module uses it as `rule_count`; the projects module reaches it only through this service.
+
 No `RulesService` use case moves a placement; a rule's chains move only when the user applies the rule, which the projects module does
 ([Applying a rule now](projects.md#applying-a-rule-now)). `get_match_rule` in `service.py` is the one read of a single rule: it returns
 the user's `MatchRule` for the id, or `None` for an unknown or another user's id, and the projects module uses it to read the rule it
@@ -148,10 +156,10 @@ The header links to it as «Правила» ([Frames](frontend.md#frames)). The
 | File | What it holds |
 |---|---|
 | `router.py` | `router` (`/api/v1/rules`), `ERROR_MAPPING` and `get_rules_service`, which builds the `ProjectDirectory`. A router holds no session. |
-| `service.py` | `RulesService`, `ProjectDirectory`, and the functions the projects module uses: `list_match_rules` (the user's rules for matching), `get_match_rule` (one of the user's rules, or `None`) and `pick_winning_rule`. It re-exports `MatchRule`. |
+| `service.py` | `RulesService`, `ProjectDirectory`, and the functions the projects module uses: `list_match_rules` (the user's rules for matching), `get_match_rule` (one of the user's rules, or `None`), `count_rules_targeting` (how many rules lead into a project, for the deletion counts) and `pick_winning_rule`. It re-exports `MatchRule`. |
 | `domain.py` | `RULE_LIMIT` (200), `MatchRule`, `priority_key`, `subject_words` and `winning_rule`. |
 | `schemas.py` | `RuleCondition` (`address`, `domain`, `subject`), `RuleInput` with the checks, `RuleProject` and `Rule`. |
-| `repository.py` | The owner-scoped queries: list (at most `RULE_LIMIT`), count, get, the repeat check, add and delete. |
+| `repository.py` | The owner-scoped queries: list (at most `RULE_LIMIT`), count, count of the rules targeting a project (`count_rules_targeting_for_owner`), get, the repeat check, add and delete. |
 | `models.py` | `PlacementRule`, the table `placement_rules`. |
 | `errors.py` | `RuleExists` and `TooManyRules`. |
 | `test_domain.py` | The unit tests of the matching. |
@@ -168,6 +176,7 @@ one exception described above.
   a repeat, another user's project, list order, edit, delete, and the signed-in and Origin rules of the routes),
   `test_placement_by_rules.py` (placing by a rule alone, including the thread by name, the priority, and what a rule never takes),
   and `test_placement_rules_with_engine.py` (rules next to the engine, a fill, an edit or delete, the explanation kept, and the merge).
+  The rules of a deleted target project are tested in `test_project_deletion.py` (FR-45, and the rule count of the deletion).
 - Helpers: `backend/tests/rule_support.py` (`by_rule`, the rule shape of a placement; `anna_with_two_projects`), and
   `backend/tests/factories.py` (`create_rule` and `create_rule_response`, which post a rule).
 
@@ -183,5 +192,7 @@ one exception described above.
 - **A write that adds or retargets a rule** takes the project locks first, through `ProjectDirectory.lock_names`.
 - **Imports:** the rules service never imports the projects module (the import cycle). The projects module reaches the rules only through
   `backend/app/modules/rules/service.py`.
+- **A deleted target project** takes its rules with it through the cascade, so a rule never points at a missing project. The
+  rule's chains are not moved to another project by that deletion ([Editing and deleting a project](projects.md#editing-and-deleting-a-project)).
 - **Placements keep their copy of the rule.** An edit or a delete never rewrites a placement. A rule placement changes only on a fill of
   its project, which drops it and places again; by applying the rule now ([Applying a rule now](projects.md#applying-a-rule-now)); or by hand ([Projects](projects.md#placing-by-rules)).

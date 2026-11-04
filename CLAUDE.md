@@ -88,9 +88,10 @@ IMPORTANT: these are the product's core promises. Never trade them for convenien
   emails and phrases it rests on.
 - **Reproducible placement:** the same emails, project description, rules and engine version give the
   same placement and assessment; a change of the engine's model is visible in the result.
-- **History is kept:** the correspondence history of every project is kept; the engine never moves an
-  already placed reply chain — only the user does, by hand or by an explicit re-sorting that keeps
-  placements made by hand.
+- **History is kept:** the correspondence history of every project is kept while the project exists;
+  only the user deletes a project, after a confirmation, and its emails and chains stay. The engine
+  never moves an already placed reply chain — only the user does, by hand or by an explicit re-sorting
+  that keeps placements made by hand.
 - **Access boundary:** a user sees only their own mailboxes, projects and correspondence; if the engine
   uses a third-party model, email text goes there only with the user's consent.
 

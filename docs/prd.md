@@ -1,6 +1,9 @@
 # Product requirements
 
-Version 0.8 · 04.11.2026 · **Draft**
+Version 0.9 · 05.11.2026 · **Draft**
+
+Changes in 0.9: task 1.10 «Edit and delete a project» done; invariant «History is kept» says the
+history is kept while the project exists and only the user deletes a project.
 
 Changes in 0.8: task 1.8 «Visual system» done; stage «1. Project trees» done.
 
@@ -50,9 +53,10 @@ These are the product invariants; `CLAUDE.md` «Product invariants» holds them 
    emails and phrases it rests on.
 3. **Reproducible placement.** The same emails, project description, rules and engine version give the
    same placement and the same assessment; a change of the engine's model is visible in the result.
-4. **History is kept.** The correspondence history of every project is kept. The engine never moves a
-   reply chain that is already placed; only the user does, by hand or by an explicit re-sorting of the
-   project, which keeps the placements made by hand.
+4. **History is kept.** The correspondence history of every project is kept while the project exists;
+   only the user deletes a project, after a confirmation, and its emails and reply chains stay. The
+   engine never moves a reply chain that is already placed; only the user does, by hand or by an
+   explicit re-sorting of the project, which keeps the placements made by hand.
 5. **Access boundary.** A user sees only their own mailboxes, projects and correspondence. If the engine
    uses a third-party model, email text goes there only with the user's consent.
 

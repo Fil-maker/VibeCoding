@@ -366,3 +366,41 @@ async def delete_rule(client: AsyncClient, rule_id: str) -> None:
     """Delete a rule through the API."""
     response = await delete_rule_response(client, rule_id)
     assert response.status_code == HTTPStatus.NO_CONTENT, response.text
+
+
+async def update_project_response(
+    client: AsyncClient, project_id: str, name: str, description: str
+) -> Response:
+    """PATCH /projects/{id}: the raw answer."""
+    return await client.patch(
+        f"{API}/projects/{project_id}", json={"name": name, "description": description}
+    )
+
+
+async def update_project(
+    client: AsyncClient, project_id: str, name: str, description: str
+) -> dict[str, Any]:
+    """Change a project's name and description through the API; returns its `ProjectTree`."""
+    response = await update_project_response(client, project_id, name, description)
+    assert response.status_code == HTTPStatus.OK, response.text
+    tree: dict[str, Any] = response.json()
+    return tree
+
+
+async def deletion_counts(client: AsyncClient, project_id: str) -> dict[str, int]:
+    """GET /projects/{id}/deletion: `chain_count` and `rule_count`."""
+    response = await client.get(f"{API}/projects/{project_id}/deletion")
+    assert response.status_code == HTTPStatus.OK, response.text
+    counts: dict[str, int] = response.json()
+    return counts
+
+
+async def delete_project_response(client: AsyncClient, project_id: str) -> Response:
+    """DELETE /projects/{id}: the raw answer."""
+    return await client.delete(f"{API}/projects/{project_id}")
+
+
+async def delete_project(client: AsyncClient, project_id: str) -> None:
+    """Delete a project through the API."""
+    response = await delete_project_response(client, project_id)
+    assert response.status_code == HTTPStatus.NO_CONTENT, response.text
