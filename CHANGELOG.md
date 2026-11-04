@@ -6,6 +6,16 @@ All notable changes for the product's users. The format follows
 
 ## Unreleased
 
+## [0.6.0] - 2026-11-04
+
+### Added
+
+- Connecting a mailbox starts with its address: for Яндекс Почта, Mail.ru, Gmail and iCloud the app
+  fills the server and the port and shows «Как подключить» with the steps and a link to the
+  service's official help; any other address gets «Другой» with a hint where to find the server.
+- «Почтовые ящики» explains that the app only reads the mailbox and why an app password is needed.
+- A mailbox that cannot sign in shows «Как исправить» with the steps of its service.
+
 ## [0.5.0] - 2026-11-04
 
 ### Added
