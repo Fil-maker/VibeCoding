@@ -1,6 +1,6 @@
 # Releases
 
-Updated 04.11.2026
+Updated 05.11.2026
 
 One note per version for the product's users, written by `/release`: `docs/releases/v<X.Y.Z>.md` with «What's new»,
 «Fixes», «Breaking changes», «Under the hood», and «How to update» only when action is needed. A
@@ -15,3 +15,4 @@ version is in [CHANGELOG.md](../../CHANGELOG.md).
 | 0.4.0 | 03.11.2026 | [v0.4.0](v0.4.0.md) |
 | 0.5.0 | 04.11.2026 | [v0.5.0](v0.5.0.md) |
 | 0.6.0 | 04.11.2026 | [v0.6.0](v0.6.0.md) |
+| 0.7.0 | 05.11.2026 | [v0.7.0](v0.7.0.md) |

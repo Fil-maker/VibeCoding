@@ -6,6 +6,16 @@ All notable changes for the product's users. The format follows
 
 ## Unreleased
 
+## [0.7.0] - 2026-11-05
+
+### Added
+
+- Editing a project: «Изменить» on its page changes the name and the description without moving
+  any chain; after a new description a filled project shows a hint to fill it again.
+- Deleting a project after a confirmation that names how many chains leave it and how many rules
+  are deleted; its chains stay in «Переписка» as taken out by hand with all their emails, and the
+  rules leading into it are deleted.
+
 ## [0.6.0] - 2026-11-04
 
 ### Added
