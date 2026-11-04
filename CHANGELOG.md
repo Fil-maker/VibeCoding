@@ -6,6 +6,27 @@ All notable changes for the product's users. The format follows
 
 ## Unreleased
 
+## [0.5.0] - 2026-11-04
+
+### Added
+
+- Applying a saved rule at once: after a rule is created or edited, «Правила» lists the chains it
+  would move and moves them on «Применить»; chains placed by hand or taken out stay.
+- One header on every signed-in page, folding into «Меню» on a narrow screen.
+- A landing page for guests and «Первые шаги» until a mailbox is connected and a project is filled.
+- A dark theme that follows the system setting.
+
+### Changed
+
+- Loading, empty and failed pages share one look; every browser tab is titled «<page> — VibeCoding».
+- Buttons and placement badges look the same everywhere; counterparties and «Неразобранное» fold;
+  tables become cards on a narrow screen.
+
+### Fixed
+
+- Signing out lands on the landing page.
+- The empty «Проекты» shows «Создать проект» only once.
+
 ## [0.4.0] - 2026-11-03
 
 ### Added
