@@ -1,6 +1,6 @@
 # Mail reading
 
-Updated 03.11.2026
+Updated 04.11.2026
 
 **Code:** `backend/app/modules/mailboxes/`, `backend/app/modules/correspondence/`, the platform files
 `backend/app/platform/mail_reader.py`, `imap_folders.py`, `secret_box.py` and `pagination.py`, the migration
@@ -8,7 +8,8 @@ Updated 03.11.2026
 `test_secret_box.py`, `backend/tests/integration/` and `backend/tests/mail_factory.py`.
 
 **Requirements:** [FR-22 … FR-27](../../openspec/specs/mailboxes/spec.md) mailboxes (connect, password, reading,
-read-only access, failed reads, disconnect), [FR-28 … FR-31](../../openspec/specs/reply-chains/spec.md) reply chains
+read-only access, failed reads, disconnect), [FR-53 … FR-54](../../openspec/specs/mailboxes/spec.md) connection hints (the
+service picked from the address, the steps to connect it), [FR-28 … FR-31](../../openspec/specs/reply-chains/spec.md) reply chains
 (stored once, joining, the list, reading a chain). The map is in [Requirements map](../domain.md#requirements-map).
 
 **Design:** [Components and processes](../architecture.md#components-and-processes),
@@ -89,7 +90,9 @@ The connect check only proves the sign-in. The emails come with the next reading
   A disconnected mailbox is no longer read, and its password is gone. Another user's, unknown or already disconnected
   mailbox answers 404 `not_found`.
 
-The answer `Mailbox` has `id`, `server`, `port`, `login`, `status`, `error` and `last_read_at`. It never has the password.
+The answer `Mailbox` has `id`, `server`, `port`, `login`, `status`, `error`, `error_code` and `last_read_at`. It never has the
+password. `error` and `error_code` are set only for `failed`; otherwise both are null. `error_code` is one of `sign_in_failed`,
+`unreachable` or `read_failed` (the table below).
 
 ### Status of a mailbox
 
@@ -112,7 +115,7 @@ follows. While some mailbox is `pending` or `reading`, the list refetches every 
 | `unreachable` | «сервер не отвечает» |
 | `read_failed` | «не удалось прочитать письма» |
 
-A code the module does not know shows as `read_failed`.
+A stored code the module does not know shows as `read_failed`, in both `error` and `error_code`.
 
 ## Reading a mailbox
 

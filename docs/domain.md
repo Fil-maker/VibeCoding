@@ -1,6 +1,8 @@
 # Domain
 
-Version 0.10 · 03.11.2026
+Version 0.11 · 04.11.2026
+
+Changes in 0.11: task 1.9: glossary term Mail service; requirements map row mailboxes takes FR-53, FR-54.
 
 Changes in 0.10: task 1.7: glossary terms Landing page and Start page; requirements map row app-shell takes FR-48…FR-52.
 
@@ -29,7 +31,7 @@ emails and stored secrets in «Data and privacy».
 
 Changes in 0.1: skeleton; terms from the harness interview.
 
-Last FR number: FR-52
+Last FR number: FR-54
 
 ## Contents
 
@@ -49,7 +51,7 @@ Capability → its spec and FR numbers. A new FR number also goes into «Last FR
 | organization-registration | [spec](../openspec/specs/organization-registration/spec.md) | FR-1…FR-3 |
 | sign-in | [spec](../openspec/specs/sign-in/spec.md) | FR-4…FR-8 |
 | access-boundary | [spec](../openspec/specs/access-boundary/spec.md) | FR-17, FR-20, FR-21 |
-| mailboxes | [spec](../openspec/specs/mailboxes/spec.md) | FR-22…FR-27 |
+| mailboxes | [spec](../openspec/specs/mailboxes/spec.md) | FR-22…FR-27, FR-53, FR-54 |
 | reply-chains | [spec](../openspec/specs/reply-chains/spec.md) | FR-28…FR-31 |
 | projects | [spec](../openspec/specs/projects/spec.md) | FR-32…FR-34 |
 | chain-placement | [spec](../openspec/specs/chain-placement/spec.md) | FR-35…FR-42, FR-46 |
@@ -62,6 +64,7 @@ Capability → its spec and FR numbers. A new FR number also goes into «Last FR
 |---|---|
 | User | A person who registered on their own with a name, an email and a password; owns their mailboxes, projects and correspondence and gives consent to a third-party model |
 | Mailbox | An email account connected to the app read-only |
+| Mail service | A provider of mailboxes in the app's built-in list (Яндекс Почта, Mail.ru, Gmail, iCloud, Демо), picked by the domain of the address on connecting and giving the server, the port and the steps to connect; any other domain is «Другой» |
 | Counterparty | A person or company the user corresponds with; for now one participant address, named by the latest name it wrote with, else by the address; a reply chain with several of them is shown under each, one with none under «Без контрагента» |
 | Correspondence | The emails between the user and a counterparty, from all of the user's mailboxes |
 | Project | A piece of the user's work, created by hand with a description; its correspondence is laid out as a tree: project → counterparty → thread |

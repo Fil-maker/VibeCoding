@@ -2473,6 +2473,16 @@
             ],
             "title": "Error"
           },
+          "error_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MailboxErrorCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "last_read_at": {
             "anyOf": [
               {
@@ -2494,10 +2504,11 @@
           "login",
           "status",
           "error",
+          "error_code",
           "last_read_at"
         ],
         "title": "Mailbox",
-        "description": "A connected mailbox as the list shows it."
+        "description": "A connected mailbox as the list shows it; `error_code` is set only when failed."
       },
       "MailboxConnect": {
         "properties": {
@@ -2528,6 +2539,16 @@
         ],
         "title": "MailboxConnect",
         "description": "The form «Подключить ящик»."
+      },
+      "MailboxErrorCode": {
+        "type": "string",
+        "enum": [
+          "sign_in_failed",
+          "unreachable",
+          "read_failed"
+        ],
+        "title": "MailboxErrorCode",
+        "description": "Why the last read failed."
       },
       "MailboxStatus": {
         "type": "string",

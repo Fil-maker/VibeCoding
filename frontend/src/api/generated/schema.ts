@@ -571,7 +571,7 @@ export interface components {
         };
         /**
          * Mailbox
-         * @description A connected mailbox as the list shows it.
+         * @description A connected mailbox as the list shows it; `error_code` is set only when failed.
          */
         Mailbox: {
             /**
@@ -588,6 +588,7 @@ export interface components {
             status: components["schemas"]["MailboxStatus"];
             /** Error */
             error: string | null;
+            error_code: components["schemas"]["MailboxErrorCode"] | null;
             /** Last Read At */
             last_read_at: string | null;
         };
@@ -608,6 +609,12 @@ export interface components {
             /** Password */
             password: string;
         };
+        /**
+         * MailboxErrorCode
+         * @description Why the last read failed.
+         * @enum {string}
+         */
+        MailboxErrorCode: "sign_in_failed" | "unreachable" | "read_failed";
         /**
          * MailboxStatus
          * @description Where a mailbox is in its reading cycle.

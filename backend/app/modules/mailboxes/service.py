@@ -46,6 +46,16 @@ LOG = get_logger(__name__)
 ABANDONED_READING_MINUTES = 15
 
 
+def _failed_error_code(row: MailboxRow) -> MailboxErrorCode | None:
+    """Why the last read failed, or None unless failed; an unknown stored code is read_failed."""
+    if row.status != MailboxStatus.FAILED or row.error_code is None:
+        return None
+    try:
+        return MailboxErrorCode(row.error_code)
+    except ValueError:
+        return MailboxErrorCode.READ_FAILED  # the same fallback as the Russian reason
+
+
 def to_mailbox_view(row: MailboxRow) -> Mailbox:
     """The API form of a mailbox row; it has no password."""
     return Mailbox(
@@ -55,6 +65,7 @@ def to_mailbox_view(row: MailboxRow) -> Mailbox:
         login=row.login,
         status=MailboxStatus(row.status),
         error=describe_status_error(row.status, row.error_code),
+        error_code=_failed_error_code(row),
         last_read_at=row.last_read_at,
     )
 

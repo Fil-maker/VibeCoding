@@ -144,7 +144,28 @@ mailboxes over IMAP with an app password only, which these services make hard or
 
 **Open:** which providers first; how a revoked grant is shown.
 
+Outlook.com is left out of the connection hints of task 1.9 for this reason: its official help says personal accounts sign in over IMAP only with OAuth since 16.09.2024.
+
 **Touches:** invariants «Mailbox read-only» (read-only scopes) and «Access boundary».
+
+### Server detection by MX record
+
+Added 04.11. Find the IMAP server of a custom domain by its MX record. Why: task 1.9 picks the service
+from a built-in list of domains, so a custom domain on Яндекс 360 or Google Workspace picks «Другой» and
+the user types the server by hand.
+
+**Open:** whether a DNS query from the backend is acceptable: the domain leaves the app to DNS.
+
+**Touches:** invariant «Access boundary».
+
+### More mail services in the connection hints
+
+Added 04.11. Add more services to the built-in list of task 1.9. Why: Рамблер is common, but its
+official help has no page on mail programs to confirm the server and the steps; add it once it does.
+
+**Open:** which services next.
+
+**Touches:** none.
 
 ### More folders and reading depth
 

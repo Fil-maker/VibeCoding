@@ -22,7 +22,7 @@ from tests.factories import (
 ANNA_LOGIN = "anna@yandex.ru"
 WRONG_PASSWORD_MESSAGE = "Не удалось войти в ящик: проверьте логин и пароль приложения"
 OTHER_KEY = "MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE="
-MAILBOX_KEYS = {"id", "server", "port", "login", "status", "error", "last_read_at"}
+MAILBOX_KEYS = {"id", "server", "port", "login", "status", "error", "error_code", "last_read_at"}
 
 
 def stored_password(database_url: str, login: str) -> list[bytes | None]:
@@ -67,6 +67,7 @@ async def test_fr22_successful_connection_shows_the_mailbox_as_pending(
     assert (body["login"], body["server"], body["port"]) == (ANNA_LOGIN, "imap.yandex.ru", 993)
     assert body["status"] == "pending"
     assert body["error"] is None
+    assert body["error_code"] is None
     assert body["last_read_at"] is None
     assert await list_mailboxes(anna) == [body]
 

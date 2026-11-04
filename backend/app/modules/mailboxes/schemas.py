@@ -7,7 +7,12 @@ from uuid import UUID
 from pydantic import AfterValidator, BaseModel, model_validator
 from pydantic_core import PydanticCustomError
 
-from app.modules.mailboxes.models import LOGIN_MAX_LENGTH, SERVER_MAX_LENGTH, MailboxStatus
+from app.modules.mailboxes.models import (
+    LOGIN_MAX_LENGTH,
+    SERVER_MAX_LENGTH,
+    MailboxErrorCode,
+    MailboxStatus,
+)
 from app.platform.errors import FIELD_MESSAGE_TYPE
 from app.platform.validation import RequestModel
 
@@ -74,7 +79,7 @@ class MailboxConnect(RequestModel):
 
 
 class Mailbox(BaseModel):
-    """A connected mailbox as the list shows it."""
+    """A connected mailbox as the list shows it; `error_code` is set only when failed."""
 
     id: UUID
     server: str
@@ -82,4 +87,5 @@ class Mailbox(BaseModel):
     login: str
     status: MailboxStatus
     error: str | None
+    error_code: MailboxErrorCode | None
     last_read_at: datetime | None

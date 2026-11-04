@@ -25,3 +25,4 @@ mistakes and lessons, what remains. Written by `/journal` at `/finish`.
 | 03.11.2026 | [Apply a rule now](2026-11-03-02-apply-rule-now.md) | 1.6 | 1-6-apply-rule-now |
 | 04.11.2026 | [App shell and user path](2026-11-04-01-app-shell.md) | 1.7 | 1-7-app-shell |
 | 04.11.2026 | [Visual system](2026-11-04-02-visual-system.md) | 1.8 | 1-8-visual-system |
+| 04.11.2026 | [Mailbox connection hints](2026-11-04-03-mailbox-connection-hints.md) | 1.9 | 1-9-mailbox-connection-hints |

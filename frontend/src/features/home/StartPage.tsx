@@ -7,7 +7,7 @@ import { unwrap } from '../../api/request';
 import { Loading } from '../../components/Loading';
 import { LoadError } from '../../components/LoadError';
 import { Panel } from '../../components/Panel';
-import { MAILBOXES_KEY } from '../mailboxes/MailboxesPage';
+import { MAILBOXES_KEY } from '../mailboxes/mailboxesKey';
 import { PROJECTS_KEY } from '../projects/ProjectsPage';
 
 interface Step {

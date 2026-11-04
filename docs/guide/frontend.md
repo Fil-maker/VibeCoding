@@ -12,6 +12,7 @@ The tests are `frontend/src/App.*.test.tsx`, the unit tests next to their files 
 [FR-4 … FR-8](../../openspec/specs/sign-in/spec.md) sign-in and password reset,
 [FR-17, FR-20 and FR-21](../../openspec/specs/access-boundary/spec.md) the access boundary,
 [FR-22, FR-23, FR-24, FR-26 and FR-27](../../openspec/specs/mailboxes/spec.md) the mailbox page,
+[FR-53 and FR-54](../../openspec/specs/mailboxes/spec.md) the connect form's service pick and its hints,
 [FR-30 and FR-31](../../openspec/specs/reply-chains/spec.md) the correspondence pages,
 [FR-32 … FR-34](../../openspec/specs/projects/spec.md) the project pages and
 [FR-35 … FR-42](../../openspec/specs/chain-placement/spec.md) the fill button of a project and the «Проект» block of a chain,
@@ -164,13 +165,17 @@ which shows the error in one alert with «Повторить». The texts of eac
 
 ## Mailboxes feature
 
-`frontend/src/features/mailboxes/MailboxesPage.tsx` is the whole feature: one file, with `MailboxRow` for a row of the list and
-`ConnectForm` for the form. The server side is in [Mail reading](mail-reading.md).
+The feature is in `frontend/src/features/mailboxes/`. `MailboxesPage.tsx` is the page «Почтовые ящики»: the list, the read-only
+note and the connect form. `MailboxRow.tsx` is one row of the list, `ConnectForm.tsx` is the connect form, `ServiceSteps.tsx` is the
+block «Как подключить <service>», `mailServices.ts` is the table of mail services with the match of an address to one of them, and
+`mailboxesKey.ts` is the query key `MAILBOXES_KEY`, which the start page reads too. `mailServices.test.ts` is the unit test of the table.
+The server side is in [Mail reading](mail-reading.md).
 
 - The page is a `Panel` titled «Почтовые ящики». It reads `GET /api/v1/mailboxes` under the
-  query key `['mailboxes']`. While the query loads it shows `Загрузка…`; with no mailbox it shows `Ящики ещё не подключены`.
+  query key `['mailboxes']` (`MAILBOXES_KEY`). While the query loads it shows `Загрузка…`; with no mailbox it shows `Ящики ещё не подключены`.
 - The list is a table with the login, the server, the status and the actions of each mailbox. The page never shows a password.
-- **Status text.** The text comes from `statusText` in the page file; the values are exactly:
+- **The note.** Under the list and above the connect form the page shows `Приложение только читает письма: не отправляет, не удаляет и не помечает их прочитанными. Для входа нужен пароль приложения — отдельный пароль для почтовых программ, который можно отозвать, не меняя основной.`
+- **Status text.** The text comes from `statusText` in `MailboxRow.tsx`; the values are exactly:
 
   | `status` | Text |
   |---|---|
@@ -187,11 +192,53 @@ which shows the error in one alert with «Повторить». The texts of eac
   `Отключить ящик {login}? Прочитанные письма останутся.` and two buttons: «Отключить» (the `danger` kind; sends `DELETE /api/v1/mailboxes/{mailbox_id}`;
   the button is disabled while the request runs) and «Отмена» (`secondary`; returns the row's buttons, sends nothing). Whatever the answer,
   the confirmation closes. On success the list is invalidated and the mailbox disappears. A failure shows its message in the row.
-- **The connect form.** The heading «Подключить ящик» sits above a form with the fields «Сервер IMAP», «Порт» (default `993`,
-  set with `defaultValue`), «Логин» and «Пароль приложения» (a password field), and the button «Подключить». It posts
-  `POST /api/v1/mailboxes` with `server`, `port` (a number), `login` and `password`. The form has `noValidate`; the server's
-  per-field messages show under their fields. When no field has a message, the answer's message shows above the form (for example
-  «Этот ящик уже подключён» for `mailbox_exists`). On success the form is cleared and the list is invalidated.
+- **«Как исправить».** `MailboxRow.tsx` shows the button «Как исправить» on a row only when its `error_code` is `sign_in_failed`
+  and its `server` is the server of a service in the table that has steps (`serviceForServer`). The demo server `greenmail` and an
+  unknown server get no button, and neither do the codes `unreachable` and `read_failed`. A click shows the block
+  «Как подключить <service>» under the row's status; nothing closes it again.
+- **The connect form.** The heading «Подключить ящик» sits above `ConnectForm.tsx`. Its fields come in this order:
+  1. «Адрес почты». It is also the login until the user changes the login. Typing it picks the service by its domain.
+  2. «Почтовый сервис»: a select with «Яндекс Почта», «Mail.ru», «Gmail», «iCloud», «Демо» and «Другой», in the table's order.
+  3. For «Другой», once an address is typed or the service is picked by hand, the text `Этот почтовый сервис нам незнаком. Адрес сервера IMAP и порт есть в справке вашей почты или у администратора домена.`
+  4. The block «Как подключить <service>» of the picked service, when it has steps.
+  5. The disclosure «Настройки сервера» with «Сервер IMAP», «Порт» (`993` at first) and «Логин». It opens by itself for «Другой»
+     while the hint shows, and the user can open and close it. A connect answer with a message for the server, for the port or,
+     after a hand edit, for the login opens it.
+  6. «Пароль приложения» (a password field) and the button «Подключить».
+
+  The first state is the service «Другой», an empty server, the port `993` and an empty login. Typing an address sets the service,
+  the server and the port from its domain, and the login to the full address, for every service ([ADR 0093](../adr/0093-the-login-defaults-to-the-full.md)).
+  A server or a port the user typed by hand stays when the address changes; a login the user typed stays too. A service picked
+  by hand fills the server and the port and never the login; it stays while the domain of the address does not change, and a
+  new domain picks the service again.
+
+  Submitting with an empty address sends no request. It names every empty or invalid field at once: «Укажите адрес почты»,
+  «Укажите сервер IMAP», «Порт должен быть от 1 до 65535» and «Укажите пароль приложения». Otherwise the form posts
+  `POST /api/v1/mailboxes` with `server`, `port` (a number), `login` and `password`. The form has `noValidate`. The server's
+  per-field messages show under their fields; a login message shows under «Адрес почты» while the login is not edited by hand.
+  When no field has a message, the answer's message shows above the form (for example «Этот ящик уже подключён» for
+  `mailbox_exists`). On success the form returns to its first state and the list is invalidated.
+- **The service table.** `mailServices.ts` holds `MAIL_SERVICES`, the app's own list of mail services (`MailService`: `id`, `name`,
+  `howToTitle`, `server`, `port`, `steps` and `help`). It is static data, so matching an address sends no request.
+
+  | Service | Server | Port | Domains | Steps and link |
+  |---|---|---|---|---|
+  | Яндекс Почта | `imap.yandex.ru` | 993 | `yandex.ru`, `ya.ru`, `yandex.com` | steps; «Справка Яндекс Почты» |
+  | Mail.ru | `imap.mail.ru` | 993 | `mail.ru`, `inbox.ru`, `list.ru`, `bk.ru`, `internet.ru` | steps; «Справка Mail.ru» |
+  | Gmail | `imap.gmail.com` | 993 | `gmail.com`, `googlemail.com` | steps; «Справка Google» |
+  | iCloud | `imap.mail.me.com` | 993 | `icloud.com`, `me.com`, `mac.com` | steps; «Справка Apple» |
+  | Демо | `greenmail` | 3143 | `demo.test` | none |
+  | Другой | empty | 993 | any other domain | none |
+
+  - `domainOfAddress` takes the part after the last «@», trimmed and lowercased. `serviceForAddress` looks it up in the domain
+    list `DOMAINS`; no match is «Другой». Case and spaces do not matter.
+  - `serviceForServer` returns the service whose server equals the given server, trimmed and lowercased; no match gives null.
+  - Outlook (`outlook.com`, `hotmail.com`, `live.com`) and Rambler (`rambler.ru`) are not in the table, so they pick «Другой»
+    ([ADR 0091](../adr/0091-outlook-is-left-out-of-the.md), [ADR 0092](../adr/0092-rambler-is-left-out-of-the.md)). The reason for the
+    demo entry is in [ADR 0090](../adr/0090-the-service-table-holds-for-demo.md).
+- **«Как подключить <service>».** `ServiceSteps.tsx` renders a region named by the service's title (`howToTitle`, for example
+  «Как подключить Яндекс Почту»), with the steps as an ordered list and the official help link. The link opens in a new tab with
+  `rel="noopener noreferrer"` and carries no part of the address. Nothing renders for «Демо» and «Другой».
 
 ## Correspondence feature
 
@@ -342,7 +389,7 @@ Server data reaches the SPA only through the generated client; components never 
   non-2xx answer. Wrap the call in `unwrap(...)` to get the data or throw an `ApiError`; `unwrapEmpty(...)` does the
   same for answers without a body (202, 204). A network failure throws from `fetch`.
 - Schema types come from `components['schemas'][...]`, for example `Me` in `AuthProvider.tsx` and `HealthStatus`
-  in `frontend/src/features/health/useHealth.ts`, `Mailbox` and `MailboxConnect` in `MailboxesPage.tsx`, and `EmailView`
+  in `frontend/src/features/health/useHealth.ts`, `Mailbox` in `frontend/src/features/mailboxes/MailboxRow.tsx`, `MailboxConnect` in `frontend/src/features/mailboxes/ConnectForm.tsx`, and `EmailView`
   and `Address` in the correspondence files. The project files use `ProjectCreate`, `ProjectTree` and `PlacedChain`; the «Проект»
   block uses `ChainLocation` and `PlacementMove`; the rules page uses `Rule`, `RuleInput` and `RuleCondition`, and the panel «Применить правило сейчас?» uses `RuleMove`.
 
@@ -427,7 +474,7 @@ new paths through `apiClient`. `frontend/.prettierignore` skips `frontend/src/ap
   titled `VibeCoding` with the tab title plain `VibeCoding`. It shows «Загрузка…», or with `failed` the alert
   «Сервер не отвечает». `RequireUser`, `RequireGuest` and `AuthFrame` use it.
 - `FormField` is a labelled input (`type` `text`, `email` or `password`). It takes an optional `defaultValue`, which the
-  input shows at first (the mailbox form uses it for the port `993`). It is uncontrolled: the form reads the values
+  input shows at first (the rules form uses it for a rule's values). It is uncontrolled: the form reads the values
   from `FormData`. Its label and its message are linked through `useId`.
 - `multiline` renders a `<textarea>` with five rows instead of the input (the project description uses it). The `type` prop
   does not apply then. The textarea takes the same `input` look, with `textarea` (vertical resize only).
@@ -549,7 +596,10 @@ replaces the list; the last successful answer is not kept on screen.
   `App.chains.test.tsx` and `App.mailboxes.test.tsx` set `process.env.TZ = 'UTC'` again at their top, so «14:05» in a test means
   14:05 on any machine. The app itself does not set a zone.
 - `App.mailboxes.test.tsx` covers the list and its statuses, «Обновить», the disconnect confirmation (confirm and «Отмена»)
-  and the connect form with its refusals. `App.chains.test.tsx` covers the header link «Переписка», the guard for `/chains`, the
+  and the connect form with its refusals. The connect hints have their own files: `App.mailboxConnect.test.tsx` (the service picked
+  from the address, FR-53), `App.mailboxConnectErrors.test.tsx` (connecting and the messages, FR-22), `App.mailboxHowTo.test.tsx`
+  («Как подключить», FR-54) and `App.mailboxFix.test.tsx` («Как исправить», FR-26). `frontend/src/test/mailboxForm.tsx` holds their
+  helpers: the mailbox fixture `mailbox()`, the texts and the `openForm`, `pickService` and `howToBlock` lookups. `App.chains.test.tsx` covers the header link «Переписка», the guard for `/chains`, the
   list with «Показать ещё», the empty list, reading a chain (order, attachments, plain text, line breaks) and the
   «Страница не найдена» answer for another user's chain.
 - `frontend/src/test/projectTrees.tsx` is the fixture set of the project tests. It holds the JSON shapes of `ProjectTree` and

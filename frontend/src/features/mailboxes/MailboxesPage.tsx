@@ -1,171 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 import { apiClient } from '../../api/client';
-import type { components } from '../../api/generated/schema';
-import { fieldErrors, unwrap, unwrapEmpty } from '../../api/request';
-import { ErrorAlert } from '../../components/ErrorAlert';
+import { unwrap } from '../../api/request';
 import { Loading } from '../../components/Loading';
 import { LoadError } from '../../components/LoadError';
-import { formValue } from '../../components/formData';
-import { FormField } from '../../components/FormField';
 import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
-import { formatDateTime } from '../correspondence/format';
-import { Button } from '../../components/Button';
-
-type Mailbox = components['schemas']['Mailbox'];
+import { ConnectForm } from './ConnectForm';
+import { MailboxRow } from './MailboxRow';
+import { MAILBOXES_KEY } from './mailboxesKey';
 
 const POLL_INTERVAL_MS = 5000;
-const DEFAULT_PORT = '993';
-export const MAILBOXES_KEY = ['mailboxes'];
-
-function statusText(mailbox: Mailbox): string {
-  switch (mailbox.status) {
-    case 'pending':
-      return 'Ожидает чтения';
-    case 'reading':
-      return 'Читается…';
-    case 'read':
-      return mailbox.last_read_at === null
-        ? 'Прочитан'
-        : `Прочитан ${formatDateTime(mailbox.last_read_at)}`;
-    case 'failed':
-      return `Ошибка: ${mailbox.error ?? ''}`;
-  }
-}
-
-function MailboxRow({ mailbox }: { mailbox: Mailbox }): React.JSX.Element {
-  const queryClient = useQueryClient();
-  const [confirming, setConfirming] = useState(false);
-  const refresh = useMutation({
-    mutationFn: () =>
-      unwrap(
-        apiClient.POST('/api/v1/mailboxes/{mailbox_id}/refresh', {
-          params: { path: { mailbox_id: mailbox.id } },
-        }),
-      ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: MAILBOXES_KEY }),
-  });
-  const disconnect = useMutation({
-    mutationFn: () =>
-      unwrapEmpty(
-        apiClient.DELETE('/api/v1/mailboxes/{mailbox_id}', {
-          params: { path: { mailbox_id: mailbox.id } },
-        }),
-      ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: MAILBOXES_KEY }),
-  });
-
-  return (
-    <tr>
-      <td>{mailbox.login}</td>
-      <td>{mailbox.server}</td>
-      <td>{statusText(mailbox)}</td>
-      <td>
-        <ErrorAlert error={refresh.error ?? disconnect.error} />
-        {confirming ? (
-          <div className={styles.actions}>
-            <span>{`Отключить ящик ${mailbox.login}? Прочитанные письма останутся.`}</span>
-            <Button
-              kind="danger"
-              disabled={disconnect.isPending}
-              onClick={() => {
-                disconnect.mutate(undefined, {
-                  onSettled: () => {
-                    setConfirming(false);
-                  },
-                });
-              }}
-            >
-              Отключить
-            </Button>
-            <Button
-              onClick={() => {
-                setConfirming(false);
-              }}
-            >
-              Отмена
-            </Button>
-          </div>
-        ) : (
-          <div className={styles.actions}>
-            <Button
-              disabled={refresh.isPending}
-              onClick={() => {
-                refresh.mutate();
-              }}
-            >
-              Обновить
-            </Button>
-            <Button
-              onClick={() => {
-                setConfirming(true);
-              }}
-            >
-              Отключить
-            </Button>
-          </div>
-        )}
-      </td>
-    </tr>
-  );
-}
-
-function ConnectForm(): React.JSX.Element {
-  const queryClient = useQueryClient();
-  const [formKey, setFormKey] = useState(0);
-  const connect = useMutation({
-    mutationFn: (body: components['schemas']['MailboxConnect']) =>
-      unwrap(apiClient.POST('/api/v1/mailboxes', { body })),
-    onSuccess: async () => {
-      setFormKey((key) => key + 1);
-      await queryClient.invalidateQueries({ queryKey: MAILBOXES_KEY });
-    },
-  });
-  const errors = fieldErrors(connect.error);
-
-  return (
-    <>
-      <h2 className={styles.subheading}>Подключить ящик</h2>
-      <form
-        key={formKey}
-        className={styles.form}
-        noValidate
-        onSubmit={(event) => {
-          event.preventDefault();
-          const data = new FormData(event.currentTarget);
-          connect.mutate({
-            server: formValue(data, 'server'),
-            port: Number(formValue(data, 'port')),
-            login: formValue(data, 'login'),
-            password: formValue(data, 'password'),
-          });
-        }}
-      >
-        <ErrorAlert error={errors.size > 0 ? null : connect.error} />
-        <FormField name="server" label="Сервер IMAP" error={errors.get('server')} />
-        <FormField
-          name="port"
-          label="Порт"
-          defaultValue={DEFAULT_PORT}
-          error={errors.get('port')}
-        />
-        <FormField name="login" label="Логин" autoComplete="username" error={errors.get('login')} />
-        <FormField
-          name="password"
-          label="Пароль приложения"
-          type="password"
-          autoComplete="off"
-          error={errors.get('password')}
-        />
-        <Button type="submit" kind="primary" disabled={connect.isPending}>
-          Подключить
-        </Button>
-      </form>
-    </>
-  );
-}
+const READ_ONLY_EXPLANATION =
+  'Приложение только читает письма: не отправляет, не удаляет и не помечает их прочитанными. Для входа нужен пароль приложения — отдельный пароль для почтовых программ, который можно отозвать, не меняя основной.';
 
 // «Почтовые ящики»: the connected mailboxes, their reading status and the connect form.
 export function MailboxesPage(): React.JSX.Element {
@@ -192,6 +39,7 @@ export function MailboxesPage(): React.JSX.Element {
           </tbody>
         </table>
       )}
+      <p>{READ_ONLY_EXPLANATION}</p>
       <ConnectForm />
     </Panel>
   );

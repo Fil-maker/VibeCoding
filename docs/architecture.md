@@ -2,7 +2,7 @@
 
 Updated 04.11.2026
 
-**Status: tasks 0.1, 0.2, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6 and 1.7 are built.** Task 0.1 «Application skeleton» built the backend, the SPA and the database
+**Status: tasks 0.1, 0.2, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7 and 1.9 are built.** Task 0.1 «Application skeleton» built the backend, the SPA and the database
 container. Task 0.2 «Sign-in and organization» built registration, email confirmation, sign-in and sessions,
 password reset, and an organization with its members and invitations. Task 1.1 «Personal accounts» removed the
 organization layer: a registrant is an individual user and the root owner of their data ([ADR 0023](adr/0023-organizations-are-removed-anyone-can-register.md)).
@@ -43,6 +43,7 @@ analysis model is not chosen yet.
 | Rules: the rules by sender address, domain or subject words with a target project and thread name, create, list, edit and delete, the page «Правила», a chain placed by a rule before the engine on a read and on a fill | ✅ | 1.5 |
 | Apply a rule now: after a rule is saved, the chains it would move are listed, and «Применить» places them by the rule (a chain moves only when the rule is its winning rule); «Не сейчас» moves nothing | ✅ | 1.6 |
 | App shell and user path: one frame for the signed-in pages with the header, its sections and «Выйти» (a menu below 40rem), the landing page for a guest, the first steps on the start page, one look for loading, empty and failed states, the skip link and the tab titles; SPA only | ✅ | 1.7 |
+| Mailbox connection hints: the connect form picks the mail service from the address by the built-in table and fills the server and the port; «Как подключить <service>» shows the steps and the official help link; «Как исправить» shows for a refused sign-in; the mailbox list carries `error_code` | ✅ | 1.9 |
 
 ## Components and processes
 
@@ -210,8 +211,12 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
                          user, with the menu below 40rem; AppShell.module.css), GuestLayout (the frame of a signed-out visitor),
                          AuthFrame (picks the frame for «/» and the catch-all route by the session)
       health/            HealthStatus (page), useHealth (query), styles and tests
-      mailboxes/         MailboxesPage: the connected mailboxes with their reading status, refresh and disconnect,
-                         and the connect form
+      mailboxes/         MailboxesPage (the page: the connected mailboxes, the read-only note and the connect form),
+                         MailboxRow.tsx (a row: status, «Как исправить», refresh and disconnect), ConnectForm.tsx (the connect
+                         form: address, mail service, server settings), ServiceSteps.tsx («Как подключить <service>»),
+                         mailServices.ts (the table of mail services and the match of an address by its domain or
+                         a server by its host), mailboxesKey.ts (the query key MAILBOXES_KEY),
+                         mailServices.test.ts (its unit test)
       correspondence/    ChainsPage (the list of reply chains, a page at a time), ChainPage (one chain, emails as plain
                          text), ChainPage.module.css, format.ts (dates, email counts, addresses)
       projects/          ProjectsPage (the list), NewProjectPage («Новый проект»), ProjectPage (the description, «Заполнить»,
@@ -223,7 +228,8 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
                          a badge: its label, with the kind as data-kind), PlacementBadge.test.tsx (its unit test)
     styles/tokens.css    design tokens: the light and dark color sets (dark under prefers-color-scheme), spacing, sizes, fonts;
                          tokens.test.ts (contrast) and noLiterals.test.ts (no literal colors and no px sizes outside it) check them
-    test/                appHarness.tsx (renders App with fetch stubbed), projectTrees.tsx (project fixtures and lookups),
+    test/                appHarness.tsx (renders App with fetch stubbed), mailboxForm.tsx (the mailbox fixture and the lookups of
+                         the connect form and its «Как подключить» block), projectTrees.tsx (project fixtures and lookups),
                          chainPlacement.tsx (fixtures and stubs of the chain page's placement block),
                          rulesPage.tsx (fixtures and stubs of the page «Правила»),
                          ruleMoves.tsx (fixtures and lookups of the panel «Применить правило сейчас?»),

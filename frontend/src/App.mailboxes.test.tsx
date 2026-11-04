@@ -27,6 +27,7 @@ interface MailboxJson {
   login: string;
   status: 'pending' | 'reading' | 'read' | 'failed';
   error: string | null;
+  error_code: 'sign_in_failed' | 'unreachable' | 'read_failed' | null;
   last_read_at: string | null;
 }
 
@@ -38,6 +39,7 @@ function mailbox(overrides: Partial<MailboxJson> = {}): MailboxJson {
     login: 'anna@yandex.ru',
     status: 'pending',
     error: null,
+    error_code: null,
     last_read_at: null,
     ...overrides,
   };
@@ -69,9 +71,9 @@ function openMailboxes(boxes: MailboxJson[]): ReturnType<typeof renderApp> {
   });
 }
 
-function fillForm(values: { server: string; login: string; password: string }): void {
+function fillForm(values: { address: string; server: string; password: string }): void {
+  type('Адрес почты', values.address);
   type('Сервер IMAP', values.server);
-  type('Логин', values.login);
   type('Пароль приложения', values.password);
 }
 
@@ -115,7 +117,7 @@ describe('mailboxes page: list', () => {
 
   it('FR-26 «The app password was revoked»: the mailbox shows «Ошибка: <reason>»', async () => {
     const reason = 'не удалось войти в ящик, подключите его заново с новым паролем приложения';
-    openMailboxes([mailbox({ status: 'failed', error: reason })]);
+    openMailboxes([mailbox({ status: 'failed', error: reason, error_code: 'sign_in_failed' })]);
 
     expect(await rowOf('anna@yandex.ru')).toHaveTextContent(`Ошибка: ${reason}`);
   });
@@ -130,7 +132,11 @@ describe('mailboxes page: list', () => {
           served += 1;
           return json(200, [
             served === 1
-              ? mailbox({ status: 'failed', error: 'сервер не отвечает' })
+              ? mailbox({
+                  status: 'failed',
+                  error: 'сервер не отвечает',
+                  error_code: 'unreachable',
+                })
               : mailbox({ status: 'read', last_read_at: '2026-10-29T14:10:00Z' }),
           ]);
         },
@@ -235,11 +241,13 @@ describe('mailboxes page: disconnect', () => {
 });
 
 describe('mailboxes page: connect form', () => {
-  it('FR-22 «Successful connection»: the form «Подключить ящик» has its four fields, the port is 993', async () => {
+  it('FR-22 «Successful connection»: the form «Подключить ящик» starts with «Адрес почты» and «Почтовый сервис», the port is 993', async () => {
     openMailboxes([]);
 
     await screen.findByText('Ящики ещё не подключены');
     expect(screen.getByText('Подключить ящик')).toBeInTheDocument();
+    expect(screen.getByLabelText('Адрес почты')).toBeInTheDocument();
+    expect(screen.getByLabelText('Почтовый сервис')).toBeInTheDocument();
     expect(screen.getByLabelText('Сервер IMAP')).toBeInTheDocument();
     expect(screen.getByLabelText('Порт')).toHaveDisplayValue('993');
     expect(screen.getByLabelText('Логин')).toBeInTheDocument();
@@ -262,7 +270,7 @@ describe('mailboxes page: connect form', () => {
     });
 
     await screen.findByText('Ящики ещё не подключены');
-    fillForm({ server: 'imap.yandex.ru', login: 'anna@yandex.ru', password: 'app-pass-1234' });
+    fillForm({ address: 'anna@yandex.ru', server: 'imap.yandex.ru', password: 'app-pass-1234' });
     press('Подключить');
 
     const row = await rowOf('anna@yandex.ru');
@@ -295,7 +303,7 @@ describe('mailboxes page: connect form', () => {
     await screen.findByText(
       initial.length === 0 ? 'Ящики ещё не подключены' : (initial[0]?.login ?? ''),
     );
-    fillForm({ server, login: 'anna@yandex.ru', password: 'wrong-pass-1' });
+    fillForm({ address: 'anna@yandex.ru', server, password: 'wrong-pass-1' });
     press('Подключить');
 
     await alertWith(text);
@@ -347,7 +355,7 @@ describe('mailboxes page: connect form', () => {
           errorAnswer(422, 'validation_failed', 'Проверьте поля формы', {
             server: 'Укажите сервер IMAP',
             port: 'Порт должен быть от 1 до 65535',
-            login: 'Укажите логин',
+            login: 'Укажите адрес почты',
             password: 'Укажите пароль приложения',
           }),
       },
@@ -360,7 +368,8 @@ describe('mailboxes page: connect form', () => {
     await screen.findByText('Укажите сервер IMAP');
     expect(fieldOf('Сервер IMAP')).toHaveTextContent('Укажите сервер IMAP');
     expect(fieldOf('Порт')).toHaveTextContent('Порт должен быть от 1 до 65535');
-    expect(fieldOf('Логин')).toHaveTextContent('Укажите логин');
+    expect(fieldOf('Адрес почты')).toHaveTextContent('Укажите адрес почты');
+    expect(fieldOf('Логин')).not.toHaveTextContent('Укажите адрес почты');
     expect(fieldOf('Пароль приложения')).toHaveTextContent('Укажите пароль приложения');
     expect(screen.getByText('Ящики ещё не подключены')).toBeInTheDocument();
   });
