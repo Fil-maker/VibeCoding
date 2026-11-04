@@ -9,6 +9,7 @@ import { LoadError } from '../../components/LoadError';
 import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
 import { chainCountLabel, unassignedCountLabel } from './format';
+import { Button } from '../../components/Button';
 
 export const PROJECTS_KEY = ['projects'];
 
@@ -24,9 +25,6 @@ export function ProjectsPage(): React.JSX.Element {
 
   return (
     <Panel title="Проекты" wide>
-      <p>
-        <Link to="/">На главную</Link>
-      </p>
       <LoadError error={projects.error} onRetry={() => void projects.refetch()} />
       {projects.isPending && <Loading />}
       {projects.data?.length === 0 && (
@@ -52,15 +50,15 @@ export function ProjectsPage(): React.JSX.Element {
           </tbody>
         </table>
       )}
-      <button
-        type="button"
-        className={styles.button}
-        onClick={() => {
-          void navigate('/projects/new');
-        }}
-      >
-        Создать проект
-      </button>
+      {projects.data !== undefined && projects.data.length > 0 && (
+        <Button
+          onClick={() => {
+            void navigate('/projects/new');
+          }}
+        >
+          Создать проект
+        </Button>
+      )}
     </Panel>
   );
 }

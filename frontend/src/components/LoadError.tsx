@@ -1,5 +1,6 @@
 import { errorMessage } from '../api/request';
 import styles from './ui.module.css';
+import { Button } from './Button';
 
 // The shared state of a page whose data failed to load: the reason and a retry in one alert.
 export function LoadError({
@@ -15,9 +16,7 @@ export function LoadError({
   return (
     <div role="alert" className={styles.error}>
       <p>{errorMessage(error)}</p>
-      <button type="button" className={styles.button} onClick={onRetry}>
-        Повторить
-      </button>
+      <Button onClick={onRetry}>Повторить</Button>
     </div>
   );
 }

@@ -55,9 +55,26 @@
   cursor: pointer;
 }
 
+.primary {
+  border-color: var(--color-button-primary-bg);
+  background: var(--color-button-primary-bg);
+  color: var(--color-button-primary-text);
+}
+
+.dangerButton {
+  border-color: var(--color-button-danger-bg);
+  background: var(--color-button-danger-bg);
+  color: var(--color-button-danger-text);
+}
+
 .button:disabled {
-  color: var(--color-text-muted);
+  opacity: 0.6;
   cursor: default;
+}
+
+.button:focus-visible {
+  outline: var(--size-focus-width) solid var(--color-focus);
+  outline-offset: var(--size-focus-offset);
 }
 
 .links {
@@ -92,4 +109,36 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+/* 40rem is written here and not in tokens.css: a media query cannot read a custom property. */
+@media (max-width: 40rem) {
+  .panel {
+    margin-right: 0;
+    margin-left: 0;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .table,
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+  }
+
+  .table tr {
+    margin-bottom: var(--size-card-gap);
+    padding: var(--size-card-padding);
+    border: var(--size-border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .table th,
+  .table td {
+    padding: var(--space-1) 0;
+    border-bottom: 0;
+    overflow-wrap: anywhere;
+  }
 }

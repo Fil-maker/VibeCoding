@@ -96,3 +96,7 @@ them.
 | 03.11.2026 | [0078](adr/0078-the-spa-works-on-desktop-and.md) | The SPA works on desktop and phone with responsive layout | [human] | Accepted |
 | 03.11.2026 | [0079](adr/0079-own-components-on-css-modules-and.md) | Own components on CSS modules and tokens, no UI library; light and dark theme follow the system setting | [human] | Accepted |
 | 03.11.2026 | [0080](adr/0080-browserrouter-runs-with-usetransitions-false-and.md) | BrowserRouter runs with useTransitions={false}, and sign-out navigates to / inside flushSync before the session is cleared | [AI → accepted] | Accepted |
+| 04.11.2026 | [0081](adr/0081-fold-the-removal-of-the-duplicate.md) | Fold the removal of the duplicate «Создать проект» on the empty «Проекты» and of the old «На главную» links into task 1.8 «Visual system» | [human] | Accepted |
+| 04.11.2026 | [0082](adr/0082-keep-on-the-page.md) | Keep «На главную» on the page «Страница не найдена» | [human] | Accepted |
+| 04.11.2026 | [0083](adr/0083-plan-row-1-8-gets-the.md) | Plan row 1.8 gets the two removals in its task text and «Done when»; plan edition 0.19 | [human] | Accepted |
+| 04.11.2026 | [0084](adr/0084-approve-change-1-8-visual-system.md) | Approve change 1-8-visual-system (skip_specs): dark tokens under prefers-color-scheme, Button with kind, PlacementBadge keeping today's texts, <details> folding, tables as cards below 40rem, the leftover links removed | [human] | Accepted |

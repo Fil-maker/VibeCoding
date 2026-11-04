@@ -8,6 +8,7 @@ import { unwrapEmpty } from '../../api/request';
 import { ErrorAlert } from '../../components/ErrorAlert';
 import { useAuth } from '../auth/AuthProvider';
 import styles from './AppShell.module.css';
+import { Button } from '../../components/Button';
 
 const MENU_ID = 'header-menu';
 const SECTIONS = [
@@ -47,8 +48,7 @@ export function AppHeader(): React.JSX.Element {
       <Link to="/" className={styles.brand}>
         VibeCoding
       </Link>
-      <button
-        type="button"
+      <Button
         className={styles.toggle}
         aria-expanded={isOpen}
         aria-controls={MENU_ID}
@@ -57,7 +57,7 @@ export function AppHeader(): React.JSX.Element {
         }}
       >
         Меню
-      </button>
+      </Button>
       <div id={MENU_ID} className={isOpen ? [styles.menu, styles.menuOpen].join(' ') : styles.menu}>
         <nav aria-label="Разделы" className={styles.sections}>
           {SECTIONS.map((section) => (
@@ -76,16 +76,14 @@ export function AppHeader(): React.JSX.Element {
         <div className={styles.account}>
           {state.status === 'signedIn' ? <span>{state.me.name}</span> : null}
           <ErrorAlert error={signOut.error} />
-          <button
-            type="button"
-            className={styles.signOut}
+          <Button
             disabled={signOut.isPending}
             onClick={() => {
               signOut.mutate();
             }}
           >
             Выйти
-          </button>
+          </Button>
         </div>
       </div>
     </header>

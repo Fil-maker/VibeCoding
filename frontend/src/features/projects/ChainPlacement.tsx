@@ -10,8 +10,9 @@ import { formValue } from '../../components/formData';
 import { FormField } from '../../components/FormField';
 import styles from '../../components/ui.module.css';
 import { LOADING_MESSAGE } from '../../messages';
-import { placementLabel } from './format';
+import { PlacementBadge } from './PlacementBadge';
 import { PROJECTS_KEY } from './ProjectsPage';
+import { Button } from '../../components/Button';
 
 type ChainLocation = components['schemas']['ChainLocation'];
 
@@ -33,7 +34,7 @@ function LocationText({ location }: { location: ChainLocation }): React.JSX.Elem
     <>
       <Link to={`/projects/${location.project.id}`}>{location.project.name}</Link> →{' '}
       {location.thread === null ? UNASSIGNED_TITLE : location.thread.name} ·{' '}
-      {placementLabel(location.placement)}
+      <PlacementBadge placement={location.placement} />
     </>
   );
 }
@@ -150,9 +151,9 @@ function MoveForm({
           error={errors.get('new_thread_name') ?? errors.get('thread_id')}
         />
       )}
-      <button type="submit" className={styles.button} disabled={move.isPending}>
+      <Button type="submit" kind="primary" disabled={move.isPending}>
         Перенести
-      </button>
+      </Button>
     </form>
   );
 }
@@ -194,16 +195,14 @@ export function ChainPlacement({ chainId }: { chainId: string }): React.JSX.Elem
           </p>
           <ErrorAlert error={takeOut.error} />
           {location.data.state === 'placed' && (
-            <button
-              type="button"
-              className={styles.button}
+            <Button
               disabled={takeOut.isPending}
               onClick={() => {
                 takeOut.mutate();
               }}
             >
               Убрать из проекта
-            </button>
+            </Button>
           )}
           <MoveForm chainId={chainId} location={location.data} onMoved={changed} />
         </>

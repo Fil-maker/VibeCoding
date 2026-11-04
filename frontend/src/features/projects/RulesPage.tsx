@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
-import { Link } from 'react-router';
 
 import { apiClient } from '../../api/client';
 import type { components } from '../../api/generated/schema';
@@ -15,6 +14,7 @@ import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
 import { PROJECTS_KEY } from './ProjectsPage';
 import { RuleApplyPanel } from './RuleApplyPanel';
+import { Button } from '../../components/Button';
 
 type Rule = components['schemas']['Rule'];
 type RuleCondition = components['schemas']['RuleCondition'];
@@ -38,6 +38,7 @@ function isCondition(value: string): value is RuleCondition {
   return CONDITIONS.some((condition) => condition === value);
 }
 
+// The rule form: a new rule when `rule` is null, or an edit of one; only an edit passes `onCancel`, which adds «Отмена».
 function RuleForm({
   rule,
   projects,
@@ -141,19 +142,16 @@ function RuleForm({
         )}
       </div>
       <div>
-        <button type="submit" className={styles.button} disabled={save.isPending}>
+        <Button type="submit" kind="primary" disabled={save.isPending}>
           {submitLabel}
-        </button>
-        {onCancel !== undefined && (
-          <button type="button" className={styles.button} onClick={onCancel}>
-            Отмена
-          </button>
-        )}
+        </Button>
+        {onCancel !== undefined && <Button onClick={onCancel}>Отмена</Button>}
       </div>
     </form>
   );
 }
 
+// One listed rule in view, edit or delete mode: «Изменить» edits it in place, «Удалить» asks before it deletes.
 function RuleLine({
   rule,
   projects,
@@ -207,48 +205,41 @@ function RuleLine({
       </span>{' '}
       {mode === 'view' ? (
         <>
-          <button
-            type="button"
-            className={styles.button}
+          <Button
             onClick={() => {
               setMode('edit');
             }}
           >
             Изменить
-          </button>{' '}
-          <button
-            type="button"
-            className={styles.button}
+          </Button>{' '}
+          <Button
             onClick={() => {
               setMode('delete');
             }}
           >
             Удалить
-          </button>
+          </Button>
         </>
       ) : (
         <>
           <p>{DELETE_QUESTION}</p>
           <ErrorAlert error={remove.error} />
-          <button
-            type="button"
-            className={styles.button}
+          <Button
+            kind="danger"
             disabled={remove.isPending}
             onClick={() => {
               remove.mutate();
             }}
           >
             Удалить
-          </button>{' '}
-          <button
-            type="button"
-            className={styles.button}
+          </Button>{' '}
+          <Button
             onClick={() => {
               setMode('view');
             }}
           >
             Отмена
-          </button>
+          </Button>
         </>
       )}
     </li>
@@ -274,9 +265,6 @@ export function RulesPage(): React.JSX.Element {
 
   return (
     <Panel title="Правила" wide>
-      <p>
-        <Link to="/">На главную</Link>
-      </p>
       <LoadError error={rules.error} onRetry={() => void rules.refetch()} />
       <LoadError error={projects.error} onRetry={() => void projects.refetch()} />
       {projects.isPending && <Loading />}

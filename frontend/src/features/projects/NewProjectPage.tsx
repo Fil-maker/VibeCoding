@@ -10,6 +10,7 @@ import { FormField } from '../../components/FormField';
 import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
 import { PROJECTS_KEY } from './ProjectsPage';
+import { Button } from '../../components/Button';
 
 // «Новый проект»: the name and the description; success opens the project.
 export function NewProjectPage(): React.JSX.Element {
@@ -50,9 +51,9 @@ export function NewProjectPage(): React.JSX.Element {
           multiline
           error={errors.get('description')}
         />
-        <button type="submit" className={styles.button} disabled={create.isPending}>
+        <Button type="submit" kind="primary" disabled={create.isPending}>
           Создать
-        </button>
+        </Button>
       </form>
     </Panel>
   );

@@ -4,9 +4,9 @@ import { apiClient } from '../../api/client';
 import type { components } from '../../api/generated/schema';
 import { unwrap } from '../../api/request';
 import { ErrorAlert } from '../../components/ErrorAlert';
-import styles from '../../components/ui.module.css';
 import { LOADING_MESSAGE } from '../../messages';
 import { PROJECTS_KEY } from './ProjectsPage';
+import { Button } from '../../components/Button';
 
 type RuleMove = components['schemas']['RuleMove'];
 
@@ -61,9 +61,7 @@ export function RuleApplyPanel({
     return (
       <section>
         <p>Перемещено цепочек: {apply.data.moved}</p>
-        <button type="button" className={styles.button} onClick={onClose}>
-          Понятно
-        </button>
+        <Button onClick={onClose}>Понятно</Button>
       </section>
     );
   }
@@ -78,9 +76,7 @@ export function RuleApplyPanel({
       {list?.length === 0 && (
         <>
           <p>{NO_MOVES_MESSAGE}</p>
-          <button type="button" className={styles.button} onClick={onClose}>
-            Понятно
-          </button>
+          <Button onClick={onClose}>Понятно</Button>
         </>
       )}
       {list !== undefined && list.length > 0 && (
@@ -90,24 +86,18 @@ export function RuleApplyPanel({
               <li key={move.chain_id}>{describeMove(move)}</li>
             ))}
           </ul>
-          <button
-            type="button"
-            className={styles.button}
+          <Button
+            kind="primary"
             disabled={apply.isPending}
             onClick={() => {
               apply.mutate(list.map((move) => move.chain_id));
             }}
           >
             Применить
-          </button>{' '}
-          <button
-            type="button"
-            className={styles.button}
-            disabled={apply.isPending}
-            onClick={onClose}
-          >
+          </Button>{' '}
+          <Button disabled={apply.isPending} onClick={onClose}>
             Не сейчас
-          </button>
+          </Button>
         </>
       )}
     </section>

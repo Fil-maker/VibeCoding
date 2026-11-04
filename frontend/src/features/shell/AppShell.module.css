@@ -62,35 +62,11 @@
 
 .toggle {
   display: none;
-  padding: var(--space-2) var(--space-3);
-  border: var(--size-border-width) solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.signOut {
-  padding: var(--space-1) var(--space-3);
-  border: var(--size-border-width) solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.signOut:disabled {
-  color: var(--color-text-muted);
-  cursor: default;
 }
 
 .skipLink:focus-visible,
 .brand:focus-visible,
-.section:focus-visible,
-.toggle:focus-visible,
-.signOut:focus-visible {
+.section:focus-visible {
   outline: var(--size-focus-width) solid var(--color-focus);
   outline-offset: var(--size-focus-offset);
 }

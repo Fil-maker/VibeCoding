@@ -9,6 +9,7 @@ import { LoadError } from '../../components/LoadError';
 import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
 import { emailCountLabel, formatAddresses, formatDate } from './format';
+import { Button } from '../../components/Button';
 
 const EMPTY_CHAINS_MESSAGE = 'Писем пока нет: подключите почтовый ящик';
 
@@ -30,9 +31,6 @@ export function ChainsPage(): React.JSX.Element {
 
   return (
     <Panel title="Переписка" wide>
-      <p>
-        <Link to="/">На главную</Link>
-      </p>
       <LoadError error={chains.error} onRetry={() => void chains.refetch()} />
       {chains.isPending && <Loading />}
       {chains.data !== undefined && items.length === 0 && (
@@ -58,16 +56,14 @@ export function ChainsPage(): React.JSX.Element {
         </table>
       )}
       {chains.hasNextPage && (
-        <button
-          type="button"
-          className={styles.button}
+        <Button
           disabled={chains.isFetchingNextPage}
           onClick={() => {
             void chains.fetchNextPage();
           }}
         >
           Показать ещё
-        </button>
+        </Button>
       )}
     </Panel>
   );

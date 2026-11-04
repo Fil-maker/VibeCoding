@@ -1,6 +1,6 @@
 # Ideas
 
-Updated 03.11.2026
+Updated 04.11.2026
 
 Ideas not yet planned, by product area, then the technical backlog. `/idea` adds an entry; `/explore`
 discusses a raw one.
@@ -127,7 +127,8 @@ task of stage 1.
 Added 23.10. What a signed-in user may change after task 0.2: change the password and the email while
 signed in, edit the name, delete their account, two-factor authentication, a per-IP limit on sign-in and
 registration. Why: task 0.2 covers only joining, signing in and resetting a forgotten password; these
-were left out to keep it shippable.
+were left out to keep it shippable. Added 04.11: a manual light/dark theme switch that overrides the
+system setting — task 1.8 lets the system's `prefers-color-scheme` choose the theme.
 
 **Open:** which of them the first users need; what deleting a user does to their correspondence
 («History is kept»).

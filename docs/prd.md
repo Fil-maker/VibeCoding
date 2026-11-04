@@ -1,6 +1,8 @@
 # Product requirements
 
-Version 0.7 · 03.11.2026 · **Draft**
+Version 0.8 · 04.11.2026 · **Draft**
+
+Changes in 0.8: task 1.8 «Visual system» done; stage «1. Project trees» done.
 
 Changes in 0.7: stage «1. Project trees» in progress again: tasks 1.7 and 1.8 prepare the release.
 
@@ -79,7 +81,7 @@ emails take their place in the tree.
 | Stage | Scope | Status |
 |---|---|---|
 | 0. Skeleton | The application starts locally: backend, SPA, database; organizations, sign-in, invitations and members | ✅ done |
-| 1. Project trees | Personal accounts instead of organizations, several mailboxes, reply chains, projects filled by the engine, rules and placement by hand; the app shell and the visual system for the release | 🚧 in progress |
+| 1. Project trees | Personal accounts instead of organizations, several mailboxes, reply chains, projects filled by the engine, rules and placement by hand; the app shell and the visual system for the release | ✅ done |
 | 2. Sentiment | Sentiment of threads and counterparties over the trees | 💭 idea |
 
 ## Metrics

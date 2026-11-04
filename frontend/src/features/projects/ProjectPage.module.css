@@ -15,3 +15,7 @@
   font-size: var(--font-size-base);
   font-weight: normal;
 }
+
+.summaryHeading {
+  display: inline;
+}

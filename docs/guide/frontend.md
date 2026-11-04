@@ -1,11 +1,12 @@
 # Frontend
 
-Updated 03.11.2026
+Updated 04.11.2026
 
 **Code:** `frontend/src/`, `frontend/index.html`, `frontend/vite.config.ts`, `frontend/package.json`,
 `frontend/tsconfig.json`, `frontend/eslint.config.js`, `frontend/.prettierrc.json`, `frontend/.prettierignore`.
 The chain page's «Проект» block is `frontend/src/features/projects/ChainPlacement.tsx`.
-The tests are `frontend/src/App.*.test.tsx`, `frontend/src/features/health/HealthStatus.test.tsx` and `frontend/src/test/`.
+The tests are `frontend/src/App.*.test.tsx`, the unit tests next to their files (`frontend/src/**/*.test.ts(x)`, such as
+`frontend/src/components/Button.test.tsx`, `frontend/src/features/health/HealthStatus.test.tsx` and `frontend/src/styles/tokens.test.ts`) and `frontend/src/test/`.
 
 **Requirements:** the pages and guards carry out [FR-1 … FR-3](../../openspec/specs/organization-registration/spec.md) registration,
 [FR-4 … FR-8](../../openspec/specs/sign-in/spec.md) sign-in and password reset,
@@ -77,6 +78,9 @@ the page renders its own content inside it (see [Components](#components)).
   Below 40rem (`frontend/src/features/shell/AppShell.module.css`, the one media query, since a media query cannot read a token)
   the sections, the name and «Выйти» fold behind the button «Меню», which sets `aria-expanded` and `aria-controls`.
   The menu closes on Escape, when a section is pressed, and when the route changes.
+  «Меню» and «Выйти» are `Button`s of the `secondary` kind ([Components](#components)). Their look is the shared button class
+  in `ui.module.css`; `AppShell.module.css` keeps only the layout, and its `.toggle` (the «Меню» button) is hidden above 40rem
+  and shown below it.
 - «Выйти» in the header sends `DELETE /api/v1/auth/sessions/current`. On success it navigates to `/` inside `flushSync`, and only
   then clears the session with `setSession(null)`, so the landing page shows. The reason is in
   [ADR 0080](../adr/0080-browserrouter-runs-with-usetransitions-false-and.md).
@@ -133,7 +137,7 @@ health page (its own `<section>`, see [Health feature](#health-feature)).
 | «Почтовые ящики» | `frontend/src/features/mailboxes/MailboxesPage.tsx` | The connected mailboxes, their reading status, «Обновить», «Отключить», and the connect form. See [Mailboxes feature](#mailboxes-feature). |
 | «Переписка» | `frontend/src/features/correspondence/ChainsPage.tsx` | The reply chains, the latest first, a page at a time. See [Correspondence feature](#correspondence-feature). |
 | The chain's subject (`/chains/:id`) | `frontend/src/features/correspondence/ChainPage.tsx` | One reply chain: the block «Проект» (where the chain is, «Перенести», «Убрать из проекта»), then its emails oldest first, each as plain text. See [Correspondence feature](#correspondence-feature) and [Projects feature](#projects-feature). |
-| «Проекты» (`/projects`) | `frontend/src/features/projects/ProjectsPage.tsx` | The user's projects by name, with their chain counts, and the button «Создать проект». See [Projects feature](#projects-feature). |
+| «Проекты» (`/projects`) | `frontend/src/features/projects/ProjectsPage.tsx` | The user's projects by name, with their chain counts. With projects listed, the button «Создать проект» sits under the list; with none, the empty state shows the link instead (see [Page states](#pages)). See [Projects feature](#projects-feature). |
 | «Новый проект» (`/projects/new`) | `frontend/src/features/projects/NewProjectPage.tsx` | Fields «Название» and «Описание»; «Создать» opens the new project. See [Projects feature](#projects-feature). |
 | «Правила» (`/rules`) | `frontend/src/features/projects/RulesPage.tsx` | The form of a rule, the user's rules in the order they win, with «Изменить» and «Удалить»; after a rule is saved, the panel «Применить правило сейчас?» (`RuleApplyPanel.tsx`). See [Rules feature](#rules-feature). |
 | The project's name (`/projects/:id`) | `frontend/src/features/projects/ProjectPage.tsx` | One project: its description, «Заполнить» with the rebuild question, and the tree of its chains. See [Projects feature](#projects-feature). |
@@ -150,6 +154,7 @@ which shows the error in one alert with «Повторить». The texts of eac
 - «Переписка» (`/chains`): with no chain, `Писем пока нет: подключите почтовый ящик` and the link «Подключить ящик» (`/mailboxes`).
 - «Почтовые ящики»: with no mailbox, `Ящики ещё не подключены` as a plain paragraph, with no link.
 - «Проекты» (`/projects`): with no project, `Проектов пока нет: создайте первый` and the link «Создать проект» (`/projects/new`).
+  It is the only «Создать проект» on the empty page; with projects listed, the button sits under the list instead.
 - «Правила» (`/rules`): with no project, `Сначала создайте проект` and the link «Создать проект» (`/projects/new`), with no form;
   with no rule, `Правил пока нет` as a plain paragraph.
 - The chain's page and the project's page: while loading, a «Переписка» or «Проект» panel with `Загрузка…`; a failed load shows
@@ -162,7 +167,7 @@ which shows the error in one alert with «Повторить». The texts of eac
 `frontend/src/features/mailboxes/MailboxesPage.tsx` is the whole feature: one file, with `MailboxRow` for a row of the list and
 `ConnectForm` for the form. The server side is in [Mail reading](mail-reading.md).
 
-- The page is a `Panel` titled «Почтовые ящики» with a link «На главную» to `/`. It reads `GET /api/v1/mailboxes` under the
+- The page is a `Panel` titled «Почтовые ящики». It reads `GET /api/v1/mailboxes` under the
   query key `['mailboxes']`. While the query loads it shows `Загрузка…`; with no mailbox it shows `Ящики ещё не подключены`.
 - The list is a table with the login, the server, the status and the actions of each mailbox. The page never shows a password.
 - **Status text.** The text comes from `statusText` in the page file; the values are exactly:
@@ -179,8 +184,8 @@ which shows the error in one alert with «Повторить». The texts of eac
 - **«Обновить».** It calls `POST /api/v1/mailboxes/{mailbox_id}/refresh` for that row only. The button is disabled while the
   request runs; on success the list is invalidated. The reading itself happens at the next tick of the server's reading loop.
 - **«Отключить» with a confirmation.** The first click does not send anything. It replaces the row's buttons with the text
-  `Отключить ящик {login}? Прочитанные письма останутся.` and two buttons: «Отключить» (sends `DELETE /api/v1/mailboxes/{mailbox_id}`;
-  the button is disabled while the request runs) and «Отмена» (returns the row's buttons, sends nothing). Whatever the answer,
+  `Отключить ящик {login}? Прочитанные письма останутся.` and two buttons: «Отключить» (the `danger` kind; sends `DELETE /api/v1/mailboxes/{mailbox_id}`;
+  the button is disabled while the request runs) and «Отмена» (`secondary`; returns the row's buttons, sends nothing). Whatever the answer,
   the confirmation closes. On success the list is invalidated and the mailbox disappears. A failure shows its message in the row.
 - **The connect form.** The heading «Подключить ящик» sits above a form with the fields «Сервер IMAP», «Порт» (default `993`,
   set with `defaultValue`), «Логин» and «Пароль приложения» (a password field), and the button «Подключить». It posts
@@ -221,8 +226,10 @@ The files are `frontend/src/features/correspondence/`: `ChainsPage.tsx` (the lis
 
 The files are `frontend/src/features/projects/`: `ProjectsPage.tsx` (the list, and `PROJECTS_KEY`, the query key `['projects']`
 that the other two files invalidate), `NewProjectPage.tsx` (the form), `ProjectPage.tsx` (one project, its fill and its tree),
-`ProjectPage.module.css` (the tree's indents, the description's line breaks and the muted counterparty address), `ChainPlacement.tsx`
-  (the «Проект» block of a chain page, see below), `format.ts`, `RulesPage.tsx` and `RuleApplyPanel.tsx` (the page «Правила» and its panel, see [Rules feature](#rules-feature)).
+`ProjectPage.module.css` (the tree's indents, the description's line breaks, the muted counterparty address and the heading inside a
+  folding summary), `ChainPlacement.tsx` (the «Проект» block of a chain page, see below), `PlacementBadge.tsx` with `PlacementBadge.module.css`
+  (the badge of a placement, see below), `format.ts`, `RulesPage.tsx` and `RuleApplyPanel.tsx` (the page «Правила» and its panel,
+  see [Rules feature](#rules-feature)).
 The server side is in [Projects](projects.md). The pages, their routes and their texts are described in
 [The SPA](projects.md#the-spa) of that article; this section only says where things live.
 
@@ -232,8 +239,16 @@ The server side is in [Projects](projects.md). The pages, their routes and their
   as `emailCountLabel` does. `placementLabel(placement)` gives `Вручную` for a placement by hand, `Движок text-1 · сходство 43%`
   for an engine one (the similarity (0–1) is shown in whole percent), and for a rule placement the rule's explanation:
   `Правило · адрес s.petrov@stroymaster.example` (condition `address`), `Правило · домен techsnab.example` (`domain`), and
-  `Правило · слова темы «акт работ»` (`subject`; the words go in «»). Each chain row of the tree shows its own placement, and so do
-  the chains of «Неразобранное». The same line shows in the «Проект» block of a chain page.
+  `Правило · слова темы «акт работ»` (`subject`; the words go in «»).
+- **The badge (`PlacementBadge.tsx`).** `PlacementBadge({ placement })` shows the exact text of `placementLabel(placement)` in a
+  `<span>` with `data-kind` set to `manual`, `rule` or `engine`. The colors come from the `--color-badge-<kind>-*` tokens in
+  `PlacementBadge.module.css`; the color only repeats the text. It is used in two places: each chain row of the project tree
+  (and the chains of «Неразобранное») and the «Проект» block of a chain page. `PlacementBadge.test.tsx` checks the three labels
+  and their `data-kind`.
+- **The tree (`ProjectPage.tsx`).** Each counterparty is a `<details open>` with a `<summary>`, whose heading is the counterparty's
+  name and address (or «Без контрагента»). Each thread of it is a `<div>` with its heading and its chain rows, not a folding block.
+  «Неразобранное» is a `<details open>` of the same kind, and it appears only when some chain is unassigned. Every counterparty and
+  «Неразобранное» is open when the page loads; the mouse and the keyboard fold and unfold each one (the native `<details>` behavior).
 - **The «Проект» block (`ChainPlacement.tsx`).** `ChainPage` renders `ChainPlacement({ chainId })`. It reads
   `GET /api/v1/placements/{chain_id}` under the key `['placements', id]`. The text is `<project> → <thread or Неразобранное> · <placement>`,
   with the project name as a link to `/projects/{id}`; `Вне проектов` when the chain is in no project, and `Вне проектов · убрана вручную`
@@ -251,8 +266,8 @@ The server side is in [Projects](projects.md). The pages, their routes and their
   shows in an alert (`ChainPlacement.tsx`: `errors.size > 0 ? null : move.error`). On success the location is set in the cache and the
   projects query is invalidated, so the tree shows the move.
 - **The fill confirmation.** «Заполнить» on a project with any chain in its tree first shows the question `Пересобрать проект?
-  Движок разложит его переписку заново` with the buttons «Пересобрать» and «Отмена»; «Отмена» sends nothing. A project with
-  no chain fills at once. While the fill runs the button reads «Заполняется…» and is disabled. On success the page's query data
+  Движок разложит его переписку заново` with the buttons «Пересобрать» (the `danger` kind) and «Отмена» (`secondary`); «Отмена» sends
+  nothing. «Заполнить» is `primary`. A project with no chain fills at once. While the fill runs the button reads «Заполняется…» and is disabled. On success the page's query data
   is replaced with the answer, and the projects list is invalidated.
 - **The header** links to `/projects` as «Проекты», beside «Переписка», «Почтовые ящики» and «Правила» ([Frames](#frames)).
   The start page's third step links to the first project not yet filled (`StartPage.tsx`).
@@ -270,12 +285,13 @@ and the route is in [Routes and API](../architecture.md#routes-and-api). The pag
 name the project of a rule. Its query keys are `RULES_KEY` (`['rules']`) and `PROJECTS_KEY` (`['projects']`, see
 [Projects feature](#projects-feature)).
 
-- **The page.** A `Panel` titled «Правила», wide, with the link «На главную» to `/`. Both queries show `Загрузка…` while they load,
+- **The page.** A `Panel` titled «Правила», wide, with no «На главную» link ([ADR 0081](../adr/0081-fold-the-removal-of-the-duplicate.md)).
+  Both queries show `Загрузка…` while they load,
   and a failed query shows its message in an alert with «Повторить».
 - **No project.** With no project the page shows `Сначала создайте проект` with the link «Создать проект» to `/projects/new`, and no form.
 - **The form.** Fields «Условие» (a select: «Адрес отправителя», «Домен», «Слова темы»; it starts at «Адрес отправителя»),
   «Значение» (a `FormField`), «Проект» (a select that starts at «Выберите проект», then the user's projects) and «Ветка» (a text
-  field with the placeholder «Неразобранное»). The form has `noValidate`. Its button is «Создать правило»; the field messages of
+  field with the placeholder «Неразобранное»). The form has `noValidate`. Its button is «Создать правило» (`primary`); the field messages of
   `condition`, `value`, `project_id` and `thread_name` show under their fields, and any other error shows in an alert above them, only
   when the answer has no field errors (`ErrorAlert error={errors.size > 0 ? null : save.error}`, `RulesPage.tsx`).
   After a created rule the fields are empty again.
@@ -283,12 +299,13 @@ name the project of a rule. Its query keys are `RULES_KEY` (`['rules']`) and `PR
   title, the value, the project's name and the thread's name, joined as `Адрес отправителя: s.petrov@stroymaster.example → Ремонт офиса → Смета`;
   a rule with no thread name shows `Неразобранное` at the end. The titles are «Адрес отправителя», «Домен» and «Слова темы».
   With no rule the page shows `Правил пока нет`.
-- **Edit in place.** «Изменить» replaces the item with the form filled from the rule, with «Сохранить» and «Отмена». «Сохранить»
+- **Edit in place.** «Изменить» (`secondary`) replaces the item with the form filled from the rule, with «Сохранить» (`primary`)
+  and «Отмена» (`secondary`). «Сохранить»
   sends `PUT /api/v1/rules/{rule_id}`, invalidates the list and returns to the item; a failure shows its messages in that form.
   «Отмена» returns to the item and sends nothing.
-- **Delete with a confirmation.** «Удалить» does not send anything at first. It replaces the item's buttons with the question
-  `Удалить правило? Цепочки, уже размещённые им, останутся на месте` and two buttons: «Удалить» (sends
-  `DELETE /api/v1/rules/{rule_id}`; disabled while it runs) and «Отмена» (returns the buttons, sends nothing). On success the
+- **Delete with a confirmation.** «Удалить» (`secondary`) does not send anything at first. It replaces the item's buttons with the question
+  `Удалить правило? Цепочки, уже размещённые им, останутся на месте` and two buttons: «Удалить» (the `danger` kind; sends
+  `DELETE /api/v1/rules/{rule_id}`; disabled while it runs) and «Отмена» (`secondary`; returns the buttons, sends nothing). On success the
   list is invalidated and the rule disappears. A failure shows in the item.
 - **Create.** The form sends `POST /api/v1/rules` with `condition`, `value`, `project_id` and `thread_name`, read from the form
   fields with `formValue`. The server's `rule_exists` answer («Такое правило уже есть») and `too_many_rules` answer («Правил не может
@@ -301,6 +318,7 @@ name the project of a rule. Its query keys are `RULES_KEY` (`['rules']`) and `PR
   - «Применить» sends `POST /api/v1/placements/by-rule/{rule_id}` with the `chain_ids` of the listed chains, in the list's order.
     Both buttons are disabled while that request runs. On success the panel shows `Перемещено цепочек: N` with N from the answer, and
     «Понятно»; the projects query is invalidated.
+  - «Применить» is `primary`; «Не сейчас» and «Понятно» are `secondary`.
   - «Не сейчас» closes the panel and sends nothing.
   - With no chain to move the panel shows `Подходящих цепочек нет` and «Понятно» (no «Применить»); «Понятно» closes the panel.
   - A failed request shows its error in an alert (`ErrorAlert`). When the list request fails, the panel shows only that alert and has
@@ -383,6 +401,16 @@ new paths through `apiClient`. `frontend/.prettierignore` skips `frontend/src/ap
 
 `frontend/src/components/` holds the shared pieces. Each one takes its look from `ui.module.css`.
 
+- `Button` (`Button.tsx`) is the one button of the SPA. It takes the native `<button>` props, except `type`, and adds
+  `kind`: `primary`, `secondary` or `danger`, with `secondary` by default. `type` is narrowed to `'button'`, `'submit'`
+  or `'reset'` and defaults to `"button"`, so a submit button passes `type="submit"`. The kind is written to the element
+  as `data-kind`, and the class follows it: `primary` (the main action of a form or panel; most are submit buttons, while
+  «Заполнить» on a project and «Применить» in the rule panel are `type="button"`), `danger` (the confirming button of a
+  removal) and `secondary` (no extra class). The header's «Меню» and «Выйти» are `secondary`. The `danger` confirmations are «Отключить» of a
+  mailbox, «Удалить» of a rule and «Пересобрать» of a project; each appears only after the first press, and «Отмена»
+  keeps everything. The features' sections describe those flows.
+- The source guard: `frontend/src/styles/noLiterals.test.ts` fails on a raw `<button` in a component source (a `.tsx` file
+  that is not a test or a file of the test-helper folder) other than `Button.tsx`, so a component's button is a `Button`. The button's look is in `ui.module.css` (see below).
 - `Panel` is the page card: a `<section>` with the title as its only `<h1>`. The frame supplies the one `<main>` around it
   (see [Frames](#frames)). `Panel` calls `usePageTitle` (see below): the tab title is `<title> — VibeCoding` by default. The
   optional `tabTitle` prop overrides it, and `tabTitle={null}` gives the plain `VibeCoding` (the start page and `Waiting`
@@ -394,7 +422,7 @@ new paths through `apiClient`. `frontend/.prettierignore` skips `frontend/src/ap
   renders as a link after the message.
 - `LoadError` is the shared state of a failed load: with a non-null `error`, one `role="alert"` block that shows the
   error's text (`errorMessage`) and the button «Повторить», which calls `onRetry`. A page passes the query's `refetch`.
-  With no error it renders nothing.
+  With no error it renders nothing. The button is a `Button` of the default `secondary` kind (no kind is passed).
 - `Waiting` (`Waiting.tsx`) is the page for a session that is still loading or a server that does not answer: a `Panel`
   titled `VibeCoding` with the tab title plain `VibeCoding`. It shows «Загрузка…», or with `failed` the alert
   «Сервер не отвечает». `RequireUser`, `RequireGuest` and `AuthFrame` use it.
@@ -408,7 +436,14 @@ new paths through `apiClient`. `frontend/.prettierignore` skips `frontend/src/ap
 - `formData.ts` exports `formValue(data, name)`, which reads a text field of a submitted form; a missing field counts
   as empty.
 - `ui.module.css` holds the shared classes: `panel`, `wide`, `heading`, `subheading`, `form`, `field`, `input`,
-  `textarea`, `button`, `links`, `error`, `notice`, `table` and `actions`. They use only tokens.
+  `textarea`, `button`, `primary`, `dangerButton`, `links`, `error`, `notice`, `table` and `actions`. They use only tokens.
+  The button classes are `.button` (the base: a border, the surface background, the text color, a pointer cursor),
+  `.primary` and `.dangerButton` (the colors of the `--color-button-primary-*` and `--color-button-danger-*` tokens),
+  and `.button:focus-visible` (the focus outline `--color-focus`, `--size-focus-width`, `--size-focus-offset`).
+  A disabled `.button` is dimmed with `opacity` and keeps the default cursor.
+  Below 40rem the file's one media query (the literal `40rem`, since a media query cannot read a token) removes the
+  side margins and the side borders of `.panel` and shows each `.table` row as a block card, with the table's cells
+  as blocks inside it.
 
 ## Link tokens
 
@@ -428,7 +463,7 @@ The page «Состояние сервиса» at `/health` shows the state of t
 |---|---|
 | `frontend/src/features/health/useHealth.ts` | `useHealth()` runs the query `['health']` against `GET /api/v1/health` and refetches every 10 seconds (`REFRESH_INTERVAL_MS = 10_000`). When the answer has no `data`, the query function throws, so the query is in the error state. |
 | `HealthStatus.tsx` | `HealthStatus()` renders the heading and one of the states below. |
-| `HealthStatus.module.css` | Styles of the panel, using only tokens. |
+| `HealthStatus.module.css` | Styles of the panel, using only tokens. Below 40rem the panel loses its side margins (the literal `40rem`, since a media query cannot read a token). |
 | `HealthStatus.test.tsx` | Unit tests of the states; `fetch` is stubbed. |
 
 The texts on the page, exactly as the code has them:
@@ -451,14 +486,34 @@ replaces the list; the last successful answer is not kept on screen.
 
 ## Styles and tokens
 
-- `frontend/src/styles/tokens.css` is the one token source: colors (`--color-background`, `--color-surface`,
-  `--color-text`, `--color-text-muted`, `--color-border`, `--color-ok`, `--color-danger`), spacing (`--space-1` to
+- `frontend/src/styles/tokens.css` is the one token source, loaded once by `main.tsx`. It holds colors (`--color-background`,
+  `--color-surface`, `--color-text`, `--color-text-muted`, `--color-link`, `--color-border`, `--color-ok`, `--color-danger`,
+  `--color-focus`, and the `--color-<kind>-text` and `--color-<kind>-bg` pairs described below), spacing (`--space-1` to
   `--space-5`), sizes (`--size-border-width`, `--size-content-width`, `--size-wide-content-width`), the focus ring
-  (`--color-focus`, `--size-focus-width`, `--size-focus-offset`: the visible 2px outline of a focused control), radius
-  (`--radius-md`) and fonts (`--font-family-base`, `--font-size-base`, `--font-size-heading`, `--font-size-subheading`).
-  It also sets the `body` font, colors and margin.
-- Components style themselves with CSS Modules (`*.module.css` next to the component) and use tokens with
-  `var(--…)`. A component does not use raw colors or pixel sizes.
+  (`--size-focus-width`, `--size-focus-offset`: the visible 2px outline of a focused control), radius (`--radius-md`) and
+  fonts (`--font-family-base`, `--font-size-base`, `--font-size-heading`, `--font-size-subheading`).
+- **Light and dark.** `:root` holds the light set of colors and sets `color-scheme: light dark`, so the browser draws form
+  controls and scrollbars in the theme too. A `@media (prefers-color-scheme: dark)` block holds the dark set: the same
+  color tokens under `:root` with dark values. The theme follows the system setting, with no switch in the app; the reasons
+  are in [ADR 0084](../adr/0084-approve-change-1-8-visual-system.md).
+- **Color values.** Every color token is written as `#rrggbb`: six hex digits, with no `rgb()`, `hsl()` or color names.
+- **Contrast pairs.** The text tokens `--color-text`, `--color-text-muted`, `--color-link`, `--color-danger` and `--color-ok`
+  sit over `--color-background` and `--color-surface`. Each colored element has a text token over a background token:
+  `button-primary`, `button-danger`, `badge-manual`, `badge-rule` and `badge-engine` each have `--color-<kind>-text` over
+  `--color-<kind>-bg`. `frontend/src/styles/tokens.test.ts` checks both sets for a contrast of at least 4.5:1 on every such
+  pair; it finds the pairs itself, so a new `-text` token with a `-bg` token is checked too.
+- **Global rules.** `tokens.css` also sets `a { color: var(--color-link) }` and `overflow-wrap: anywhere` on `body`, so long
+  words wrap inside the page.
+- **Phone width.** Below `40rem` tables show as cards (each row a block, its cells blocks inside it) and panels lose their
+  side margins. A media query cannot read a custom property, so `40rem` is written in each stylesheet that has the rule:
+  `frontend/src/components/ui.module.css`, `frontend/src/features/shell/AppShell.module.css` and `frontend/src/features/health/HealthStatus.module.css`.
+- Components style themselves with CSS Modules (`*.module.css` next to the component) and use tokens with `var(--…)`.
+- **No literals outside tokens.** No color and no `px` size is written outside `tokens.css`, except the literal `40rem` of
+  the media queries (see Phone width above). The source guard
+  `frontend/src/styles/noLiterals.test.ts` scans every `.css` file except `tokens.css` (CSS comments are skipped) and every
+  component `.tsx` file (test files and `frontend/src/test/` excluded) for a hex color, `rgb(`, `hsl(`, a named color or a `px` value;
+  it also fails on `style={{` in a `.tsx` file. It checks `px` only, so `rem` and `em` values are not covered by it.
+  The generated client in `frontend/src/api/generated/` is not scanned.
 - To change a color or a size, change the token, not each component.
 
 ## Dev server
@@ -550,6 +605,23 @@ replaces the list; the last successful answer is not kept on screen.
 - `HealthStatus.test.tsx` renders the component with its own `QueryClient` (`retry: false`) and stubs `fetch`
   with `vi.stubGlobal`. The five tests cover the pending state, both database states, a failed request and a
   502 answer.
+- `App.visualSystem.test.tsx` covers the visual system of task 1.8 on whole pages. «Отключить» of a mailbox, «Удалить» of a rule
+  and «Пересобрать» of a project: the confirming button has the `danger` kind, appears only after the first press, and «Отмена»
+  keeps the data. In a project's tree each counterparty and «Неразобранное» is a `<details>` open at first, and its
+  `<summary>` folds and unfolds it, each on its own. A chain's placement reason is a badge with its `data-kind`. «Создать проект»
+  shows once on the empty «Проекты» and under a listed one. «На главную» is absent from the start page, a project's tree and a
+  chain page, and «Страница не найдена» keeps it, leading to `/`.
+- `frontend/src/components/Button.test.tsx` covers `Button`: a `<button>` with `type="button"` by default, `secondary` by default, the kinds
+  `primary` and `danger` written as `data-kind`, and the native props (`type="submit"`, `disabled`) passed through.
+- `frontend/src/features/projects/PlacementBadge.test.tsx` covers the badge's three labels, each with its `data-kind`: «Вручную» (manual),
+  «Правило · адрес …» (rule) and «Движок text-1 · сходство 43%» (engine).
+- `frontend/src/styles/tokens.test.ts` reads `tokens.css` as text (no browser). It checks that the dark set sits in the
+  `prefers-color-scheme: dark` block next to the light one, that `:root` sets `color-scheme: light dark`, that every color token
+  is `#rrggbb` and has a value in both sets, and that every text pair described in [Styles and tokens](#styles-and-tokens)
+  reaches 4.5:1 in both sets.
+- `frontend/src/styles/noLiterals.test.ts` reads the source files as text and fails on a hex color, `rgb(`, `hsl(`, a named color or a `px`
+  value outside `tokens.css`, on `style={{` in a `.tsx` file, and on a raw `<button` outside `frontend/src/components/Button.tsx`.
+  The rules are in [Styles and tokens](#styles-and-tokens).
 - `just test` runs these tests (`frontend-unit` suite). `just check` does not run them; it stays static.
 
 ## Build and lint configuration

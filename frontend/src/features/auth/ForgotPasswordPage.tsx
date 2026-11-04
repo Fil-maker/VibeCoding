@@ -9,6 +9,7 @@ import { FormField } from '../../components/FormField';
 import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
 import { PASSWORD_RESET_REQUESTED_MESSAGE } from '../../messages';
+import { Button } from '../../components/Button';
 
 // «Восстановление пароля». The answer is the same for any email.
 export function ForgotPasswordPage(): React.JSX.Element {
@@ -37,9 +38,9 @@ export function ForgotPasswordPage(): React.JSX.Element {
           autoComplete="username"
           error={errors.get('email')}
         />
-        <button type="submit" className={styles.button} disabled={request.isPending}>
+        <Button type="submit" kind="primary" disabled={request.isPending}>
           Отправить ссылку
-        </button>
+        </Button>
       </form>
       <p className={styles.links}>
         <Link to="/sign-in">Вход</Link>

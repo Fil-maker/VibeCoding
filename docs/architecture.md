@@ -198,7 +198,7 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
       generated/         schema.ts, types generated from openapi.json; never edited by hand
     messages.ts          Russian UI texts that the server does not send
     urlToken.ts          readFragmentToken(): the one-time token from the URL fragment #token=
-    components/          Panel (the page card, a section with the one h1), FormField (its `multiline` prop renders a textarea), ErrorAlert,
+    components/          Button (the one button, with `kind` primary, secondary or danger), Panel (the page card, a section with the one h1), FormField (its `multiline` prop renders a textarea), ErrorAlert,
                          NotFoundPage, the shared page states Loading, EmptyState and LoadError, Waiting (the page while the session
                          loads or the server does not answer), usePageTitle.ts (the tab title), formData.ts, ui.module.css
     features/
@@ -219,8 +219,10 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
                          ChainPlacement.tsx (the block «Проект» of the chain page: where the chain is, «Перенести», «Убрать из проекта»),
                          RulesPage.tsx (the page «Правила»: the form of a rule, the rules with «Изменить» and «Удалить»),
                          RuleApplyPanel.tsx (the panel «Применить правило сейчас?» after a rule is saved: the chains it would move,
-                         «Применить» and «Не сейчас»)
-    styles/tokens.css    design tokens: colors, spacing, sizes, fonts
+                         «Применить» and «Не сейчас»), PlacementBadge.tsx and PlacementBadge.module.css (the reason of a placement as
+                         a badge: its label, with the kind as data-kind), PlacementBadge.test.tsx (its unit test)
+    styles/tokens.css    design tokens: the light and dark color sets (dark under prefers-color-scheme), spacing, sizes, fonts;
+                         tokens.test.ts (contrast) and noLiterals.test.ts (no literal colors and no px sizes outside it) check them
     test/                appHarness.tsx (renders App with fetch stubbed), projectTrees.tsx (project fixtures and lookups),
                          chainPlacement.tsx (fixtures and stubs of the chain page's placement block),
                          rulesPage.tsx (fixtures and stubs of the page «Правила»),

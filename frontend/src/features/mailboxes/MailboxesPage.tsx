@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Link } from 'react-router';
 
 import { apiClient } from '../../api/client';
 import type { components } from '../../api/generated/schema';
@@ -13,6 +12,7 @@ import { FormField } from '../../components/FormField';
 import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
 import { formatDateTime } from '../correspondence/format';
+import { Button } from '../../components/Button';
 
 type Mailbox = components['schemas']['Mailbox'];
 
@@ -67,9 +67,8 @@ function MailboxRow({ mailbox }: { mailbox: Mailbox }): React.JSX.Element {
         {confirming ? (
           <div className={styles.actions}>
             <span>{`Отключить ящик ${mailbox.login}? Прочитанные письма останутся.`}</span>
-            <button
-              type="button"
-              className={styles.button}
+            <Button
+              kind="danger"
               disabled={disconnect.isPending}
               onClick={() => {
                 disconnect.mutate(undefined, {
@@ -80,38 +79,32 @@ function MailboxRow({ mailbox }: { mailbox: Mailbox }): React.JSX.Element {
               }}
             >
               Отключить
-            </button>
-            <button
-              type="button"
-              className={styles.button}
+            </Button>
+            <Button
               onClick={() => {
                 setConfirming(false);
               }}
             >
               Отмена
-            </button>
+            </Button>
           </div>
         ) : (
           <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.button}
+            <Button
               disabled={refresh.isPending}
               onClick={() => {
                 refresh.mutate();
               }}
             >
               Обновить
-            </button>
-            <button
-              type="button"
-              className={styles.button}
+            </Button>
+            <Button
               onClick={() => {
                 setConfirming(true);
               }}
             >
               Отключить
-            </button>
+            </Button>
           </div>
         )}
       </td>
@@ -166,9 +159,9 @@ function ConnectForm(): React.JSX.Element {
           autoComplete="off"
           error={errors.get('password')}
         />
-        <button type="submit" className={styles.button} disabled={connect.isPending}>
+        <Button type="submit" kind="primary" disabled={connect.isPending}>
           Подключить
-        </button>
+        </Button>
       </form>
     </>
   );
@@ -187,9 +180,6 @@ export function MailboxesPage(): React.JSX.Element {
 
   return (
     <Panel title="Почтовые ящики" wide>
-      <p>
-        <Link to="/">На главную</Link>
-      </p>
       <LoadError error={mailboxes.error} onRetry={() => void mailboxes.refetch()} />
       {mailboxes.isPending && <Loading />}
       {mailboxes.data?.length === 0 && <p>Ящики ещё не подключены</p>}

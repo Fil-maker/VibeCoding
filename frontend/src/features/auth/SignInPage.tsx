@@ -9,6 +9,7 @@ import { FormField } from '../../components/FormField';
 import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
 import { useAuth } from './AuthProvider';
+import { Button } from '../../components/Button';
 
 // «Вход». After a success the signed-in user lands where RequireGuest sends them (the `next` address).
 export function SignInPage(): React.JSX.Element {
@@ -47,9 +48,9 @@ export function SignInPage(): React.JSX.Element {
           autoComplete="current-password"
           error={errors.get('password')}
         />
-        <button type="submit" className={styles.button} disabled={signIn.isPending}>
+        <Button type="submit" kind="primary" disabled={signIn.isPending}>
           Войти
-        </button>
+        </Button>
       </form>
       <p className={styles.links}>
         <Link to="/forgot-password">Забыли пароль?</Link>

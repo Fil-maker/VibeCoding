@@ -33,3 +33,11 @@
 .danger {
   color: var(--color-danger);
 }
+
+/* 40rem is written here and not in tokens.css: a media query cannot read a custom property. */
+@media (max-width: 40rem) {
+  .panel {
+    margin-right: 0;
+    margin-left: 0;
+  }
+}

@@ -9,6 +9,7 @@ import { FormField } from '../../components/FormField';
 import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
 import { confirmationSentMessage, REGISTRATION_MAIL_FAILED_MESSAGE } from '../../messages';
+import { Button } from '../../components/Button';
 
 // «Регистрация». The confirmation link in the email signs the registrant in.
 export function RegisterPage(): React.JSX.Element {
@@ -56,9 +57,9 @@ export function RegisterPage(): React.JSX.Element {
           autoComplete="new-password"
           error={errors.get('password')}
         />
-        <button type="submit" className={styles.button} disabled={register.isPending}>
+        <Button type="submit" kind="primary" disabled={register.isPending}>
           Зарегистрироваться
-        </button>
+        </Button>
       </form>
       <p className={styles.links}>
         <Link to="/sign-in">Вход</Link>

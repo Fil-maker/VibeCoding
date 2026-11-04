@@ -1,0 +1,20 @@
+.badge {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-md);
+}
+
+.manual {
+  background: var(--color-badge-manual-bg);
+  color: var(--color-badge-manual-text);
+}
+
+.rule {
+  background: var(--color-badge-rule-bg);
+  color: var(--color-badge-rule-text);
+}
+
+.engine {
+  background: var(--color-badge-engine-bg);
+  color: var(--color-badge-engine-text);
+}

@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router';
 import { apiClient } from '../../api/client';
 import type { components } from '../../api/generated/schema';
 import { ApiError, unwrap } from '../../api/request';
+import { Button } from '../../components/Button';
 import { ErrorAlert } from '../../components/ErrorAlert';
 import { Loading } from '../../components/Loading';
 import { LoadError } from '../../components/LoadError';
@@ -12,7 +13,7 @@ import { NotFoundPage } from '../../components/NotFoundPage';
 import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
 import { emailCountLabel, formatDate } from '../correspondence/format';
-import { placementLabel } from './format';
+import { PlacementBadge } from './PlacementBadge';
 import treeStyles from './ProjectPage.module.css';
 import { PROJECTS_KEY } from './ProjectsPage';
 
@@ -31,7 +32,7 @@ function ChainLine({ chain }: { chain: PlacedChain }): React.JSX.Element {
       <Link to={`/chains/${chain.id}`}>{chain.subject}</Link>{' '}
       <span>
         {emailCountLabel(chain.email_count)} · {formatDate(chain.latest_email_at)} ·{' '}
-        {placementLabel(chain.placement)}
+        <PlacementBadge placement={chain.placement} />
       </span>
     </li>
   );
@@ -41,16 +42,20 @@ function Tree({ project }: { project: ProjectTree }): React.JSX.Element {
   return (
     <>
       {project.counterparties.map((counterparty) => (
-        <section key={counterparty.address ?? ''} className={treeStyles.node}>
-          <h2 className={styles.subheading}>
-            <span>{counterparty.address === null ? NO_COUNTERPARTY_TITLE : counterparty.name}</span>
-            {counterparty.address !== null && (
-              <>
-                {' '}
-                <span className={treeStyles.address}>{counterparty.address}</span>
-              </>
-            )}
-          </h2>
+        <details key={counterparty.address ?? ''} className={treeStyles.node} open>
+          <summary>
+            <h2 className={[styles.subheading, treeStyles.summaryHeading].join(' ')}>
+              <span>
+                {counterparty.address === null ? NO_COUNTERPARTY_TITLE : counterparty.name}
+              </span>
+              {counterparty.address !== null && (
+                <>
+                  {' '}
+                  <span className={treeStyles.address}>{counterparty.address}</span>
+                </>
+              )}
+            </h2>
+          </summary>
           {counterparty.threads.map((thread) => (
             <div key={thread.id} className={treeStyles.node}>
               <h3>{thread.name}</h3>
@@ -61,17 +66,21 @@ function Tree({ project }: { project: ProjectTree }): React.JSX.Element {
               </ul>
             </div>
           ))}
-        </section>
+        </details>
       ))}
       {project.unassigned.length > 0 && (
-        <section className={treeStyles.node}>
-          <h2 className={styles.subheading}>Неразобранное</h2>
+        <details className={treeStyles.node} open>
+          <summary>
+            <h2 className={[styles.subheading, treeStyles.summaryHeading].join(' ')}>
+              Неразобранное
+            </h2>
+          </summary>
           <ul>
             {project.unassigned.map((chain) => (
               <ChainLine key={chain.id} chain={chain} />
             ))}
           </ul>
-        </section>
+        </details>
       )}
     </>
   );
@@ -109,29 +118,25 @@ function FillControl({
       {confirming ? (
         <div className={styles.actions}>
           <span>{REFILL_QUESTION}</span>
-          <button
-            type="button"
-            className={styles.button}
+          <Button
+            kind="danger"
             onClick={() => {
               fill.mutate();
             }}
           >
             Пересобрать
-          </button>
-          <button
-            type="button"
-            className={styles.button}
+          </Button>
+          <Button
             onClick={() => {
               setConfirming(false);
             }}
           >
             Отмена
-          </button>
+          </Button>
         </div>
       ) : (
-        <button
-          type="button"
-          className={styles.button}
+        <Button
+          kind="primary"
           disabled={fill.isPending}
           onClick={() => {
             if (hasChains) {
@@ -142,7 +147,7 @@ function FillControl({
           }}
         >
           {fill.isPending ? 'Заполняется…' : 'Заполнить'}
-        </button>
+        </Button>
       )}
     </>
   );

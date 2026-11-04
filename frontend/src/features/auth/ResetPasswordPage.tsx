@@ -10,6 +10,7 @@ import { Panel } from '../../components/Panel';
 import styles from '../../components/ui.module.css';
 import { INVALID_LINK_MESSAGE, PASSWORD_CHANGED_MESSAGE } from '../../messages';
 import { readFragmentToken } from '../../urlToken';
+import { Button } from '../../components/Button';
 
 // «Новый пароль». The token is in the link's fragment.
 export function ResetPasswordPage(): React.JSX.Element {
@@ -57,9 +58,9 @@ export function ResetPasswordPage(): React.JSX.Element {
             autoComplete="new-password"
             error={errors.get('password')}
           />
-          <button type="submit" className={styles.button} disabled={reset.isPending}>
+          <Button type="submit" kind="primary" disabled={reset.isPending}>
             Сохранить пароль
-          </button>
+          </Button>
         </form>
       )}
     </Panel>
