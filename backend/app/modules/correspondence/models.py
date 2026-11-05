@@ -56,7 +56,7 @@ class Email(Base):
     cc_addresses: Mapped[list[dict[str, str | None]]] = mapped_column(JSONB)
     sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     text: Mapped[str] = mapped_column(Text)
-    attachment_names: Mapped[list[str]] = mapped_column(ARRAY(Text))
+    attachments: Mapped[list[dict[str, str | int | None]]] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 

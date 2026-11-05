@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.accounts import repository as accounts_repository
 from app.modules.correspondence import repository
 from app.modules.correspondence.domain import (
+    AttachmentTarget,
     ChainRef,
     ParsedEmail,
     build_chain_document,
@@ -26,6 +27,7 @@ from app.modules.correspondence.models import Email
 from app.modules.correspondence.repository import AddressRow, EmailTextRow
 from app.modules.correspondence.schemas import (
     Address,
+    AttachmentView,
     ChainDocument,
     ChainFacts,
     EmailView,
@@ -229,6 +231,17 @@ async def list_reply_chains(
     return Page[ReplyChainSummary](items=items, next_cursor=next_cursor)
 
 
+def _attachment_views(email: Email) -> list[AttachmentView]:
+    return [
+        AttachmentView(
+            index=index,
+            name=str(item["name"]),
+            size=item["size"] if isinstance(item["size"], int) else None,
+        )
+        for index, item in enumerate(email.attachments)
+    ]
+
+
 def _email_view(email: Email) -> EmailView:
     return EmailView(
         id=email.id,
@@ -238,7 +251,7 @@ def _email_view(email: Email) -> EmailView:
         sent_at=email.sent_at,
         subject=email.subject,
         text=email.text,
-        attachment_names=email.attachment_names,
+        attachments=_attachment_views(email),
     )
 
 
@@ -263,6 +276,21 @@ async def get_reply_chain(
         participants=participants.get(chain_id, []),
         emails=[_email_view(email) for email in emails],
     )
+
+
+async def get_attachment_target(
+    session: AsyncSession, user_id: UUID, email_id: UUID, index: int
+) -> AttachmentTarget:
+    """The attachment `index` of the user's email and the copies to fetch it from.
+
+    Runs in the caller's transaction; `NotFound` for another user's or an unknown email or an
+    index out of range.
+    """
+    stored = await repository.get_attachments_for_owner(session, user_id, email_id)
+    if stored is None or not 0 <= index < len(stored):
+        raise NotFound
+    copies = await repository.list_copies_for_owner(session, user_id, email_id)
+    return AttachmentTarget(name=str(stored[index]["name"]), copies=tuple(copies))
 
 
 async def has_chain(session: AsyncSession, user_id: UUID, chain_id: UUID) -> bool:

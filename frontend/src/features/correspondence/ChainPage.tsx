@@ -9,6 +9,7 @@ import { LoadError } from '../../components/LoadError';
 import { NotFoundPage } from '../../components/NotFoundPage';
 import { Panel } from '../../components/Panel';
 import { ChainPlacement } from '../projects/ChainPlacement';
+import { AttachmentButton } from './AttachmentButton';
 import styles from './ChainPage.module.css';
 import { formatAddress, formatAddresses, formatDateTime } from './format';
 
@@ -33,7 +34,16 @@ function EmailBlock({ email }: { email: EmailView }): React.JSX.Element {
       )}
       <p>{formatDateTime(email.sent_at)}</p>
       <p className={styles.text}>{email.text}</p>
-      {email.attachment_names.length > 0 && <p>Вложения: {email.attachment_names.join(', ')}</p>}
+      {email.attachments.length > 0 && (
+        <>
+          <p>Вложения:</p>
+          <ul className={styles.attachments}>
+            {email.attachments.map((attachment) => (
+              <AttachmentButton key={attachment.index} emailId={email.id} attachment={attachment} />
+            ))}
+          </ul>
+        </>
+      )}
     </article>
   );
 }

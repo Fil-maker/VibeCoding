@@ -100,6 +100,16 @@ class MailReader(Protocol):
         """The next batch of a folder: messages of `since` or later with a UID above `after_uid`."""
         ...
 
+    async def fetch_message(
+        self, credentials: ImapCredentials, folder_name: str, uidvalidity: int | None, uid: int
+    ) -> bytes | None:
+        """The raw message at `uid` of the folder with this server name; `None` when it is gone.
+
+        Gone is: the folder is missing, its UIDVALIDITY differs from `uidvalidity`, or the server
+        has no such UID. The message is read with `BODY.PEEK[]` in a read-only folder.
+        """
+        ...
+
 
 def _default_connect(server: str, port: int, use_tls: bool, timeout: float) -> imaplib.IMAP4:
     if use_tls:
@@ -169,6 +179,14 @@ class ImapMailReader:
             self._fetch, credentials, folder, since, after_uid, uidvalidity
         )
 
+    async def fetch_message(
+        self, credentials: ImapCredentials, folder_name: str, uidvalidity: int | None, uid: int
+    ) -> bytes | None:
+        """One raw message by UID; see `MailReader.fetch_message`."""
+        return await asyncio.to_thread(
+            self._fetch_message, credentials, folder_name, uidvalidity, uid
+        )
+
     def _open(self, credentials: ImapCredentials) -> imaplib.IMAP4:
         try:
             connection = self._connect(
@@ -215,6 +233,32 @@ class ImapMailReader:
             raise MailboxUnreachable("the connection broke while reading") from e
         except imaplib.IMAP4.error as e:
             raise MailboxReadFailed("the server refused to read the folder") from e
+        except OSError as e:
+            raise MailboxUnreachable("the connection broke while reading") from e
+        finally:
+            self._close(connection)
+
+    def _fetch_message(
+        self, credentials: ImapCredentials, folder_name: str, uidvalidity: int | None, uid: int
+    ) -> bytes | None:
+        connection = self._open(credentials)
+        try:
+            status, _data = connection.select(quote_mailbox(folder_name), readonly=True)
+            if status != "OK":
+                return None
+            _code, values = connection.response("UIDVALIDITY")
+            current = int(values[0]) if values and values[0] else None
+            if current != uidvalidity:
+                return None
+            fetch_status, items = connection.uid("FETCH", str(uid), "(BODY.PEEK[])")
+            if fetch_status != "OK":
+                raise MailboxReadFailed("the server refused to read the message")
+            found = [message for message in _parse_fetch(list(items)) if message.uid == uid]
+            return found[0].data if found else None
+        except imaplib.IMAP4.abort as e:
+            raise MailboxUnreachable("the connection broke while reading") from e
+        except imaplib.IMAP4.error as e:
+            raise MailboxReadFailed("the server refused to read the message") from e
         except OSError as e:
             raise MailboxUnreachable("the connection broke while reading") from e
         finally:
@@ -310,6 +354,21 @@ class FakeMailReader:
                 return parsed.astimezone(UTC)
         return FAKE_UNDATED_MESSAGE_DATE
 
+    def remove(self, login: str, folder: FolderKind, uid: int) -> None:
+        """Delete a message from the fake server, as the user would in their mail service."""
+        stored = self._folders.get((login, folder), [])
+        self._folders[(login, folder)] = [message for message in stored if message.uid != uid]
+
+    def clear(self, login: str, folder: FolderKind) -> None:
+        """Delete every message of a folder, as the user would in their mail service."""
+        self._folders[(login, folder)] = []
+
+    def replace(self, login: str, folder: FolderKind, uid: int, raw: bytes) -> None:
+        """Put another message under the same UID, as after a reset of the server's numbering."""
+        for message in self._folders.get((login, folder), []):
+            if message.uid == uid:
+                message.data = raw
+
     def seen_flags(self, login: str, folder: FolderKind) -> dict[int, bool]:
         """UID to whether the message is marked seen."""
         return {m.uid: m.seen for m in self._folders.get((login, folder), [])}
@@ -354,6 +413,19 @@ class FakeMailReader:
             if m.internal_date.date() >= since and (floor is None or m.uid > floor)
         ]
         return FolderBatch(uidvalidity=FAKE_UIDVALIDITY, messages=chosen[:BATCH_SIZE])
+
+    async def fetch_message(
+        self, credentials: ImapCredentials, folder_name: str, uidvalidity: int | None, uid: int
+    ) -> bytes | None:
+        """The raw message by UID, or `None` when gone; flags are left alone."""
+        self._guard(credentials)
+        if uidvalidity != FAKE_UIDVALIDITY:
+            return None
+        kind = FolderKind.INBOX if folder_name == INBOX_NAME else FolderKind.SENT
+        for message in self._folders.get((credentials.login, kind), []):
+            if message.uid == uid:
+                return message.data
+        return None
 
 
 def get_mail_reader(request: Request) -> MailReader:

@@ -1,6 +1,9 @@
 # Domain
 
-Version 0.12 · 05.11.2026
+Version 0.13 · 05.11.2026
+
+Changes in 0.13: task 1.11: attachment content is fetched from the mailbox on click and never stored;
+requirements map row reply-chains takes FR-57, FR-58.
 
 Changes in 0.12: task 1.10: glossary term Project — the user edits and deletes it; requirements map row
 projects takes FR-55, FR-56.
@@ -34,7 +37,7 @@ emails and stored secrets in «Data and privacy».
 
 Changes in 0.1: skeleton; terms from the harness interview.
 
-Last FR number: FR-56
+Last FR number: FR-58
 
 ## Contents
 
@@ -55,7 +58,7 @@ Capability → its spec and FR numbers. A new FR number also goes into «Last FR
 | sign-in | [spec](../openspec/specs/sign-in/spec.md) | FR-4…FR-8 |
 | access-boundary | [spec](../openspec/specs/access-boundary/spec.md) | FR-17, FR-20, FR-21 |
 | mailboxes | [spec](../openspec/specs/mailboxes/spec.md) | FR-22…FR-27, FR-53, FR-54 |
-| reply-chains | [spec](../openspec/specs/reply-chains/spec.md) | FR-28…FR-31 |
+| reply-chains | [spec](../openspec/specs/reply-chains/spec.md) | FR-28…FR-31, FR-57, FR-58 |
 | projects | [spec](../openspec/specs/projects/spec.md) | FR-32…FR-34, FR-55, FR-56 |
 | chain-placement | [spec](../openspec/specs/chain-placement/spec.md) | FR-35…FR-42, FR-46 |
 | placement-rules | [spec](../openspec/specs/placement-rules/spec.md) | FR-43…FR-45, FR-47 |
@@ -102,7 +105,9 @@ TBD.
 - A connected mailbox keeps its server, login and app password; the password is stored encrypted with
   the installation's key, never shown, and deleted when the mailbox is disconnected.
 - The app reads the folders Inbox and Sent, emails of the last 12 months; each email is stored once per
-  user with its text, addresses, date and the names of its attachments, never their content.
+  user with its text, addresses, date and the names and sizes of its attachments, never their content.
+- The content of an attachment is fetched from a connected mailbox when the user downloads it and goes
+  only to that user; the app never stores it.
 - The emails and reply chains of a disconnected mailbox stay; deleting them is not possible yet.
 - Projects, threads and placements belong to one user; the engine compares only that user's chains.
 - The engine of version `text-1` runs inside the installation: no email text leaves it, so no consent is

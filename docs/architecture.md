@@ -2,7 +2,7 @@
 
 Updated 05.11.2026
 
-**Status: tasks 0.1, 0.2, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.9 and 1.10 are built.** Task 0.1 «Application skeleton» built the backend, the SPA and the database
+**Status: tasks 0.1, 0.2, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.9, 1.10 and 1.11 are built.** Task 0.1 «Application skeleton» built the backend, the SPA and the database
 container. Task 0.2 «Sign-in and organization» built registration, email confirmation, sign-in and sessions,
 password reset, and an organization with its members and invitations. Task 1.1 «Personal accounts» removed the
 organization layer: a registrant is an individual user and the root owner of their data ([ADR 0023](adr/0023-organizations-are-removed-anyone-can-register.md)).
@@ -16,7 +16,9 @@ applying a rule to the chains it would move: after a rule is saved, the page «�
 presses «Применить» in the panel «Применить правило сейчас?», in the backend and the SPA. Task 1.7 «App shell and user path» built
 the SPA's frame: one header with the sections «Проекты», «Переписка», «Почтовые ящики» and «Правила» and the user's «Выйти» for
 every signed-in page, a menu button below 40rem, a short landing page for a guest, the first steps on the start page, one look
-for the loading, empty and failed states, and the browser tab titles. SPA only, with no API change. A third-party
+for the loading, empty and failed states, and the browser tab titles. SPA only, with no API change. Task 1.11 «Attachments» built the download of an attachment on
+click: the backend fetches the file from a connected mailbox that holds the email, read-only, and keeps no content; the
+chain page lists each attachment with its size, in the backend and the SPA. A third-party
 analysis model is not chosen yet.
 
 ## Contents
@@ -45,11 +47,12 @@ analysis model is not chosen yet.
 | App shell and user path: one frame for the signed-in pages with the header, its sections and «Выйти» (a menu below 40rem), the landing page for a guest, the first steps on the start page, one look for loading, empty and failed states, the skip link and the tab titles; SPA only | ✅ | 1.7 |
 | Mailbox connection hints: the connect form picks the mail service from the address by the built-in table and fills the server and the port; «Как подключить <service>» shows the steps and the official help link; «Как исправить» shows for a refused sign-in; the mailbox list carries `error_code` | ✅ | 1.9 |
 | Edit and delete a project: «Изменить» changes the name and the description by the checks of creation, moves no chain, and shows a hint after a changed description until the next fill; «Удалить проект» asks with the chain and rule counts, then takes the chains out by hand, deletes the project with its threads and rules, and keeps the emails | ✅ | 1.10 |
+| Attachments: each attachment of an email has its index, name and size in the reply-chain API; the download route fetches the file on each call from a connected mailbox that holds the email, read-only, and stores nothing; a failed download writes nothing | ✅ | 1.11 |
 
 ## Components and processes
 
 - **Backend** — a FastAPI application (Python): the HTTP API, the modules `accounts`, `auth`, `health`, `mailboxes`,
-  `correspondence`, `projects` and `rules`, the database access, the service emails and the mailbox reading loop.
+  `correspondence`, `attachments`, `projects` and `rules`, the database access, the service emails and the mailbox reading loop.
 - **Mailbox reader** — a background task of the backend, started in the FastAPI lifespan when `MAILBOX_READING_ENABLED`
   is `true`. Every `MAILBOX_READ_TICK_SECONDS` it looks for due mailboxes and reads each one once: a mailbox is due
   right after connecting, on «Обновить», and `MAILBOX_READ_INTERVAL_MINUTES` after its last read attempt. A read
@@ -102,6 +105,9 @@ analysis model is not chosen yet.
   of their projects. «Убрать из проекта» takes it out of projects for good, and the engine never places it again by itself
   ([ADR 0057](adr/0057-a-chain-is-placed-by-hand.md), [ADR 0058](adr/0058-by-hand-a-chain-goes-into.md),
   [ADR 0059](adr/0059-keeps-the-chain-out-of-every.md)). The guide is [Projects](guide/projects.md#placing-by-hand).
+- **Attachment download** — the reading loop keeps an attachment's name and size, never its content. A click on an attachment
+  fetches the whole message from a connected mailbox that holds the email, read-only (`BODY.PEEK`), keeps the file in memory
+  for that one response, and writes nothing. The copy order and the errors are in [Attachments](guide/mail-reading.md#attachments).
 - **Project tree** — built on each request from the placements: counterparties are the participant addresses of the chains,
   named by the latest display name sent from that address, or by the address itself; chains without a counterparty are under
   «Без контрагента», which comes last. Each counterparty lists its threads in creation order, and each thread its chains in
@@ -133,18 +139,19 @@ backend/                 FastAPI application (own pyproject.toml, uv.lock)
       passwords.py       Argon2id hashing and verification, in a worker thread
       tokens.py          random one-time tokens and their SHA-256 hashes
       mail.py            MailSender protocol, SmtpMailSender, FakeMailSender, get_mail_sender, build_link
-      mail_reader.py     MailReader protocol, ImapMailReader (read-only IMAP), FakeMailReader, get_mail_reader
+      mail_reader.py     MailReader protocol (check, fetch, fetch_message), ImapMailReader (read-only IMAP), FakeMailReader, get_mail_reader
       imap_folders.py    IMAP LIST parsing, folder names in modified UTF-7, the choice of the Sent folder
       secret_box.py      SecretBox: Fernet encryption of the mailbox app passwords, get_secret_box
       placement_engine.py PlacementEngine protocol, LocalTextEngine (version text-1), FakePlacementEngine, get_placement_engine
       pagination.py      Page[T] and the keyset cursor: encode_cursor, decode_cursor
       test_mail.py       unit tests of mail
       test_mail_reader.py unit tests of the mail reader and the fake
+      test_mail_reader_fetch_message.py unit tests of fetching one message by UID
       test_passwords.py  unit tests of passwords
       test_placement_engine.py unit tests of the placement engine
       test_secret_box.py unit tests of the secret box
       test_settings.py   unit tests of settings
-    modules/<module>/    one folder per module: health, accounts, auth, mailboxes, correspondence, projects, rules
+    modules/<module>/    one folder per module: health, accounts, auth, mailboxes, correspondence, attachments, projects, rules
       accounts/          registration of a user and the users table; router.py (the registration route),
                          service.py, schemas.py, repository.py, models.py, errors.py, emails.py
       auth/              sign-in, the sign-in lock, sessions, email confirmation, password reset;
@@ -155,8 +162,13 @@ backend/                 FastAPI application (own pyproject.toml, uv.lock)
                          router.py, service.py, schemas.py, domain.py (the reason of a failed read), repository.py,
                          models.py, errors.py
       correspondence/    emails stored once per user with their copies in folders, reply chains: joining, the list and
-                         the page of a chain; router.py, service.py, schemas.py, domain.py (parsing, the email key,
-                         the merge choice, HTML to text), repository.py, models.py, errors.py
+                         the page of a chain; router.py, service.py, schemas.py, domain.py (parsing with the attachment
+                         list and the attachment read, the email key, the merge choice, HTML to text), repository.py,
+                         models.py, errors.py
+      attachments/       the download of one attachment (GET /api/v1/emails/{email_id}/attachments/{index}): the copy
+                         order and the fetch from a connected mailbox, nothing stored; router.py (the route and its
+                         ERROR_MAPPING), service.py (download_attachment), errors.py; `__init__.py` is empty. It has no
+                         models, schemas or repository: it reads through the correspondence and mailboxes services
       projects/          projects with a description, the fill, the tree of a project, the placement of reply chains
                          into threads and «Неразобранное», placing a chain by hand, placing a chain by its rule, and editing
                          and deleting a project; router.py,
@@ -175,11 +187,15 @@ backend/                 FastAPI application (own pyproject.toml, uv.lock)
     modules/health/test_*.py  unit tests of the health module (test_router.py, test_service.py)
   migrations/            Alembic: env.py, script.py.mako, versions/ (0001_baseline.py, 0002_accounts_auth_invitations.py,
                          0003_personal_accounts.py, 0004_mailboxes_and_reply_chains.py, 0005_projects_and_placements.py,
-                         0006_manual_placements.py, 0007_placement_rules.py, 0008_project_description_changed_at.py)
+                         0006_manual_placements.py, 0007_placement_rules.py, 0008_project_description_changed_at.py,
+                         0009_email_attachments.py)
   tests/                 test support of the integration tests
-    integration/         database tests through the HTTP API, one file per group of requirements
+    integration/         database tests through the HTTP API, one file per group of requirements; the attachment groups are
+                         test_attachment_download.py (the download route), test_reply_chains_attachments.py (the attachments in
+                         the reply-chain API) and test_migrations_attachments.py (migration 0009)
     factories.py         users built through the public API: unconfirmed and confirmed users, signed-in clients, rule requests
-    mail_factory.py      raw test emails built with the standard library, the way a mail server hands them over
+    mail_factory.py      raw test emails built with the standard library, the way a mail server hands them over, with
+                         attachments of a given size (`sized_attachment`)
     hand_placement.py    helpers of the placement-by-hand tests: seeding chains, finding a chain in a tree
     rule_support.py      helpers of the placement-rule tests: the rule shape of a placement, the two-project fixture, the moves of a rule and applying it
     project_trees.py     helpers of the project and placement tests: the engine seam, the project routes, the mail
@@ -195,7 +211,7 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
     App.tsx              root component: QueryClientProvider, BrowserRouter, AuthProvider and the routes
     App.*.test.tsx       page tests, one file per area (sign-in, registration, password reset, guards, start page,
                          first steps, app shell, page states, mailboxes, chains, projects, project tree, project fill,
-                         chain placement, rules, rule explanations and rule moves)
+                         chain placement, attachments, rules, rule explanations and rule moves)
     api/
       client.ts          apiClient: openapi-fetch typed by the generated schema
       queryClient.ts     createQueryClient(): TanStack Query client
@@ -223,7 +239,8 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
                          a server by its host), mailboxesKey.ts (the query key MAILBOXES_KEY),
                          mailServices.test.ts (its unit test)
       correspondence/    ChainsPage (the list of reply chains, a page at a time), ChainPage (one chain, emails as plain
-                         text), ChainPage.module.css, format.ts (dates, email counts, addresses)
+                         text with their attachments), AttachmentButton.tsx (an attachment as a button that downloads it),
+                         ChainPage.module.css, format.ts (dates, email counts, addresses, attachment labels and file sizes)
       projects/          ProjectsPage (the list), NewProjectPage («Новый проект»), ProjectPage (the name, the description, «Заполнить»,
                          the tree and «Неразобранное»), ProjectManagement.tsx (the project page's «Изменить» form, the hint of a changed
                          description and «Удалить проект» with its confirmation), ProjectPage.module.css, format.ts (plural labels, the placement line),
@@ -237,6 +254,7 @@ frontend/                React + TypeScript SPA (Vite, pnpm; own package.json, p
     test/                appHarness.tsx (renders App with fetch stubbed), mailboxForm.tsx (the mailbox fixture and the lookups of
                          the connect form and its «Как подключить» block), projectTrees.tsx (project fixtures, lookups and the stub of the edit and the deletion),
                          chainPlacement.tsx (fixtures and stubs of the chain page's placement block),
+                         attachments.tsx (the chain page with attachments, the download answers and the files saved by the attachment tests),
                          rulesPage.tsx (fixtures and stubs of the page «Правила»),
                          ruleMoves.tsx (fixtures and lookups of the panel «Применить правило сейчас?»),
                          setup.ts (Vitest setup: Testing Library cleanup, unstubbed globals)
@@ -253,7 +271,7 @@ scripts/                 doc checkers, the check runner (run_checks.py), the API
 
 ## Layers
 
-Built so far: the platform and the modules health, accounts, auth, mailboxes, correspondence, projects and rules. The layer rules are in
+Built so far: the platform and the modules health, accounts, auth, mailboxes, correspondence, attachments, projects and rules. The layer rules are in
 `.claude/rules/server-architecture.md`.
 
 Dependencies point down: router → service → domain and repository → platform.
@@ -262,7 +280,7 @@ Dependencies point down: router → service → domain and repository → platfo
 |---|---|---|
 | Router | `router.py` | Parses the request into `schemas.py` models, takes the caller from `AuthContext` where a route needs one, calls one method of the module's service, which FastAPI injects; maps the module's domain errors to HTTP. A router never receives the database session |
 | Service | `service.py` | The use cases as module-level functions that open the transaction (`session.begin()`), call domain logic and repositories, and enforce the access rules; a session-bound class (`AccountsService`, `AuthService`) delegates to them; the factory `get_<module>_service` builds the class from `get_database_session` |
-| Domain | `domain.py` | Pure functions: the sign-in lock rule (`backend/app/modules/auth/domain.py`), the reason of a failed read (`backend/app/modules/mailboxes/domain.py`), parsing a raw email, the email key and the merge choice (`backend/app/modules/correspondence/domain.py`), the bands of similarity, the thread choice and the tree of a project (`backend/app/modules/projects/domain.py`). `backend/app/modules/projects/placing.py` writes the engine's placements and threads through the repository; `backend/app/modules/rules/domain.py` picks the winning rule of a chain (`winning_rule`) |
+| Domain | `domain.py` | Pure functions: the sign-in lock rule (`backend/app/modules/auth/domain.py`), the reason of a failed read (`backend/app/modules/mailboxes/domain.py`), parsing a raw email with its attachments (`attachment_parts`, `list_attachments`, `read_attachment`), the email key and the merge choice (`backend/app/modules/correspondence/domain.py`), the bands of similarity, the thread choice and the tree of a project (`backend/app/modules/projects/domain.py`). `backend/app/modules/projects/placing.py` writes the engine's placements and threads through the repository; `backend/app/modules/rules/domain.py` picks the winning rule of a chain (`winning_rule`) |
 | Repository | `repository.py` | Named queries; no commits, no business decisions |
 | Models | `models.py` | SQLAlchemy tables of the module ([Data model](#data-model)) |
 | Platform | `backend/app/platform/` | settings, db, errors, clock, mail, passwords, tokens, validation, the Origin guard, the auth context, the mail reader, the secret box, pagination, the placement engine (`placement_engine.py`) |
@@ -321,6 +339,13 @@ projects service imports the rules service. The projects module uses the rules o
 (`MatchRule`, `list_match_rules`, `pick_winning_rule`) in `rule_placing.py` and `service.py`; `backend/app/modules/projects/schemas.py`
 also imports the enum `RuleCondition` from `backend/app/modules/rules/schemas.py` for the `rule` field of a placement.
 
+**Attachments between modules.** The attachments module (`backend/app/modules/attachments/`) takes the copies of an email and the
+attachment's name from `get_attachment_target` in `backend/app/modules/correspondence/service.py`, reads the message with
+`read_attachment` in `backend/app/modules/correspondence/domain.py`, and takes the connected copies from `list_message_sources`
+(`MessageSource`) in `backend/app/modules/mailboxes/service.py`. The mailboxes service imports `CopyRef`, the copy of an email in
+a folder, from `backend/app/modules/correspondence/domain.py`. No business module imports the attachments module; `main.py` only includes
+its router and registers its error mapping.
+
 **Merge hook.** `store_raw_messages` takes an optional `on_merge` callable (`MergeHook` in
 `backend/app/modules/correspondence/service.py`). It runs before chains that one email joins are merged into a survivor, so
 the caller can carry over what hangs on the merged chains. The mailboxes service passes `carry_placement` from
@@ -346,7 +371,10 @@ adds no table; it changes `chain_placements`: it makes `project_id`, `similarity
 adds the columns `rule_condition` and `rule_value` to `chain_placements`, widens its kind check to `rule` and its shape check to
 the rule shape. Its downgrade deletes the `rule` rows and drops the table and the two columns. Migration `0008`
 (`backend/migrations/versions/0008_project_description_changed_at.py`) adds the nullable column `projects.description_changed_at`;
-its downgrade drops it. The baseline `0001` stays empty. The models are in
+its downgrade drops it. Migration `0009` (`backend/migrations/versions/0009_email_attachments.py`) replaces the array
+`emails.attachment_names` with the JSONB column `emails.attachments`, the list of `{name, size}` of the email's attachments;
+an email read before keeps its names with size null, and its downgrade restores `attachment_names` with the names only.
+The baseline `0001` stays empty. The models are in
 each module's `models.py`; the declarative `Base` in `backend/app/platform/db.py` is the metadata Alembic works from.
 
 The downgrade to `0002` recreates one organization per user, named after the user's name, makes every user an active
@@ -368,7 +396,8 @@ Conventions of the tables:
 | `mailboxes` | `id`, `user_id`, `server` (up to 253, lower-cased), `port`, `login` (up to 254), `password_encrypted` (Fernet ciphertext; null after a disconnect), `status` (`pending`, `reading`, `read` or `failed`), `error_code` (`sign_in_failed`, `unreachable` or `read_failed`), `read_requested_at`, `last_attempt_at`, `last_read_at`, `connected_at`, `disconnected_at`, `created_at` | `user_id` → `users` (cascade); unique `(user_id, server, login)`. A disconnected mailbox keeps its row, and a connect of the same server and login reuses it |
 | `mailbox_folders` | `id`, `mailbox_id`, `kind` (`inbox` or `sent`), `name` (`INBOX` or `Sent`), `uidvalidity`, `last_uid` | `mailbox_id` → `mailboxes` (cascade); unique `(mailbox_id, kind)`. `last_uid` is how far the folder has been read |
 | `reply_chains` | `id`, `user_id`, `latest_email_at`, `created_at` | `user_id` → `users` (cascade); index `(user_id, latest_email_at DESC, id)` for the list |
-| `emails` | `id`, `user_id`, `chain_id`, `key` (up to 998: the normalized `Message-ID`, else `no-id:<mailbox>:<folder>:<uidvalidity>:<uid>`), `message_id`, `in_reply_to`, `references` (array), `subject`, `from_address` (up to 320), `from_name`, `to_addresses` and `cc_addresses` (JSON lists), `sent_at`, `text`, `attachment_names` (array), `created_at` | `user_id` → `users` and `chain_id` → `reply_chains` (both cascade); unique `(user_id, key)`; indexes on `(chain_id, sent_at, id)`, on `references` (GIN) and on `(user_id, in_reply_to)`. An email is stored once per user, whichever mailboxes hold it |
+| `emails` | `id`, `user_id`, `chain_id`, `key` (up to 998: the normalized `Message-ID`, else `no-id:<mailbox>:<folder>:<uidvalidity>:<uid>`), `message_id`, `in_reply_to`, `references` (array), `subject`, `from_address` (up to 320), `from_name`, `to_addresses` and `cc_addresses` (JSON lists), `sent_at`, `text`, `attachments` (JSONB: a list of `{name, size}` in the order of the email's attachments; `size` is the decoded size in bytes,
+null for an email read before migration `0009`), `created_at` | `user_id` → `users` and `chain_id` → `reply_chains` (both cascade); unique `(user_id, key)`; indexes on `(chain_id, sent_at, id)`, on `references` (GIN) and on `(user_id, in_reply_to)`. An email is stored once per user, whichever mailboxes hold it |
 | `email_copies` | `id`, `email_id`, `mailbox_id`, `folder_id`, `uid` (the IMAP UID) | `email_id` → `emails`, `mailbox_id` → `mailboxes` and `folder_id` → `mailbox_folders` (all cascade); unique `(folder_id, uid)`; indexes on `email_id` and `mailbox_id` |
 | `projects` | `id`, `user_id`, `name` (up to 100; unique per user ignoring letter case), `description` (text; the request allows up to 2000 characters), `filled_at` (empty until the first fill), `description_changed_at` (empty until an edit changes the description; set only when the trimmed description differs from the stored one), `created_at` | `user_id` → `users` (cascade); unique index `(user_id, lower(name))` |
 | `threads` | `id`, `user_id`, `project_id`, `name` (text: the subject of the thread's first chain when the engine forms it, or the name the user gave with `new_thread_name` when a chain is moved by hand), `position` (the creation order in the project), `created_at` | `user_id` → `users` and `project_id` → `projects` (both cascade); unique `(project_id, position)` |
@@ -412,6 +441,7 @@ caller of a signed-in route gets 401 `not_signed_in`. The routes below are all u
 | `DELETE /api/v1/mailboxes/{mailbox_id}` | signed in | 204; deletes the password, the emails stay | `not_found` 404 |
 | `GET /api/v1/reply-chains` | signed in | 200, `Page[ReplyChainSummary]`; `limit` 1 to 100 (default 50), `cursor`; the latest chain first | `invalid_cursor` 400 |
 | `GET /api/v1/reply-chains/{chain_id}` | signed in | 200, `ReplyChain`; its emails oldest first, at most 500 | `not_found` 404 |
+| `GET /api/v1/emails/{email_id}/attachments/{index}` | signed in | 200, the file (`application/octet-stream`, `Content-Disposition: attachment; filename*=UTF-8''` and the percent-encoded name, `X-Content-Type-Options: nosniff`); fetched from a connected mailbox on each call, nothing stored | `not_found` 404 (another user's or an unknown email, or an index out of range; no mailbox is contacted), `mailbox_disconnected` 409, `email_gone` 410, `mailbox_sign_in_failed` 502, `mailbox_unreachable` 504 |
 | `GET /api/v1/projects` | signed in | 200, `list[ProjectSummary]` (the user's projects by name, at most 200, not paginated) | none |
 | `POST /api/v1/projects` | signed in | 201, `ProjectSummary`; body `name` (1 to 100 characters) and `description` (1 to 2000), both required, trimmed | `project_exists` 409 |
 | `GET /api/v1/projects/{project_id}` | signed in | 200, `ProjectTree`: the description, the counterparties with their threads and chains, and «Неразобранное» | `not_found` 404 |
@@ -447,7 +477,9 @@ carries its `placement`: `kind` (`engine`, `manual` or `rule`), `engine_version`
 is `state`, `project` (`id`, `name`), `thread` (`id`, `name`, null for «Неразобранное») and `placement`; `project`, `thread` and `placement`
 are null for `none` and `excluded`. `PlacementMove` is `project_id`, and at most one of `thread_id` and `new_thread_name`. `RuleMoves` is `moves`; each `RuleMove` is
 `chain_id`, `subject`, `latest_email_at`, `current` (`state` `none` or `placed`, `project`, `thread`) and `target` (`project`, and
-`thread_name`, null for «Неразобранное»). `RuleApply` is `chain_ids`, and `RuleApplied` is `moved`. The
+`thread_name`, null for «Неразобранное»). `RuleApply` is `chain_ids`, and `RuleApplied` is `moved`. Each email of `ReplyChain` carries `attachments`: `index` (the position the
+download route takes), `name` and `size` (null for an email read before migration `0009`). A negative or non-number `index` of the
+download answers 422 `validation_failed`. The
 `project_exists` answer (409) is for a name equal to an existing one
 ignoring letter case, the same name included. On `PATCH` the project itself is not counted, so keeping its own name is no clash.
 
@@ -545,20 +577,23 @@ What is built:
 - **One email, one user.** An email belongs to one user across the installation
   ([ADR 0008](adr/0008-one-email-belongs-to-one-user.md)).
 - **Mailbox passwords.** An app password is stored only as a Fernet ciphertext (`mailboxes.password_encrypted`), with the key
-  `MAILBOX_ENCRYPTION_KEY` (`backend/app/platform/secret_box.py`). The plaintext lives in memory during a sign-in or a read.
+  `MAILBOX_ENCRYPTION_KEY` (`backend/app/platform/secret_box.py`). The plaintext lives in memory during a sign-in, a read or an
+  attachment download. A download skips a copy whose password cannot be decrypted and logs a warning with the mailbox id.
   No answer carries it. A failed read of one mailbox logs a warning with the exception's class name only; a failure outside
   that per-mailbox handling (claiming a mailbox, the database) is logged by the reading loop with `LOG.exception`, so its
   traceback reaches the log. Disconnecting sets the
   ciphertext to null. Losing or changing the key makes every connected mailbox ask for a new app password.
 - **Read-only mail access.** The reader signs in, selects each folder read-only, searches and fetches with `BODY.PEEK`; it
   sends no command that writes to the server, and a unit test allows only the commands it uses
-  (`ALLOWED` and `test_fr25_a_read_sends_only_read_only_commands` in `backend/app/platform/test_mail_reader.py`).
+  (`ALLOWED` and `test_fr25_a_read_sends_only_read_only_commands` in `backend/app/platform/test_mail_reader.py`); a download's fetch of one
+  message is tested the same way (`test_fr25_fetching_a_message_sends_only_read_only_commands` in `backend/app/platform/test_mail_reader_fetch_message.py`).
   No mailbox is changed, so the emails stay unread in the mailbox.
 - **TLS for mail.** Every IMAP connection uses TLS with the default certificate checks, except hosts listed in
   `IMAP_INSECURE_HOSTS`; the compose file lists only the demo server `greenmail`.
 - **Owner filter for mailboxes and chains.** The queries over mailboxes and reply chains take their `user_id` from the
-  `AuthContext`: `list_connected_for_owner`, `get_connected_by_id_for_owner` and `get_by_server_and_login_for_owner` in
-  `backend/app/modules/mailboxes/repository.py`, and the `_for_owner` queries of `backend/app/modules/correspondence/repository.py`.
+  `AuthContext`: `list_connected_for_owner`, `get_connected_by_id_for_owner`, `get_by_server_and_login_for_owner` and
+  `list_connected_folders_for_owner` in `backend/app/modules/mailboxes/repository.py`, and the `_for_owner` queries of
+  `backend/app/modules/correspondence/repository.py` (including `get_attachments_for_owner` and `list_copies_for_owner`, which the download uses).
   Another user's mailbox or chain answers 404 `not_found`. Four calls are not owner-filtered: `claim_next_due_mailbox`,
   which the background run calls across all users (its docstring says so), and three that take the id of a mailbox or an
   email their caller already holds, as their docstrings say: `ensure_folders` and `update_folder_progress` for the mailbox
@@ -579,6 +614,9 @@ What is built:
   count of the deletion) and `exclude_placements_of_project_for_owner` (the placement rewrite to `excluded`). The one write that
   deletes is `delete_project_for_owner`, which takes a project already looked up under the owner filter.
   The rule count of the deletion is `count_rules_targeting_for_owner` in `backend/app/modules/rules/repository.py`.
+- **Attachment downloads.** The response is `application/octet-stream` with `Content-Disposition: attachment` and
+  `X-Content-Type-Options: nosniff`, so a browser saves the file and does not render it, an HTML attachment included. The
+  file is held in memory for that one response, and nothing is written to the database or to a mailbox.
 - **HTML as text.** The server keeps an email as text. An HTML part is converted only when the email has no `text/plain` part
   (`_body_text` in `backend/app/modules/correspondence/domain.py`), and the conversion drops `script`, `style` and `head`.
   The SPA shows the text with `white-space: pre-wrap` and never sets HTML.

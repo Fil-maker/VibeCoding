@@ -65,7 +65,7 @@ describe('project page: the tree', () => {
                 sent_at: '2026-03-12T09:00:00Z',
                 subject: 'Акт скрытых работ',
                 text: 'Акт по объекту на Лесной',
-                attachment_names: [],
+                attachments: [],
               },
             ],
           }),

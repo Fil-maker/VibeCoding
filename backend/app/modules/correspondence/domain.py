@@ -25,6 +25,14 @@ _BLANK_LINES = re.compile(r"\n{3,}")
 
 
 @dataclass(frozen=True)
+class AttachmentFact:
+    """One attachment of a message: its file name and the size of its decoded content."""
+
+    name: str
+    size: int
+
+
+@dataclass(frozen=True)
 class ParsedEmail:
     """What the app keeps of a raw message. Ids are normalized (see `normalize_message_id`)."""
 
@@ -37,13 +45,30 @@ class ParsedEmail:
     cc: tuple[Address, ...]
     sent_at: datetime
     text: str
-    attachment_names: tuple[str, ...]
+    attachments: tuple[AttachmentFact, ...]
 
     @property
     def related_keys(self) -> tuple[str, ...]:
         """The keys of the emails this one names, `In-Reply-To` first, without repeats."""
         named = ([self.in_reply_to] if self.in_reply_to else []) + list(self.references)
         return tuple(dict.fromkeys(named))
+
+
+@dataclass(frozen=True)
+class CopyRef:
+    """Where a mailbox holds a copy of an email."""
+
+    mailbox_id: UUID
+    folder_id: UUID
+    uid: int
+
+
+@dataclass(frozen=True)
+class AttachmentTarget:
+    """An attachment to fetch: its stored name and the copies of its email."""
+
+    name: str
+    copies: tuple[CopyRef, ...]
 
 
 @dataclass(frozen=True)
@@ -158,9 +183,37 @@ def _body_text(message: EmailMessage) -> str:
     return html_to_text(_part_text(html)) if html is not None else ""
 
 
-def _attachment_names(message: EmailMessage) -> tuple[str, ...]:
-    names = (part.get_filename() for part in message.walk() if not part.is_multipart())
-    return tuple(clean_text(name) for name in names if name)
+def _decoded(part: Message) -> bytes:
+    payload = part.get_payload(decode=True)
+    return payload if isinstance(payload, bytes) else b""
+
+
+def attachment_parts(message: Message) -> list[tuple[str, Message]]:
+    """The attachments of a message: non-multipart parts with a file name, in `walk()` order.
+
+    The one list both reading and downloading use, so a position means the same file.
+    """
+    found: list[tuple[str, Message]] = []
+    for part in message.walk():
+        name = None if part.is_multipart() else part.get_filename()
+        if name:
+            found.append((clean_text(str(name)), part))
+    return found
+
+
+def list_attachments(message: Message) -> tuple[AttachmentFact, ...]:
+    """Name and decoded size of every attachment of a message."""
+    return tuple(
+        AttachmentFact(name, len(_decoded(part))) for name, part in attachment_parts(message)
+    )
+
+
+def read_attachment(data: bytes, index: int, name: str) -> bytes | None:
+    """The decoded content of attachment `index` of a raw message; `None` unless it has `name`."""
+    parts = attachment_parts(message_from_bytes(data, policy=policy.default))
+    if not 0 <= index < len(parts) or parts[index][0] != name:
+        return None
+    return _decoded(parts[index][1])
 
 
 def _addresses(message: EmailMessage, header: str) -> tuple[Address, ...]:
@@ -202,7 +255,7 @@ def parse_raw_message(data: bytes, internal_date: datetime) -> ParsedEmail:
         cc=_addresses(message, "Cc"),
         sent_at=_sent_at(message, internal_date),
         text=clean_text(_body_text(message))[:TEXT_MAX_LENGTH],
-        attachment_names=_attachment_names(message),
+        attachments=list_attachments(message),
     )
 
 

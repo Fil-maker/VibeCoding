@@ -12,7 +12,7 @@ from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import distinct_on, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.correspondence.domain import ChainRef, ParsedEmail
+from app.modules.correspondence.domain import ChainRef, CopyRef, ParsedEmail
 from app.modules.correspondence.models import Email, EmailCopy, ReplyChain
 from app.platform.pagination import Cursor
 
@@ -167,7 +167,7 @@ async def add_email_if_absent_for_owner(
             cc_addresses=[address.model_dump() for address in parsed.cc],
             sent_at=parsed.sent_at,
             text=parsed.text,
-            attachment_names=list(parsed.attachment_names),
+            attachments=[{"name": item.name, "size": item.size} for item in parsed.attachments],
             created_at=now,
         )
         .on_conflict_do_nothing(index_elements=[Email.user_id, Email.key])
@@ -375,3 +375,27 @@ async def list_existing_chain_ids_for_owner(
         select(ReplyChain.id).where(ReplyChain.user_id == user_id, ReplyChain.id.in_(chain_ids))
     )
     return set(rows.scalars())
+
+
+async def get_attachments_for_owner(
+    session: AsyncSession, user_id: UUID, email_id: UUID
+) -> list[dict[str, str | int | None]] | None:
+    """The stored attachments of the user's email; `None` if it is foreign or unknown."""
+    return (
+        await session.execute(
+            select(Email.attachments).where(Email.id == email_id, Email.user_id == user_id)
+        )
+    ).scalar_one_or_none()
+
+
+async def list_copies_for_owner(
+    session: AsyncSession, user_id: UUID, email_id: UUID
+) -> list[CopyRef]:
+    """The copies of the user's email in mailbox folders."""
+    rows = await session.execute(
+        select(EmailCopy.mailbox_id, EmailCopy.folder_id, EmailCopy.uid)
+        .join(Email, Email.id == EmailCopy.email_id)
+        .where(Email.id == email_id, Email.user_id == user_id)
+        .order_by(EmailCopy.uid, EmailCopy.id)
+    )
+    return [CopyRef(row.mailbox_id, row.folder_id, row.uid) for row in rows]

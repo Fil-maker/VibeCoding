@@ -14,7 +14,7 @@ The tests are `frontend/src/App.*.test.tsx`, the unit tests next to their files 
 [FR-17, FR-20 and FR-21](../../openspec/specs/access-boundary/spec.md) the access boundary,
 [FR-22, FR-23, FR-24, FR-26 and FR-27](../../openspec/specs/mailboxes/spec.md) the mailbox page,
 [FR-53 and FR-54](../../openspec/specs/mailboxes/spec.md) the connect form's service pick and its hints,
-[FR-30 and FR-31](../../openspec/specs/reply-chains/spec.md) the correspondence pages,
+[FR-30 and FR-31](../../openspec/specs/reply-chains/spec.md) the correspondence pages, [FR-57 and FR-58](../../openspec/specs/reply-chains/spec.md) the download of an attachment and its errors,
 [FR-32 … FR-34](../../openspec/specs/projects/spec.md) the project pages,
 [FR-55 and FR-56](../../openspec/specs/projects/spec.md) the editing and the deletion of a project on its page, and
 [FR-35 … FR-42](../../openspec/specs/chain-placement/spec.md) the fill button of a project and the «Проект» block of a chain,
@@ -139,7 +139,7 @@ health page (its own `<section>`, see [Health feature](#health-feature)).
 | The landing page (`/`, guest) | `frontend/src/features/home/LandingPage.tsx` | The heading «Переписка по проектам — в одном дереве», three steps, and the links «Зарегистрироваться» (`/register`) and «Войти» (`/sign-in`). It reads no user data. `HomeRoute.tsx` picks the landing page or the start page by the session. |
 | «Почтовые ящики» | `frontend/src/features/mailboxes/MailboxesPage.tsx` | The connected mailboxes, their reading status, «Обновить», «Отключить», and the connect form. See [Mailboxes feature](#mailboxes-feature). |
 | «Переписка» | `frontend/src/features/correspondence/ChainsPage.tsx` | The reply chains, the latest first, a page at a time. See [Correspondence feature](#correspondence-feature). |
-| The chain's subject (`/chains/:id`) | `frontend/src/features/correspondence/ChainPage.tsx` | One reply chain: the block «Проект» (where the chain is, «Перенести», «Убрать из проекта»), then its emails oldest first, each as plain text. See [Correspondence feature](#correspondence-feature) and [Projects feature](#projects-feature). |
+| The chain's subject (`/chains/:id`) | `frontend/src/features/correspondence/ChainPage.tsx` | One reply chain: the block «Проект» (where the chain is, «Перенести», «Убрать из проекта»), then its emails oldest first, each as plain text with its attachments as download buttons. See [Correspondence feature](#correspondence-feature) and [Projects feature](#projects-feature). |
 | «Проекты» (`/projects`) | `frontend/src/features/projects/ProjectsPage.tsx` | The user's projects by name, with their chain counts. With projects listed, the button «Создать проект» sits under the list; with none, the empty state shows the link instead (see [Page states](#pages)). See [Projects feature](#projects-feature). |
 | «Новый проект» (`/projects/new`) | `frontend/src/features/projects/NewProjectPage.tsx` | Fields «Название» and «Описание»; «Создать» opens the new project. See [Projects feature](#projects-feature). |
 | «Правила» (`/rules`) | `frontend/src/features/projects/RulesPage.tsx` | The form of a rule, the user's rules in the order they win, with «Изменить» and «Удалить»; after a rule is saved, the panel «Применить правило сейчас?» (`RuleApplyPanel.tsx`). See [Rules feature](#rules-feature). |
@@ -245,7 +245,8 @@ The server side is in [Mail reading](mail-reading.md).
 ## Correspondence feature
 
 The files are `frontend/src/features/correspondence/`: `ChainsPage.tsx` (the list), `ChainPage.tsx` (one chain),
-`ChainPage.module.css` (its styles) and `format.ts` (the date, count and address texts of both pages). The server side is in
+`AttachmentButton.tsx` (one attachment and its download), `ChainPage.module.css` (its styles) and `format.ts` (the date, count,
+address, attachment and file size texts). The server side is in
 [Mail reading](mail-reading.md#reading-a-reply-chain).
 
 - **The list (`/chains`).** The page «Переписка» reads `GET /api/v1/reply-chains` as an infinite query under the key
@@ -260,9 +261,29 @@ The files are `frontend/src/features/correspondence/`: `ChainsPage.tsx` (the lis
   on any other error, the page is a «Переписка» panel with `Загрузка…` or the error alert with «Повторить». Under the link «К переписке»
   the page shows the block «Проект» (`ChainPlacement`, see [Projects feature](#projects-feature)), then the emails.
 - **Each email** is an `<article>` in the order of the answer, oldest first: `Тема:` with the email's subject, `От:` with the sender, `Кому:` with the recipients,
-  `Копия:` only when there are copies, the sent date and time (`formatDateTime`), the text, and `Вложения: ` with the attachment
-  names joined by `, ` only when there are attachments. The server keeps only the file names of attachments, so the page shows names only
-  ([Mail reading](mail-reading.md#html-to-text)).
+  `Копия:` only when there are copies, the sent date and time (`formatDateTime`), the text, and, only when there are attachments,
+  the label `Вложения:` with a list (`<ul>`, class `.attachments`) of one `AttachmentButton` per attachment, in the order of the answer.
+  The answer's `attachments` hold `index`, `name` and `size` (`null` for an email read before sizes were kept); see
+  [Mail reading](mail-reading.md#attachments) for the server side.
+- **Attachments (`AttachmentButton.tsx`).** Each attachment is an `<li>` with a `Button` whose text is `formatAttachment(attachment)`
+  (`format.ts`): the name, then the type and the size, joined by ` · `. Examples: `договор.pdf · PDF · 1,2 МБ`, `смета.xlsx · XLSX · 812 Б`,
+  `README · 44 КБ`.
+  - The type is the text after the last dot, in capitals (`fileType`). It is left out when the name has no dot or nothing follows the dot,
+    so `README` shows no type.
+  - The size (`formatFileSize`) is `N Б` below 1024 bytes, `N КБ` below 1 MiB (whole kilobytes, rounded) and `N,N МБ` above it (one decimal
+    place, with a comma). It is left out when the size is `null`: `акт.pdf · PDF`.
+  - A click sends `GET /api/v1/emails/{email_id}/attachments/{index}` through `apiClient` with `parseAs: 'blob'`, wrapped in `unwrap`,
+    with the email's `id` and the attachment's `index`. The call is a mutation, not a query: no answer is cached, and each click sends a new request.
+    The download on click is decided in [ADR 0103](../adr/0103-attachments-are-downloaded-on-click-the.md).
+  - On success `saveBlob` makes an object URL of the `Blob`, clicks a temporary link with the `download` attribute set to the attachment's
+    `name`, removes the link and revokes the URL. The browser saves the file, and the page does not open it.
+  - While the request runs the button is disabled. A failure shows an `ErrorAlert` (`role="alert"`) under that attachment only, with the
+    server's message (`errorMessage`). The messages the server sends for a refused download are `Файл недоступен: ящик отключён` (409),
+    `Письмо больше не найдено в ящике` (410), `Не удалось получить файл: не удалось войти в ящик` (502) and
+    `Не удалось получить файл: сервер не отвечает` (504). The alert goes when the next click starts.
+  - Each button is keyed by the attachment's `index`. Two attachments with one name are two buttons, and each button downloads its own file.
+  - The styles in `ChainPage.module.css`: `.attachments` removes the list's bullets and padding, `.attachment` spaces the items, and the
+    button is left-aligned, at most as wide as the column, and lets long names wrap (`overflow-wrap: anywhere`).
 - **The text is plain text.** The text is rendered as a React child in an element with the class `.text`, which sets
   `white-space: pre-wrap` (`ChainPage.module.css`). The SPA never sets HTML from it: no `dangerouslySetInnerHTML`, and the ESLint
   rule `react/no-danger` is an error. Markup in an email shows as the characters it is.
@@ -609,7 +630,8 @@ replaces the list; the last successful answer is not kept on screen.
   the menu on a narrow screen, the skip link and the tab titles, FR-48, FR-49 and FR-52), `App.states` (the loading,
   empty and failed pages, FR-51),
   `App.signIn`, `App.registration`, `App.passwordReset`, `App.mailboxes` (the «Почтовые ящики» page), `App.chains` (the header link
-  «Переписка», the list and one chain), `App.projects` (the header link «Проекты», the list and the new project),
+  «Переписка», the list and one chain), `App.attachments` (the attachments of a chain page, FR-31, FR-57 and FR-58; see below),
+  `App.projects` (the header link «Проекты», the list and the new project),
   `App.projectTree` (the tree of a project), `App.projectFill` (the fill and its rebuild question), `App.projectEdit` (the edit and the deletion of a project, FR-55 and FR-56; see
   below), `App.chainPlacement` (the «Проект»
   block of a chain page: where the chain is, «Перенести» and «Убрать из проекта»), `App.rules` (the page «Правила» and the header link
@@ -624,8 +646,18 @@ replaces the list; the last successful answer is not kept on screen.
   from the address, FR-53), `App.mailboxConnectErrors.test.tsx` (connecting and the messages, FR-22), `App.mailboxHowTo.test.tsx`
   («Как подключить», FR-54) and `App.mailboxFix.test.tsx` («Как исправить», FR-26). `frontend/src/test/mailboxForm.tsx` holds their
   helpers: the mailbox fixture `mailbox()`, the texts and the `openForm`, `pickService` and `howToBlock` lookups. `App.chains.test.tsx` covers the header link «Переписка», the guard for `/chains`, the
-  list with «Показать ещё», the empty list, reading a chain (order, attachments, plain text, line breaks) and the
+  list with «Показать ещё», the empty list, reading a chain (order, attachments shown by name, type and size, plain text, line breaks) and the
   «Страница не найдена» answer for another user's chain.
+- `frontend/src/App.attachments.test.tsx` covers the attachments of a chain page (FR-31, FR-57 and FR-58), with the harness
+  `frontend/src/test/attachments.tsx`. The harness holds `openChainWith(attachments, downloads)`, which renders the chain page of
+  `CHAIN_ID` with one email (`EMAIL_ID`) that carries the `attachments` (`AttachmentJson` rows), and a download answer per index.
+  `fileAnswer(content, name)` answers a file as the server does (`application/octet-stream`, `Content-Disposition`, `nosniff`);
+  `downloadError(status, code, message)` answers a refusal in the API's error envelope; `attachmentPath(index)` is the route a test checks.
+  `captureSavedFiles()` replaces the object URLs and the click on a link with `download`: it records the name, the URL and the `Blob` of each
+  saved file, and nothing navigates. The tests check the labels with the type and the size, a size of `null`, the click that asks for
+  one index and saves that file with its bytes under its name, two files named alike, an HTML file saved with no script run, the four
+  refusals (409, 410, 502, 504) with their message under that attachment only and nothing saved, and a click after a 504 that saves the
+  file once the server answers.
 - `frontend/src/test/projectTrees.tsx` is the fixture set of the project tests. It holds the JSON shapes of `ProjectTree` and
   its nodes (`TreeJson`, `CounterpartyJson`, `ThreadJson`, `PlacedChainJson`), the sample tree «Ремонт офиса» (`tree()`, with
   its chains `ESTIMATE`, `ACT` and `FURNITURE`), the fixed ids and texts (`PROJECT_ID`, `FILL`, `EMPTY_PROJECT`, `REBUILD`), and the

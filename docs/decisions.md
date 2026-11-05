@@ -118,3 +118,6 @@ them.
 | 04.11.2026 | [0100](adr/0100-refine-invariant-history-is-kept-in.md) | Refine invariant History is kept in prd.md and CLAUDE.md: history is kept while the project exists; only the user deletes a project after confirmation; emails and chains stay | [human] | Accepted |
 | 04.11.2026 | [0101](adr/0101-changing-a-project-s-description-moves.md) | Changing a project's description moves no chain; the user re-sorts with «Заполнить» | [human] | Accepted |
 | 04.11.2026 | [0102](adr/0102-the-project-page-shows-a-hint.md) | The project page shows a hint when the description changed after the last filling, until the project is filled again | [human] | Accepted |
+| 05.11.2026 | [0103](adr/0103-attachments-are-downloaded-on-click-the.md) | Attachments are downloaded on click: the app fetches the file from the mailbox over IMAP read-only on demand and does not store attachment content | [human] | Accepted |
+| 05.11.2026 | [0104](adr/0104-own-email-rendering-is-a-text.md) | Own email rendering is a text renderer in the app's style: paragraphs, clickable links, folded quotes, dimmed signature; no HTML is shown | [human] | Accepted |
+| 05.11.2026 | [0105](adr/0105-split-into-two-tasks-1-11.md) | Split into two tasks: 1.11 attachments, 1.12 email rendering | [human] | Accepted |

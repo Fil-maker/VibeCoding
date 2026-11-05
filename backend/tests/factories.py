@@ -404,3 +404,15 @@ async def delete_project(client: AsyncClient, project_id: str) -> None:
     """Delete a project through the API."""
     response = await delete_project_response(client, project_id)
     assert response.status_code == HTTPStatus.NO_CONTENT, response.text
+
+
+async def download_attachment_response(client: AsyncClient, email_id: str, index: int) -> Response:
+    """GET /emails/{id}/attachments/{index}: the raw answer."""
+    return await client.get(f"{API}/emails/{email_id}/attachments/{index}")
+
+
+async def download_attachment(client: AsyncClient, email_id: str, index: int) -> bytes:
+    """Download an attachment through the API; returns the file bytes."""
+    response = await download_attachment_response(client, email_id, index)
+    assert response.status_code == HTTPStatus.OK, response.text
+    return response.content

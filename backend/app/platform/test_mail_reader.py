@@ -85,8 +85,11 @@ class RecordingConnection:
             raise self.error_on[command.upper()]
         if command.upper() == "SEARCH":
             return "OK", [b" ".join(str(uid).encode() for uid in self.messages)]
+        asked = {int(part) for part in args[0].split(",") if part.isdigit()} if args else set[int]()
         data: list[Any] = []
         for index, (uid, raw) in enumerate(self.messages.items(), start=1):
+            if uid not in asked:
+                continue
             head = (
                 f'{index} (UID {uid} FLAGS () INTERNALDATE "05-Jan-2099 10:30:00 +0000" '
                 f"BODY[] {{{len(raw)}}}"

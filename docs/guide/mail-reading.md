@@ -1,16 +1,18 @@
 # Mail reading
 
-Updated 04.11.2026
+Updated 05.11.2026
 
 **Code:** `backend/app/modules/mailboxes/`, `backend/app/modules/correspondence/`, the platform files
-`backend/app/platform/mail_reader.py`, `imap_folders.py`, `secret_box.py` and `pagination.py`, the migration
-`backend/migrations/versions/0004_mailboxes_and_reply_chains.py`, the tests `backend/app/platform/test_mail_reader.py` and
+`backend/app/platform/mail_reader.py`, `imap_folders.py`, `secret_box.py` and `pagination.py`, the migrations
+`backend/migrations/versions/0004_mailboxes_and_reply_chains.py` and `0009_email_attachments.py`, the attachments module
+`backend/app/modules/attachments/`, the tests `backend/app/platform/test_mail_reader.py`, `test_mail_reader_fetch_message.py` and
 `test_secret_box.py`, `backend/tests/integration/` and `backend/tests/mail_factory.py`.
 
 **Requirements:** [FR-22 … FR-27](../../openspec/specs/mailboxes/spec.md) mailboxes (connect, password, reading,
 read-only access, failed reads, disconnect), [FR-53 … FR-54](../../openspec/specs/mailboxes/spec.md) connection hints (the
 service picked from the address, the steps to connect it), [FR-28 … FR-31](../../openspec/specs/reply-chains/spec.md) reply chains
-(stored once, joining, the list, reading a chain). The map is in [Requirements map](../domain.md#requirements-map).
+(stored once, joining, the list, reading a chain), and [FR-57 … FR-58](../../openspec/specs/reply-chains/spec.md) attachments
+(the download on click, an attachment that cannot be fetched). The map is in [Requirements map](../domain.md#requirements-map).
 
 **Design:** [Components and processes](../architecture.md#components-and-processes),
 [Layers](../architecture.md#layers), [Data model](../architecture.md#data-model),
@@ -25,9 +27,11 @@ service picked from the address, the steps to connect it), [FR-28 … FR-31](../
 |---|---|---|
 | `mailboxes` | Connecting, listing, refreshing and disconnecting a mailbox; the background reading run that reads the due mailboxes | `router` (`/api/v1/mailboxes`) in `backend/app/modules/mailboxes/router.py` |
 | `correspondence` | Parsing a read email, storing it once per user with its copies, joining emails into reply chains, the list and the page of a chain | `router` (`/api/v1/reply-chains`) in `backend/app/modules/correspondence/router.py` |
+| `attachments` | Downloading one attachment of an email from a connected mailbox that holds it, read-only; nothing is stored | `router` (`/api/v1/emails`) in `backend/app/modules/attachments/router.py` |
 
 Both modules follow the layers of [Layers](../architecture.md#layers): `router.py` → `service.py` → `domain.py` and
-`repository.py` → `models.py`. The files of each module are `schemas.py` (request and response models), `errors.py`
+`repository.py` → `models.py`. The module `attachments` ([Attachments](#attachments)) has a `router.py`, a `service.py` and an
+`errors.py`, and no tables, so no `models.py`, `schemas.py` or `repository.py`. The files of each module are `schemas.py` (request and response models), `errors.py`
 (domain errors), and `models.py` (tables). `backend/app/modules/mailboxes/domain.py` holds the Russian reason of a failed read;
 `backend/app/modules/correspondence/domain.py` holds the pure logic of a raw message: parsing, the email key, the choice of the chain that
 survives a merge, and the HTML to text conversion.
@@ -38,11 +42,15 @@ The modules use each other only through their services and repositories:
   reads;
 - `backend/app/modules/correspondence/service.py` reads the logins of the user's mailboxes through `list_logins_for_owner` in
   `backend/app/modules/mailboxes/repository.py`, and the account email through the accounts repository.
+- `backend/app/modules/attachments/service.py` reads the attachment's copies through `get_attachment_target` in
+  `backend/app/modules/correspondence/service.py` and the connected copies through `list_message_sources` in
+  `backend/app/modules/mailboxes/service.py`; no business module imports the attachments module; `main.py` only includes its router
+  and registers its error mapping.
 
 The platform files do the following:
 
-- `mail_reader.py`: the `MailReader` protocol, `ImapMailReader` (read-only IMAP) and `FakeMailReader`; see
-  [Mail reader](backend.md#mail-reader).
+- `mail_reader.py`: the `MailReader` protocol (with `fetch_message`, one message by UID), `ImapMailReader` (read-only IMAP) and
+  `FakeMailReader`; see [Mail reader](backend.md#mail-reader).
 - `imap_folders.py`: the IMAP `LIST` parsing and the choice of the Sent folder.
 - `secret_box.py`: `SecretBox`, the Fernet encryption of the app passwords; see [Secret box](backend.md#secret-box).
 - `pagination.py`: `Page[T]` and the keyset cursor of the reply-chains list; see [Pagination](backend.md#pagination).
@@ -159,7 +167,7 @@ each message it parses the raw bytes and decides the chain.
 
 **What is read from a message.** `parse_raw_message` in `backend/app/modules/correspondence/domain.py` keeps the
 `Message-ID`, the first `In-Reply-To` id, the `References` ids, the subject, the sender, the `To` and `Cc` addresses, the
-sent time, the text and the attachment file names. The sent time is the `Date` header, else the IMAP internal date. Ids
+sent time, the text and the attachments: the file name and the decoded size of each ([Attachments](#attachments)). The sent time is the `Date` header, else the IMAP internal date. Ids
 are normalized: without angle brackets and spaces, lower case; an empty or oversized id counts as missing. Addresses are
 lower-cased.
 
@@ -213,7 +221,7 @@ part and runs `html_to_text` on it:
 - entities are decoded and runs of spaces collapse; three or more line breaks become two.
 
 The text is kept up to 200,000 characters, and characters PostgreSQL cannot store (NUL, lone surrogates) are removed. The
-attachments are kept as file names only; their content is not stored.
+attachments are kept as a name and a size each; their content is not stored ([Attachments](#attachments)).
 
 The SPA shows the text with `white-space: pre-wrap` (`frontend/src/features/correspondence/ChainPage.module.css`) and never
 sets HTML, so the server's text is never run as markup.
@@ -234,12 +242,61 @@ Each item has `id`, `subject` (the subject of the chain's oldest email), `partic
 
 `GET /api/v1/reply-chains/{chain_id}` (signed in) answers `ReplyChain`: `id`, `subject`, `participants` and `emails`, the
 oldest first. At most `CHAIN_EMAIL_LIMIT` (500) emails are read, the oldest 500 when a chain has more. Each email has `id`,
-`sender`, `to`, `cc`, `sent_at`, `subject`, `text` and `attachment_names`. Another user's chain and an unknown id both answer
+`sender`, `to`, `cc`, `sent_at`, `subject`, `text` and `attachments`, the list of its attachments: each has `index` (the position the download takes),
+`name` and `size` (null for an email read before migration `0009`). Another user's chain and an unknown id both answer
 404 `not_found` (FR-31).
 
 The SPA pages are `/chains` (`ChainsPage`), which shows the list, and `/chains/:id` (`ChainPage`), which shows one chain
 ([Correspondence feature](frontend.md#correspondence-feature)). On `ChainPage` each email shows «Тема:» with its subject,
 then «От:» with the sender, then «Кому:» and, when there are any, «Копия:».
+
+## Attachments
+
+The download is on click and nothing is stored, as recorded in [ADR 0103](../adr/0103-attachments-are-downloaded-on-click-the.md).
+
+**What is kept.** At each read the app keeps, for every attachment of an email, its file name and the size of its decoded content, as
+the `attachments` column of `emails` ([Data model](../architecture.md#data-model)). The content is not stored. An attachment is a
+part of the message that is not multipart and has a file name; a part without a name is not one. `attachment_parts` in
+`backend/app/modules/correspondence/domain.py` lists them in `walk()` order, and that list is the one reading and downloading both
+use, so an attachment's `index` is its position in it. An email read before migration `0009` keeps its names, with size null.
+
+**The download.** `GET /api/v1/emails/{email_id}/attachments/{index}` (signed in) answers the file of one attachment. The route is
+in `backend/app/modules/attachments/router.py`; the use case `download_attachment` in `backend/app/modules/attachments/service.py`
+runs in this order:
+
+1. In one transaction it looks up the email, which must be the user's, and the attachment at `index` in the email's list. An
+   unknown or another user's email, or an index out of range, answers 404 `not_found`, and no mailbox is contacted.
+2. It lists the copies of the email (mailbox, folder and UID). The transaction closes before any IMAP connection. The copies
+   that count are those in a connected mailbox (not disconnected, with its password stored). They are tried in this order:
+   Inbox before Sent, then the mailbox's `created_at` (oldest first), then the UID. A copy whose stored password cannot be
+   decrypted is skipped, with a warning log that names the mailbox id.
+3. For each copy the reader fetches the whole message (`MailReader.fetch_message`): it opens the folder read-only, compares its
+   UIDVALIDITY with the stored one, and runs `UID FETCH <uid> (BODY.PEEK[])`. The message is read in memory for this request only.
+   The copy is gone (no file) when the folder is missing, its UIDVALIDITY changed, or the server has no message at that UID. The
+   attachment at `index` counts only when its part has the stored name; otherwise the copy is treated as not this email.
+4. The first copy that yields the attachment wins. The answer is 200 with the bytes, `Content-Type: application/octet-stream`,
+   `Content-Disposition: attachment; filename*=UTF-8''` and the percent-encoded name, and `X-Content-Type-Options: nosniff`. A
+   browser saves the file under its name and does not show it in the app, so an HTML attachment is not opened.
+
+**Nothing is written.** The app keeps no copy of the content ([ADR 0103](../adr/0103-attachments-are-downloaded-on-click-the.md)): each click fetches it again, and two clicks give the same bytes.
+A download writes no row, so the mailbox status, its last read and the email stay as they were, and the email stays unread in its
+folder, because the fetch uses `BODY.PEEK`.
+
+**Errors.** When no copy yields the file, the answer is the error of the last copy that failed to be read. When no copy failed
+and every connected copy is gone, the answer is 410.
+
+| Case | Status | Code | Message |
+|---|---|---|---|
+| no live session of a confirmed user | 401 | `not_signed_in` | |
+| another user's or an unknown email, or an index out of range | 404 | `not_found` | |
+| an index that is negative or not a number | 422 | `validation_failed` | |
+| no connected mailbox holds a copy of the email | 409 | `mailbox_disconnected` | «Файл недоступен: ящик отключён» |
+| every connected copy is gone from its mailbox | 410 | `email_gone` | «Письмо больше не найдено в ящике» |
+| the server refused the sign-in for the last failed copy | 502 | `mailbox_sign_in_failed` | «Не удалось получить файл: не удалось войти в ящик» |
+| the server did not answer, the connection broke, or it refused to read the message | 504 | `mailbox_unreachable` | «Не удалось получить файл: сервер не отвечает» |
+
+The codes and messages are in `ERROR_MAPPING` of `backend/app/modules/attachments/router.py`. A failed download leaves every
+mailbox status as it was, so the next click tries again (FR-58).
 
 ## Errors over HTTP
 
@@ -249,7 +306,11 @@ then «От:» with the sender, then «Кому:» and, when there are any, «К
 | `mailbox_exists` | 409 | the user already has this server and login connected | `ERROR_MAPPING` in `backend/app/modules/mailboxes/router.py` |
 | `mailbox_sign_in_failed` | 422 | the server refused the login or the password at the connect check | `ERROR_MAPPING` in `backend/app/modules/mailboxes/router.py` |
 | `mailbox_unreachable` | 422 | the server did not answer at the connect check; the message names the server | `register_mailbox_errors` in `backend/app/modules/mailboxes/router.py` |
-| `not_found` | 404 | another user's or a disconnected mailbox, another user's or an unknown chain | `NotFound` (`backend/app/platform/errors.py`) |
+| `not_found` | 404 | another user's or a disconnected mailbox, another user's or an unknown chain, another user's or an unknown email or attachment index | `NotFound` (`backend/app/platform/errors.py`) |
+| `mailbox_disconnected` | 409 | a download: no connected mailbox holds a copy of the email | `ERROR_MAPPING` in `backend/app/modules/attachments/router.py` |
+| `email_gone` | 410 | a download: every connected copy is gone from its mailbox | `ERROR_MAPPING` in `backend/app/modules/attachments/router.py` |
+| `mailbox_sign_in_failed` | 502 | a download: the server refused the sign-in (the connect check answers 422) | `ERROR_MAPPING` in `backend/app/modules/attachments/router.py` |
+| `mailbox_unreachable` | 504 | a download: the server did not answer or refused to read the message (the connect check answers 422) | `ERROR_MAPPING` in `backend/app/modules/attachments/router.py` |
 | `invalid_cursor` | 400 | the cursor of the list is not one this app issued | `ERROR_MAPPING` in `backend/app/modules/correspondence/router.py` |
 | `not_signed_in` | 401 | no live session of a confirmed user | `current_user` |
 | `forbidden_origin` | 403 | a POST or DELETE without the app's `Origin` | `OriginGuardMiddleware` |
@@ -275,7 +336,9 @@ To try the flow by hand:
 `just demo-mail` runs `scripts/demo_mail.py` with one of three commands:
 
 - `load` (the default) appends the prepared messages in `docker/greenmail/demo/*.eml` to the Inbox and Sent folders of both
-  mailboxes, as `manifest.json` says. The 40 files form 10 chains; the manifest has 43 entries, because three emails
+  mailboxes, as `manifest.json` says. Two of them carry a file, in the chain «Смета на ремонт офиса»: `смета.xlsx` (in
+  `01-c01-m1.eml`) and `договор.pdf` (in `03-c01-m3.eml`). The PDF is a tiny PDF, and the `.xlsx` is a minimal zip archive,
+  not a real spreadsheet; they are there for the manual download check. The 40 files form 10 chains; the manifest has 43 entries, because three emails
   (`04-c01-m4.eml`, `19-c05-m4.eml`, `32-c08-m4.eml`) sit in one Sent folder and in the other mailbox's Inbox. Emails the
   manifest marks as unread get no `\Seen` flag, and the dates move so that the newest email is yesterday. `load` does nothing
   when a demo Inbox already holds mail;
@@ -288,12 +351,15 @@ environment or the repo-root `.env`; it does not read the app's `Settings`.
 
 ## Tests
 
-- Unit tests: `backend/app/platform/test_mail_reader.py` (the commands the reader sends, the Sent folder choice, the fake) and
+- Unit tests: `backend/app/platform/test_mail_reader.py` (the commands the reader sends, the Sent folder choice, the fake),
+  `backend/app/platform/test_mail_reader_fetch_message.py` (fetching one message by UID) and
   `backend/app/platform/test_secret_box.py`.
 - Integration tests, one file per group, through HTTP against the test database: `test_mailboxes_connect.py`,
-  `test_mailboxes_disconnect.py`, `test_mailboxes_reading.py`, `test_reply_chains_join.py` and `test_reply_chains_read.py`.
+  `test_mailboxes_disconnect.py`, `test_mailboxes_reading.py`, `test_reply_chains_join.py` and `test_reply_chains_read.py`, and the attachment groups `test_attachment_download.py` (the download route),
+  `test_reply_chains_attachments.py` (the attachments in the chain API) and `test_migrations_attachments.py` (migration `0009`).
   They override `get_mail_reader` with the `FakeMailReader`, so no test opens a mail server, and `read_due()` in the factories
   runs one reading pass.
-- `backend/tests/mail_factory.py` builds raw messages with the standard library, the way a mail server hands them over.
+- `backend/tests/mail_factory.py` builds raw messages with the standard library, the way a mail server hands them over, and
+  attachments of a given size (`sized_attachment`).
 
 Manual checks use the demo mailboxes, not the tests ([Backend](backend.md#integration-tests)).

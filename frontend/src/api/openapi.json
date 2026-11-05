@@ -955,6 +955,137 @@
         }
       }
     },
+    "/api/v1/emails/{email_id}/attachments/{index}": {
+      "get": {
+        "tags": [
+          "attachments"
+        ],
+        "summary": "Download",
+        "description": "The file of one attachment, fetched from the mailbox; always offered for saving.",
+        "operationId": "download_api_v1_emails__email_id__attachments__index__get",
+        "parameters": [
+          {
+            "name": "email_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Email Id"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Index"
+            }
+          },
+          {
+            "name": "vc_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vc Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway Timeout"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects": {
       "get": {
         "tags": [
@@ -2465,6 +2596,37 @@
         "title": "Address",
         "description": "An email address with the name written beside it, if any."
       },
+      "AttachmentView": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "name",
+          "size"
+        ],
+        "title": "AttachmentView",
+        "description": "An attachment of an email; `size` is `None` for an email read before sizes were kept."
+      },
       "ChainLocation": {
         "properties": {
           "state": {
@@ -2604,12 +2766,12 @@
             "type": "string",
             "title": "Text"
           },
-          "attachment_names": {
+          "attachments": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/AttachmentView"
             },
             "type": "array",
-            "title": "Attachment Names"
+            "title": "Attachments"
           }
         },
         "type": "object",
@@ -2621,7 +2783,7 @@
           "sent_at",
           "subject",
           "text",
-          "attachment_names"
+          "attachments"
         ],
         "title": "EmailView",
         "description": "One email of a reply chain."

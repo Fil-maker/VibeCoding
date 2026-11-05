@@ -128,7 +128,7 @@ export function openChain(state: ChainState, options: Options = {}): Rendered {
               sent_at: '2026-10-20T09:00:00Z',
               subject: state.subject ?? 'Счёт на мониторы',
               text: 'Текст письма',
-              attachment_names: [],
+              attachments: [],
             },
           ],
         }),

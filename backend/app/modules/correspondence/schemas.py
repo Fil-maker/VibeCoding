@@ -51,6 +51,14 @@ class ReplyChainSummary(BaseModel):
     latest_email_at: datetime
 
 
+class AttachmentView(BaseModel):
+    """An attachment of an email; `size` is `None` for an email read before sizes were kept."""
+
+    index: int
+    name: str
+    size: int | None
+
+
 class EmailView(BaseModel):
     """One email of a reply chain."""
 
@@ -61,7 +69,7 @@ class EmailView(BaseModel):
     sent_at: datetime
     subject: str
     text: str
-    attachment_names: list[str]
+    attachments: list[AttachmentView]
 
 
 class ReplyChain(BaseModel):

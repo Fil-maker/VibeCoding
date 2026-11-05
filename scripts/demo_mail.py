@@ -6,7 +6,8 @@ A dev tool outside the app (the app itself never writes to a mailbox). Run as
 Commands:
   load     APPEND docker/greenmail/demo/*.eml into Inbox and Sent as the manifest says; unread
            ones without \\Seen; dates shifted so the newest email is yesterday. Does nothing
-           when any demo Inbox is not empty.
+           when any demo Inbox is not empty. Two emails get one file attached each: 01-c01-m1
+           gets смета.xlsx and 03-c01-m3 gets договор.pdf (both in the chain of the estimate).
   status   print the count and the unread count per folder for both mailboxes.
   add-new  append one new unread email to the Inbox of anna@demo.test as a reply in an
            existing chain (for the manual «Обновить» check).
@@ -16,12 +17,14 @@ DEMO_MAIL_PORT (3143), DEMO_MAIL_PASSWORD (required).
 """
 
 import imaplib
+import io
 import json
 import os
 import re
 import sys
+import zipfile
 from datetime import datetime, timedelta
-from email import message_from_bytes
+from email import message_from_bytes, policy
 from email.message import EmailMessage
 from email.utils import format_datetime, formataddr, parsedate_to_datetime
 from pathlib import Path
@@ -30,6 +33,20 @@ ROOT = Path(__file__).resolve().parent.parent
 DEMO_DIR = ROOT / "docker" / "greenmail" / "demo"
 MAILBOXES = ("anna@demo.test", "anna.work@demo.test")
 FOLDERS = ("INBOX", "Sent")
+# Demo files that carry an attachment: file name -> (attachment name, MIME type).
+ATTACHED = {
+    "01-c01-m1.eml": (
+        "смета.xlsx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ),
+    "03-c01-m3.eml": ("договор.pdf", "application/pdf"),
+}
+PDF_BYTES = (
+    b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+    b"2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+    b"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\n"
+    b"trailer<</Root 1 0 R>>\n%%EOF\n"
+)
 CRLF = b"\r\n"
 
 
@@ -78,6 +95,25 @@ def normalize(raw: bytes) -> bytes:
     return raw.replace(CRLF, b"\n").replace(b"\n", CRLF)
 
 
+def attachment_content(name: str) -> bytes:
+    """The bytes of a demo attachment: a tiny PDF, or a tiny zip (an xlsx is a zip)."""
+    if name.endswith(".pdf"):
+        return PDF_BYTES
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as archive:
+        archive.writestr("[Content_Types].xml", '<?xml version="1.0"?><Types/>')
+    return out.getvalue()
+
+
+def with_attachment(raw: bytes, name: str, mime: str) -> bytes:
+    """The message with one file attached."""
+    message = message_from_bytes(raw, policy=policy.default)
+    assert isinstance(message, EmailMessage)
+    main, _, sub_type = mime.partition("/")
+    message.add_attachment(attachment_content(name), maintype=main, subtype=sub_type, filename=name)
+    return normalize(message.as_bytes())
+
+
 def message_date(raw: bytes) -> datetime:
     value = message_from_bytes(raw)["Date"]
     return parsedate_to_datetime(str(value))
@@ -116,6 +152,8 @@ def load() -> None:
             name: normalize((DEMO_DIR / name).read_bytes())
             for name in {str(e["file"]) for e in manifest}
         }
+        for name, (file_name, mime) in ATTACHED.items():
+            raws[name] = with_attachment(raws[name], file_name, mime)
         newest = max(message_date(raw) for raw in raws.values())
         yesterday = datetime.now(newest.tzinfo).date() - timedelta(days=1)
         shift = (

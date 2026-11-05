@@ -15,11 +15,19 @@ from tests.factories import (
     list_mailboxes,
     open_chain,
 )
-from tests.mail_factory import INBOX, SENT, Attachment, numbered_email, raw_email
+from tests.mail_factory import (
+    INBOX,
+    SENT,
+    Attachment,
+    numbered_email,
+    raw_email,
+    sized_attachment,
+)
 
 NEWLINE = chr(10)
 YANDEX = "anna@yandex.ru"
 OLEG = "Олег Смирнов <oleg@stroy.test>"
+CONTRACT_SIZE = 1_258_291
 UNKNOWN_ID = "00000000-0000-4000-8000-000000000000"
 
 
@@ -70,7 +78,7 @@ def contract_chain(reader: FakeMailReader, now: datetime) -> None:
         )
 
     put(INBOX, 4, 1, sender=OLEG, to=YANDEX, parent="<c-3@stroy.test>")
-    attachment = [Attachment("договор.pdf")]
+    attachment = [sized_attachment("договор.pdf", CONTRACT_SIZE, subtype="pdf")]
     put(INBOX, 3, 5, sender=OLEG, to=YANDEX, parent="<c-2@stroy.test>", files=attachment)
     put(SENT, 2, 9, sender=YANDEX, to="oleg@stroy.test", parent="<c-1@stroy.test>", cc=[ANNA_EMAIL])
     put(INBOX, 1, 10, sender=OLEG, to=YANDEX, parent=None)
@@ -227,7 +235,8 @@ async def test_fr31_a_chain_shows_its_emails_from_the_oldest_to_the_newest(
     ]
     assert [e["cc"] for e in emails] == [[], [{"address": ANNA_EMAIL, "name": None}], [], []]
     assert [e["text"].strip() for e in emails] == [body_text(n) for n in (1, 2, 3, 4)]
-    assert [e["attachment_names"] for e in emails] == [[], [], ["договор.pdf"], []]
+    contract = {"index": 0, "name": "договор.pdf", "size": CONTRACT_SIZE}
+    assert [e["attachments"] for e in emails] == [[], [], [contract], []]
     assert set(emails[0]) == {
         "id",
         "sender",
@@ -236,7 +245,7 @@ async def test_fr31_a_chain_shows_its_emails_from_the_oldest_to_the_newest(
         "sent_at",
         "subject",
         "text",
-        "attachment_names",
+        "attachments",
     }
 
 

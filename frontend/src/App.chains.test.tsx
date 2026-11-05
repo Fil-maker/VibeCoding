@@ -38,7 +38,7 @@ interface EmailJson {
   sent_at: string;
   subject: string;
   text: string;
-  attachment_names: string[];
+  attachments: { index: number; name: string; size: number | null }[];
 }
 
 function address(addr: string, name: string | null = null): AddressJson {
@@ -65,7 +65,7 @@ function email(overrides: Partial<EmailJson> = {}): EmailJson {
     sent_at: '2026-10-20T09:00:00Z',
     subject: 'Договор поставки',
     text: 'Текст письма',
-    attachment_names: [],
+    attachments: [],
     ...overrides,
   };
 }
@@ -270,7 +270,7 @@ describe('chain page', () => {
       sent_at: '2026-10-20T09:30:00Z',
       subject: 'Договор поставки',
       text: 'Первое письмо цепочки',
-      attachment_names: ['договор.pdf'],
+      attachments: [{ index: 0, name: 'договор.pdf', size: 1258291 }],
     }),
     email({
       id: 'cccccccc-0000-4000-8000-000000000002',
@@ -379,23 +379,30 @@ describe('chain page', () => {
     });
   });
 
-  it('FR-31 «Reading a chain»: «Вложения: договор.pdf» is on the email that carried it only', async () => {
+  it('FR-31 «Reading a chain»: «договор.pdf · PDF · 1,2 МБ» is on the email that carried it only', async () => {
     openChain(EMAILS);
 
     await screen.findByText('Первое письмо цепочки');
-    expect(blockOfText('Первое письмо цепочки')).toHaveTextContent('Вложения: договор.pdf');
+    expect(blockOfText('Первое письмо цепочки')).toHaveTextContent('договор.pdf · PDF · 1,2 МБ');
     for (const expected of EXPECTED.slice(1)) {
-      expect(blockOfText(expected.text)).not.toHaveTextContent('Вложения');
+      expect(blockOfText(expected.text)).not.toHaveTextContent('договор.pdf');
     }
   });
 
-  it('FR-31 «Reading a chain»: several attachment names are all listed after «Вложения:»', async () => {
-    openChain([email({ text: 'С вложениями', attachment_names: ['договор.pdf', 'смета.xlsx'] })]);
+  it('FR-31 «Reading a chain»: several attachments are all listed', async () => {
+    openChain([
+      email({
+        text: 'С вложениями',
+        attachments: [
+          { index: 0, name: 'договор.pdf', size: 100 },
+          { index: 1, name: 'смета.xlsx', size: 200 },
+        ],
+      }),
+    ]);
 
     const block = emailBlockOf(await screen.findByText('С вложениями'));
-    expect(block).toHaveTextContent('Вложения:');
-    expect(block).toHaveTextContent('договор.pdf');
-    expect(block).toHaveTextContent('смета.xlsx');
+    expect(block).toHaveTextContent('договор.pdf · PDF · 100 Б');
+    expect(block).toHaveTextContent('смета.xlsx · XLSX · 200 Б');
   });
 
   it('SPA pages «Chain»: markup characters in the text are shown as text, never as elements', async () => {

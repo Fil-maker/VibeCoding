@@ -11,3 +11,20 @@
 .text {
   white-space: pre-wrap;
 }
+
+.attachments {
+  margin: var(--space-1) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attachment {
+  margin: var(--space-1) 0;
+  overflow-wrap: anywhere;
+}
+
+.attachment button {
+  max-width: 100%;
+  text-align: left;
+  overflow-wrap: anywhere;
+}

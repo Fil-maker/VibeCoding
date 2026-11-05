@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from email.message import EmailMessage
 
-from app.platform.mail_reader import FolderKind
+from app.platform.mail_reader import FakeMailReader, FolderKind
 
 INBOX = FolderKind("inbox")
 SENT = FolderKind("sent")
@@ -19,6 +19,24 @@ class Attachment:
     content: bytes = b"%PDF-1.4 test"
     maintype: str = "application"
     subtype: str = "pdf"
+
+
+def sized_attachment(filename: str, size: int, *, subtype: str = "octet-stream") -> Attachment:
+    """A file of exactly `size` bytes (decoded), named `filename`."""
+    content = bytes(index % 251 for index in range(size))
+    return Attachment(filename, content=content, maintype="application", subtype=subtype)
+
+
+def remove_from_mailbox(reader: FakeMailReader, login: str, folder: FolderKind) -> None:
+    """Delete every message of a folder on the fake server, as the user does in the mail service."""
+    reader.clear(login, folder)
+
+
+def replace_in_mailbox(
+    reader: FakeMailReader, login: str, folder: FolderKind, uid: int, raw: bytes
+) -> None:
+    """Put another message under the same UID, as a server does after a reset of its numbering."""
+    reader.replace(login, folder, uid, raw)
 
 
 def raw_email(  # noqa: PLR0913 -- a mail has this many independent headers

@@ -1,6 +1,7 @@
 """Use cases of mailboxes: connect, list, refresh, disconnect, and the background reading run."""
 
 import asyncio
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Annotated
@@ -11,6 +12,7 @@ from psycopg.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.correspondence.domain import CopyRef
 from app.modules.correspondence.service import store_raw_messages
 from app.modules.mailboxes import repository
 from app.modules.mailboxes.domain import describe_status_error
@@ -181,6 +183,62 @@ class MailboxesService:
             row.password_encrypted = None
             row.read_requested_at = None
             row.disconnected_at = clock.now()
+
+
+@dataclass(frozen=True)
+class MessageSource:
+    """Where to fetch one message from: the sign-in, the folder as the server names it, the UID."""
+
+    credentials: ImapCredentials
+    folder_name: str
+    uidvalidity: int | None
+    uid: int
+
+
+async def list_message_sources(
+    session: AsyncSession,
+    user_id: UUID,
+    copies: Sequence[CopyRef],
+    settings: Settings,
+    secret_box: SecretBox,
+) -> list[MessageSource]:
+    """The copies held by the user's connected mailboxes, Inbox before Sent, oldest mailbox first.
+
+    Runs in the caller's transaction. Passwords are decrypted into memory only; a copy whose
+    password cannot be opened is left out.
+    """
+    by_folder = {copy.folder_id: copy for copy in copies}
+    rows = await repository.list_connected_folders_for_owner(session, user_id, list(by_folder))
+    ordered = sorted(
+        rows,
+        key=lambda row: (
+            row[1].kind != FolderKind.INBOX,
+            row[0].created_at,
+            by_folder[row[1].id].uid,
+        ),
+    )
+    sources: list[MessageSource] = []
+    for mailbox, folder in ordered:
+        if mailbox.password_encrypted is None:
+            continue
+        try:
+            password = secret_box.decrypt(mailbox.password_encrypted)
+        except SecretBoxError:
+            LOG.warning(
+                "the password of mailbox %s cannot be decrypted; its copy is skipped", mailbox.id
+            )
+            continue
+        credentials = ImapCredentials(
+            server=mailbox.server,
+            port=mailbox.port,
+            login=mailbox.login,
+            password=password,
+            use_tls=_use_tls(settings, mailbox.server),
+        )
+        sources.append(
+            MessageSource(credentials, folder.name, folder.uidvalidity, by_folder[folder.id].uid)
+        )
+    return sources
 
 
 def get_mailboxes_service(

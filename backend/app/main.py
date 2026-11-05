@@ -8,6 +8,8 @@ from fastapi import FastAPI
 
 from app.modules.accounts.router import ERROR_MAPPING as ACCOUNTS_ERRORS
 from app.modules.accounts.router import router as accounts_router
+from app.modules.attachments.router import ERROR_MAPPING as ATTACHMENTS_ERRORS
+from app.modules.attachments.router import router as attachments_router
 from app.modules.auth.router import ERROR_MAPPING as AUTH_ERRORS
 from app.modules.auth.router import router as auth_router
 from app.modules.correspondence.router import ERROR_MAPPING as CORRESPONDENCE_ERRORS
@@ -77,6 +79,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_domain_errors(app, ACCOUNTS_ERRORS)
     register_domain_errors(app, AUTH_ERRORS)
     register_domain_errors(app, CORRESPONDENCE_ERRORS)
+    register_domain_errors(app, ATTACHMENTS_ERRORS)
     register_domain_errors(app, PROJECTS_ERRORS)
     register_domain_errors(app, RULES_ERRORS)
     register_mailbox_errors(app)
@@ -86,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(mailboxes_router)
     app.include_router(correspondence_router)
+    app.include_router(attachments_router)
     app.include_router(projects_router)
     app.include_router(placements_router)
     app.include_router(rules_router)

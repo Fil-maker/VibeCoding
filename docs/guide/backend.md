@@ -13,7 +13,8 @@ reading loop and the mailbox platform files serve the mailboxes requirements FR-
 [reply-chains spec](../../openspec/specs/reply-chains/spec.md); the projects and chain-placement requirements FR-32 … FR-42
 are described in [Projects](projects.md); the placement-rules requirements FR-43 … FR-45 are in the
 [placement-rules spec](../../openspec/specs/placement-rules/spec.md), and FR-46 (placing chains by rules) is in the
-[chain-placement spec](../../openspec/specs/chain-placement/spec.md); the map of capabilities is in [Requirements map](../domain.md#requirements-map).
+[chain-placement spec](../../openspec/specs/chain-placement/spec.md); the attachment requirements FR-57 and FR-58 are in the reply-chains spec and in [Attachments](mail-reading.md#attachments);
+the map of capabilities is in [Requirements map](../domain.md#requirements-map).
 
 **Design:** [Components and processes](../architecture.md#components-and-processes),
 [Repository structure](../architecture.md#repository-structure), [Layers](../architecture.md#layers),
@@ -36,7 +37,7 @@ are described in [Projects](projects.md); the placement-rules requirements FR-43
 - titles the app `VibeCoding`, registers the shared error handlers (`register_error_handlers`) and the domain error
   mapping of each module (`register_domain_errors`; the mailboxes module registers its mapping through
   `register_mailbox_errors`), adds the `OriginGuardMiddleware` with `APP_BASE_URL`, and includes the routers: health,
-  accounts, auth, mailboxes, correspondence, projects and placements (the `placements_router` of the projects module) and
+  accounts, auth, mailboxes, correspondence, attachments, projects and placements (the `placements_router` of the projects module) and
   rules. The rules router's domain errors are the `ERROR_MAPPING` of `backend/app/modules/rules/router.py`, which `main.py` imports
   as `RULES_ERRORS` and registers with the other modules' mappings;
 - its lifespan starts the mailbox reading loop when `MAILBOX_READING_ENABLED` is `true` (see
@@ -91,10 +92,12 @@ which writes the schema to `frontend/src/api/openapi.json` and generates the cli
 
 - Each business module is a package `backend/app/modules/<module>/`; the package `__init__.py` files are empty, and
   `backend/app/modules/__init__.py` is empty too.
-- The business modules are `accounts`, `auth`, `mailboxes`, `correspondence`, `projects` and `rules` (the placement rules of a
+- The business modules are `accounts`, `auth`, `mailboxes`, `correspondence`, `attachments` (the download of one attachment,
+  [Attachments](mail-reading.md#attachments)), `projects` and `rules` (the placement rules of a
   user: create, list, edit and delete, [Rules](rules.md)); `health` is the smallest one.
   `accounts` and `auth` are described in [Auth and accounts](auth.md#modules-and-their-files). `mailboxes` (connect, list,
-  refresh, disconnect, and the reading loop) and `correspondence` (emails, email copies, reply chains) use the same layers.
+  refresh, disconnect, and the reading loop) and `correspondence` (emails, email copies, reply chains) use the same layers. `attachments` has `router.py`, `service.py` and
+  `errors.py` and no tables.
   `projects` (projects, the tree, filling, placing new chains, placing a chain by hand and taking it out) is in [Projects](projects.md#modules-and-their-files); its
   `placing.py` sits beside `domain.py`.
 - The layers are `router.py` → `service.py` → `domain.py` and `repository.py` → platform, as in
@@ -183,13 +186,15 @@ which writes the schema to `frontend/src/api/openapi.json` and generates the cli
 `backend/app/platform/mail_reader.py` reads the mailboxes; it never changes one (FR-25).
 
 - `MailReader` is the protocol: `check(credentials)` signs in and out, and `fetch(credentials, folder, since, after_uid,
-  uidvalidity)` returns the next `FolderBatch`. `FolderKind` is `inbox` or `sent`.
+  uidvalidity)` returns the next `FolderBatch`. `FolderKind` is `inbox` or `sent`. `fetch_message(credentials, folder_name,
+  uidvalidity, uid)` returns the raw bytes of one message by UID, or `None` when it is gone: the folder is missing, its
+  UIDVALIDITY differs from the given one, or the answer holds no message at that UID.
 - `ImapMailReader(timeout, connect=…)` runs `imaplib` in a worker thread (`asyncio.to_thread`). Every call opens its own
   connection, signs in, reads, and logs out in a `finally`. A host outside `IMAP_INSECURE_HOSTS` gets `IMAP4_SSL` with the
   default SSL context; the others get plain `IMAP4`. The `connect` factory is the seam that the unit tests replace.
 - The commands are `LOGIN`, `LIST` (only to find the Sent folder), `SELECT` read-only, `UID SEARCH` with `SINCE` and, when
   a read goes on, a `UID n:*` range, `UID FETCH` with `BODY.PEEK[] FLAGS INTERNALDATE`, and `LOGOUT`. No command that writes
-  to the server is sent; the unit test records the commands and allows only these six.
+  to the server is sent; the unit test records the commands and allows only these six. `fetch_message` sends only `SELECT` read-only and `UID FETCH <uid> (BODY.PEEK[])`.
 - The Inbox is `INBOX`. The Sent folder comes from `find_sent_folder` in `backend/app/platform/imap_folders.py`: the
   selectable folder with the `\Sent` attribute, else the first selectable folder named `sent`, `sent items`,
   `отправленные` or `inbox.sent` (names compared lower-cased, after the modified UTF-7 decoding). A mailbox with no such
@@ -197,12 +202,13 @@ which writes the schema to `frontend/src/api/openapi.json` and generates the cli
 - A batch holds up to `BATCH_SIZE` (50) messages, lowest UIDs first, all above the asked `after_uid`. When the server's
   UIDVALIDITY differs from the asked one, the read restarts from `since`.
 - Errors: `MailboxSignInFailed` (the server refused the login, or the password cannot be encoded for the login),
-  `MailboxUnreachable` (no answer, or the connection broke) and `MailboxReadFailed` (the server refused to read a folder).
+  `MailboxUnreachable` (no answer, or the connection broke) and `MailboxReadFailed` (the server refused to read a folder or a message).
   The service stores them as the mailbox status error: sign-in failed, unreachable or read failed.
 - `FakeMailReader` is the in-memory test double, keyed by login. `add(login, folder, raw, seen=…, internal_date=…)` puts a
   message in a folder; its arrival date is `internal_date`, else the `Date` header, else `FAKE_UNDATED_MESSAGE_DATE`
   (1 January 2026, UTC). `fail_sign_in`, `make_unreachable` and `restore` simulate the server; `seen_flags` shows the
-  flags, which reading never changes.
+  flags, which reading never changes. `remove(login, folder, uid)`, `clear(login, folder)` and `replace(login, folder, uid, raw)`
+  change the fake server as a user would in their mail service: a deleted message, an emptied folder, a message under a reused UID.
 - `get_mail_reader(request)` is the dependency: it creates `ImapMailReader(timeout=IMAP_TIMEOUT_SECONDS)` on first use and
   keeps it in `app.state.mail_reader`.
 
@@ -321,6 +327,9 @@ its unit tests are `backend/app/platform/test_placement_engine.py`.
 - The revision `0008` (`backend/migrations/versions/0008_project_description_changed_at.py`) adds the nullable column
   `projects.description_changed_at`. Its downgrade drops it. The column is in [Data model](../architecture.md#data-model), and
   the edit that sets it in [Projects](projects.md#editing-and-deleting-a-project).
+- The revision `0009` (`backend/migrations/versions/0009_email_attachments.py`) replaces the array `emails.attachment_names` with
+  the JSONB column `emails.attachments`, a list of `{name, size}`; an email read before keeps its names with size null. Its
+  downgrade restores `attachment_names` with the names only. The column is in [Data model](../architecture.md#data-model).
 - `backend/migrations/versions/` is excluded from ruff and pyright strict, because Alembic generates those files.
 
 Apply the migrations to the dev database: `uv run --directory backend alembic upgrade head`
@@ -351,7 +360,10 @@ Apply the migrations to the dev database: `uv run --directory backend alembic up
   `test_projects_tree.py`, `test_projects_fill.py`, `test_placement_explained.py`, `test_placement_new_chains.py`,
   `test_placement_by_hand.py`, `test_placement_taken_out.py` and `test_placement_kept.py`
   ([Test seams](projects.md#test-seams)); the placement-rule group is `test_rules_crud.py` (the HTTP API of rules),
-  `test_placement_by_rules.py` and `test_placement_rules_with_engine.py` (placing by rules, alone and next to the engine).
+  `test_placement_by_rules.py` and `test_placement_rules_with_engine.py` (placing by rules, alone and next to the engine). The attachment groups are
+  `test_attachment_download.py` (the download route), `test_reply_chains_attachments.py` (the attachments in the chain API)
+  and `test_migrations_attachments.py` (migration `0009`); the download tests replace `get_mail_reader` with the fake as the
+  mailbox tests do.
 - `test_migrations.py` runs the migration round trip with no drift; it seeds data at revision `0002`, then checks
   the upgrade (every user keeps the email, password hash and confirmation; the organization, role and invitation
   columns and tables are gone), that a user whose `is_active` was `false` signs in after it, and the downgrade.

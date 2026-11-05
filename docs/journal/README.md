@@ -27,3 +27,4 @@ mistakes and lessons, what remains. Written by `/journal` at `/finish`.
 | 04.11.2026 | [Visual system](2026-11-04-02-visual-system.md) | 1.8 | 1-8-visual-system |
 | 04.11.2026 | [Mailbox connection hints](2026-11-04-03-mailbox-connection-hints.md) | 1.9 | 1-9-mailbox-connection-hints |
 | 05.11.2026 | [Edit and delete a project](2026-11-05-01-edit-delete-project.md) | 1.10 | 1-10-edit-delete-project |
+| 05.11.2026 | [Attachments](2026-11-05-02-attachment-download.md) | 1.11 | 1-11-attachment-download |

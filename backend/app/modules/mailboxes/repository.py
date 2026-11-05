@@ -202,3 +202,24 @@ async def record_read_failure(
         .where(Mailbox.id == mailbox_id, Mailbox.user_id == user_id)
         .values(status=MailboxStatus.FAILED, error_code=error_code)
     )
+
+
+async def list_connected_folders_for_owner(
+    session: AsyncSession, user_id: UUID, folder_ids: Collection[UUID]
+) -> list[tuple[Mailbox, MailboxFolder]]:
+    """The given folders that belong to the user's connected mailboxes, with their mailbox.
+
+    A mailbox that is disconnected or has no password is left out. Rows are not locked: the
+    caller only reads them.
+    """
+    rows = await session.execute(
+        select(Mailbox, MailboxFolder)
+        .join(MailboxFolder, MailboxFolder.mailbox_id == Mailbox.id)
+        .where(
+            MailboxFolder.id.in_(folder_ids),
+            Mailbox.user_id == user_id,
+            Mailbox.disconnected_at.is_(None),
+            Mailbox.password_encrypted.is_not(None),
+        )
+    )
+    return [(mailbox, folder) for mailbox, folder in rows.tuples()]

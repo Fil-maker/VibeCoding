@@ -176,6 +176,13 @@ keeps only attachment names, and the user cannot find an agreement by a word.
 
 **Touches:** invariant «Access boundary»; storage size.
 
+### Attachment previews
+
+Added 05.11. Show images and PDFs on the chain page, and treat the files of an attached email
+(`message/rfc822`) as separate attachments. Why: task 1.11 only downloads attachments.
+
+**Touches:** invariant «Access boundary».
+
 ### Deleting a disconnected mailbox's emails
 
 Added 29.10. Let the user delete the emails and reply chains read from a disconnected mailbox. Why: task
