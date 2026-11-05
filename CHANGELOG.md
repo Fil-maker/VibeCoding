@@ -6,6 +6,16 @@ All notable changes for the product's users. The format follows
 
 ## Unreleased
 
+## [0.8.0] - 2026-11-05
+
+### Added
+
+- Attachments on the page of a reply chain show their name, type and size; a click downloads the
+  file under its name, fetched read-only from a connected mailbox that holds the email, and the app
+  keeps no copy. Emails read before this version show their attachments without a size.
+- When a file cannot be fetched, the reason shows under the attachment: the mailbox is disconnected,
+  the email is gone from the mailbox, the sign-in failed or the server does not answer.
+
 ## [0.7.0] - 2026-11-05
 
 ### Added
