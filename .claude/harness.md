@@ -66,8 +66,9 @@ Generate on `main` (no product code yet). Command entry is `just` everywhere the
 | Commit message check | `scripts/check_commit_msg.py` | Conventional Commits enforced by the `commit-msg` hook |
 | Journal guard | `.claude/hooks/protect_journal.py` | Committed notes are append-only (agent hook and git hook) |
 | Sandbox guard | `.claude/hooks/sandbox_guard.py` | `test-writer` cannot read the main checkout (R6-Q4) |
+| Session start | `.claude/hooks/session_start.py` | A Claude Code cloud session installs the tools and dependencies of `just setup` and the git hooks; does nothing on a developer machine |
 | Skills config | `.claude/skills-config/` | Where Matt Pocock's skills find the tracker (project docs) and the glossary (`docs/domain.md`) |
-| Settings | `.claude/settings.json` | Foreground agents, journal hook, script permissions, plugins (mattpocock-skills, pyright-lsp, typescript-lsp) |
+| Settings | `.claude/settings.json` | Foreground agents, journal hook, session start hook, script permissions, plugins (mattpocock-skills, pyright-lsp, typescript-lsp) |
 | Commands, git hooks | `justfile`, `.pre-commit-config.yaml`, root `pyproject.toml` | `just` entry points (R4-Q2), prek (R4-Q3), harness tooling and the product version |
 
 ## TDD sandbox
